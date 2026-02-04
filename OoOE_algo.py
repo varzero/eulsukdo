@@ -7,6 +7,9 @@ prrbmt = [[1, 1, []], ] # 0번 레지스터는 zero 레지스터
 rob = list()
 rs = list()
 
+# Sim value
+cycle = 0
+
 # Logical Opcodes [Opcode Family, Action Opcode, Modify Register]
     # After Decoder Values
 op2mop = { # todo: IMM 처리
@@ -29,7 +32,7 @@ def initialize_sys():
         logical_reg_list.append(None)
 
 # NEW ENTRY LOGIC's action - 새로운 명령이 인가되면
-    # ROB 엔트리를 추가하고, 필요시 prrbmt 엔트리 추가
+    # ROB 엔트리를 추가하고, 필요시 PRRBMT 엔트리 추가
 def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
     new_rob_opr1 = logical_reg_list[opr1]
     new_rob_opr2 = logical_reg_list[opr2]
@@ -37,7 +40,7 @@ def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
     phy_reg_no = len(prrbmt)
     require_new_reg = op2mop[opcode][2]
     if (require_new_reg):
-        prrbmt.append([1, 0, list()]) # new entry on prrbmt
+        prrbmt.append([1, 0, list()]) # new entry on PRRBMT
         logical_reg_list[logical_reg] = phy_reg_no if (logical_reg != 0) else 0
         # 명령이 들어올때, 레지스터에 쓰지 않는 경우
         # logical reg는 항상 0
@@ -48,7 +51,7 @@ def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
     else:
         prrbmt_list_update(new_rob_opr1, rob_entry_no)
         prrbmt_list_update(new_rob_opr2, rob_entry_no)
-    rob.append({ # new entry on rob
+    rob.append({ # new entry on ROB
         "PC": pc,
         "MicroOP": [ op2mop[opcode][0], op2mop[opcode][1] ],
         "LOG_REG": logical_reg if (require_new_reg) else 0,
@@ -96,7 +99,8 @@ def go_to_rs(rob_no):
         "OPR2": rob_data["OPR2"]
     })
 
-# EX 모델링 필요
+# EX 모델링 필요 (이 부분은 알고리즘이 아님 - 시뮬레이터용)
+    # 실제로는 Ready를 사용할 듯
     # 여기서는 opcode의 첫번째 요소를 사이클수로 잡기
     # 각 ex 모듈의 동작 사이클을 가지는
 rs_cycle = []
@@ -107,7 +111,9 @@ def ex_modeling():
         rs_cycle[i] += 1
         if (rs_cycle[i] == i):
             rs_cycle[i] = 0
-            
+            wb_prrbmt_req(rs[i][0]["PHY_REG"])
+            rs[i][0].remove(0)
 
-# 명령 입력 모델링 필요
+# 명령 입력 모델링 필요 (이 부분은 알고리즘이 아님 - 시뮬레이터용)
+    # Instruction이 들어오는것을 묘사
 
