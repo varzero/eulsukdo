@@ -59,7 +59,8 @@ def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
         "OPR1": new_rob_opr1,
         "OPR2": new_rob_opr2,
         "READY1": prrbmt[new_rob_opr1][1],
-        "READY2": prrbmt[new_rob_opr2][1]
+        "READY2": prrbmt[new_rob_opr2][1],
+        "DONE": 0
     })
     if (prrbmt[new_rob_opr1][1] and prrbmt[new_rob_opr2][1]):
         # 둘다 바로 사용 가능한 경우라면
@@ -76,6 +77,10 @@ def rob_entry_update(rob_no, ready_reg):
     
     if (rob_data["READY1"] and rob_data["READY2"]):
         go_to_rs(rob_no)
+
+# ROB's action (done: WB->ROB)
+def rob_done(rob_no):
+    rob[rob_no]["done"] = 1
 
 # PRRBMT's action (WRITE_BACK->PRRBMT)
 def wb_prrbmt_req(reg_no):
@@ -112,6 +117,7 @@ def ex_modeling():
         if (rs_cycle[i] == i):
             rs_cycle[i] = 0
             wb_prrbmt_req(rs[i][0]["PHY_REG"])
+            rob_done(rob_no)
             rs[i][0].remove(0)
 
 # 명령 입력 모델링 필요 (이 부분은 알고리즘이 아님 - 시뮬레이터용)
