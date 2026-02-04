@@ -33,6 +33,7 @@ def initialize_sys():
 
 # NEW ENTRY LOGIC's action - 새로운 명령이 인가되면
     # ROB 엔트리를 추가하고, 필요시 PRRBMT 엔트리 추가
+    # Todo: 입력에 Branch 요소 넣기(분기예측)
 def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
     new_rob_opr1 = logical_reg_list[opr1]
     new_rob_opr2 = logical_reg_list[opr2]
@@ -60,6 +61,7 @@ def new_entry_logic_inst(pc, opcode, logical_reg, opr1, opr2):
         "OPR2": new_rob_opr2,
         "READY1": prrbmt[new_rob_opr1][1],
         "READY2": prrbmt[new_rob_opr2][1],
+        # "BRANCH": ??
         "DONE": 0
     })
     if (prrbmt[new_rob_opr1][1] and prrbmt[new_rob_opr2][1]):
