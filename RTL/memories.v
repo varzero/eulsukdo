@@ -74,7 +74,7 @@ module regfile #(
         end
         for (var_sel_write_addr_idx = 0; var_sel_write_addr_idx < READ_CHANNEL; var_sel_write_addr_idx = var_sel_write_addr_idx + 1) begin
             if (i_write_wes[var_sel_write_addr_idx]) begin
-                next_mem_reg[ var_sel_write_addr_idx*ENTRY_ADDR_WIDTH +: ENTRY_ADDR_WIDTH ] = 
+                next_mem_reg[ i_write_addresses[var_sel_write_addr_idx*ENTRY_ADDR_WIDTH +: ENTRY_ADDR_WIDTH] ] = 
                     i_write_data[ var_sel_write_addr_idx*REG_WIDTH +: REG_WIDTH ];
             end
         end
@@ -107,7 +107,7 @@ PARAMETERIZE MULTI READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
     o_read_data         : [OUTPUT] DATA OF READ CHANNELS
 ##########################################################################################
 */
-module regfile #(
+module fifo_sram #(
     parameter       READ_CHANNEL    = 4 ,
     parameter       WRITE_CHANNEL   = 4 ,
     parameter       ENTRIES         = 16,
