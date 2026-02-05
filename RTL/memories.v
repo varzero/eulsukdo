@@ -64,15 +64,19 @@ module regfile #(
     always @(*) begin
         // Read channel
         for (var_sel_read_addr_idx = 0; var_sel_read_addr_idx < READ_CHANNEL; var_sel_read_addr_idx = var_sel_read_addr_idx + 1) begin
-            o_read_data[ (var_sel_read_addr_idx*REG_WIDTH) + (REG_WIDTH-1) : var_sel_read_addr_idx*REG_WIDTH ] = 
-                mem_reg[ (i_read_addresses[ (var_sel_read_addr_idx*ENTRY_ADDR_WIDTH) + (ENTRY_ADDR_WIDTH-1) : var_sel_read_addr_idx*ENTRY_ADDR_WIDTH ]) ];
+            o_read_data[ ( (var_sel_read_addr_idx*REG_WIDTH) + (REG_WIDTH-1) ) : var_sel_read_addr_idx*REG_WIDTH ] = 
+                mem_reg[ (i_read_addresses[ ( (var_sel_read_addr_idx*ENTRY_ADDR_WIDTH) + (ENTRY_ADDR_WIDTH-1) ) : var_sel_read_addr_idx*ENTRY_ADDR_WIDTH ]) ];
         end
 
         // Write channel
+        for (var_target_idx = 0; var_target_idx < ENTRIES; var_target_idx = var_target_idx + 1) begin
+            next_mem_reg[var_target_idx] = mem_reg[var_target_idx];
+        end
+
         for (var_sel_write_addr_idx = 0; var_sel_write_addr_idx < READ_CHANNEL; var_sel_write_addr_idx = var_sel_write_addr_idx + 1) begin
             if (i_write_wes[var_sel_write_addr_idx]) begin
-                next_mem_reg[ (i_write_addresses[ (var_sel_write_addr_idx*ENTRY_ADDR_WIDTH) + (ENTRY_ADDR_WIDTH-1) : var_sel_write_addr_idx*ENTRY_ADDR_WIDTH ]) ] = 
-                    i_write_data[ (var_sel_write_addr_idx*REG_WIDTH) + (REG_WIDTH-1) : var_sel_write_addr_idx*REG_WIDTH ];
+                next_mem_reg[ (i_write_addresses[ ( (var_sel_write_addr_idx*ENTRY_ADDR_WIDTH) + (ENTRY_ADDR_WIDTH-1) ) : var_sel_write_addr_idx*ENTRY_ADDR_WIDTH ]) ] = 
+                    i_write_data[ ( (var_sel_write_addr_idx*REG_WIDTH) + (REG_WIDTH-1) ) : var_sel_write_addr_idx*REG_WIDTH ];
             end
         end
     end
