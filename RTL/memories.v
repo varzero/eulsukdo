@@ -89,6 +89,8 @@ PARAMETERIZE MULTI READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
 - READ LATENCY          : IMMEDIATELY
 - WRITE LATENCY         : 1 CYCLE
 
+LOGICAL  
+
 * TESTBENCH MODULE      : tb_fifo_sram
 ------------------------------------------------------------------------------------------
 [PARAMETER(USER MODIFY)]
@@ -100,9 +102,8 @@ PARAMETERIZE MULTI READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
 [INPUT/OUTPUT]
     clk                 : [INPUT ] SYSTEM CLOCK
     reset_n             : [INPUT ] SYSTEM ACTIVE-LOW RESET
-    i_read_addresses    : [INPUT ] ADDRESS OF READ CHANNELS
+    i_read_new          : [INPUT ] ADDRESS OF READ CHANNELS
     i_write_wes         : [INPUT ] WRITE ENABLE OF WRITE CHANNELS
-    i_write_addresses   : [INPUT ] ADDRESS OF WRITE CHANNELS
     i_write_data        : [INPUT ] DATA OF WRITE CHANNELS
     o_read_data         : [OUTPUT] DATA OF READ CHANNELS
 ##########################################################################################
@@ -116,10 +117,11 @@ module fifo_sram #(
 ) (
     input                                               clk                 ,
     input                                               reset_n             ,
-    input       [READ_CHANNEL*ENTRY_ADDR_WIDTH-1:0]     i_read_addresses    ,
+    input                                               i_read_new          ,
     input       [WRITE_CHANNEL-1:0]                     i_write_wes         ,
-    input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0]    i_write_addresses   ,
     input       [WRITE_CHANNEL*REG_WIDTH-1:0]           i_write_data        ,
     output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data
 );
+
+    reg [ENTRIES*WRITE_CHANNEL-1:0] buf_read
 endmodule
