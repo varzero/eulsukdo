@@ -115,7 +115,7 @@ PARAMETERIZE MULTI READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
 - READ LATENCY          : IMMEDIATELY
 - WRITE LATENCY         : 1 CYCLE
 
-LOGICAL  
+WRITE_CHANNEL > READ_CHANNEL
 
 * TESTBENCH MODULE      : tb_fifo_multi_chan_sram
 ------------------------------------------------------------------------------------------
@@ -151,6 +151,7 @@ module fifo_multi_chan_sram #(
     // Synthesis Variables
     integer var_read_entry_idx = 0;
     integer var_read_data_bit_position = 0;
+    integer var_read_buf_idx = 0;
     integer var_write_entry_idx = 0;
     integer var_write_data_bit_position = 0;
     
@@ -161,11 +162,13 @@ module fifo_multi_chan_sram #(
 
     // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
     reg ram_we, ram_we_next;
-    reg [INTERNAL_ADDR_WIDTH-1:0] ram_addr, ram_addr_next;
-    wire [INTERNAL_DATA_WIDTH-1:0] ram_data_insert, ram_data_insert_next;
+    reg [INTERNAL_ADDR_WIDTH-1:0] ram_addr_insert, ram_addr_insert_next;
+    wire [INTERNAL_DATA_WIDTH-1:0] ram_data_insert;
 
     // DATAPATH Registers
     reg [INTERNAL_DATA_WIDTH-1:0] buf_read, buf_read_next;
+    reg [(INTERNAL_DATA_WIDTH*2)-2:0] buf_leave1_read, buf_leave1_read_next;
+    reg [INTERNAL_DATA_WIDTH-1:0] buf_leave2_read, buf_leave2_read_next;
     reg [INTERNAL_DATA_WIDTH-1:0] buf_write, buf_write_next;
 
     // Registers MODELING
@@ -173,17 +176,19 @@ module fifo_multi_chan_sram #(
         if (reset_n == 0) begin
             ram_we <= 1'b0;
             ram_addr <= 0;
-            ram_data_insert <= 0;
 
             buf_read <= 0;
+            buf_leave1_read <= 0;
+            buf_leave2_read <= 0;
             buf_write <= 0;
         end
         else begin
             ram_we <= ram_we_next;
-            ram_addr <= ram_addr_next;
-            ram_data_insert <= ram_data_insert_next;
+            ram_addr_insert <= ram_addr_insert_next;
 
             buf_read <= buf_read_next;
+            buf_leave1_read <= buf_leave1_read_next;
+            buf_leave2_read <= buf_leave2_read_next;
             buf_write <= buf_write_next;
         end
     end
@@ -192,11 +197,22 @@ module fifo_multi_chan_sram #(
     always @(*) begin
         o_read_data = '0;
         var_read_data_bit_position = 0;
+        var_read_buf_idx = 0;
         
         for (var_read_entry_idx = 0; var_read_entry_idx < READ_CHANNEL; var_read_entry_idx = var_read_entry_idx + 1) begin
-            if (i_read_get[0]) begin
-                o_read_data[var_read_data_bit_position +: REG_WIDTH] = buf_read[];
+            if (i_read_get[var_read_entry_idx]) begin
+                o_read_data[(var_read_data_bit_position*REG_WIDTH) +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                var_read_data_bit_position = var_read_data_bit_position + 1;
             end
+            else begin
+                buf_read_next[(var_read_buf_idx*REG_WIDTH) +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                var_read_buf_idx = var_read_buf_idx + 1;
+            end
+        end
+        var_read_entry_idx = 0;
+        for (; var_read_buf_idx < READ_CHANNEL; var_read_buf_idx = var_read_buf_idx + 1) begin
+            buf_read_next[(var_read_buf_idx*REG_WIDTH) +: REG_WIDTH] = buf_leave1_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+            var_read_entry_idx = var_read_entry_idx + 1;
         end
     end
 
@@ -213,3 +229,71 @@ module fifo_multi_chan_sram #(
         end
     end
 endmodule
+
+/*
+[fifo_sram]
+##########################################################################################
+PARAMETERIZE SINGLE READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
+- READ LATENCY          : IMMEDIATELY
+- WRITE LATENCY         : 1 CYCLE
+
+* TESTBENCH MODULE      : tb_fifo_sram
+------------------------------------------------------------------------------------------
+[PARAMETER(USER MODIFY)]
+    ENTRIES             : NUMBER OF ENTRIES
+    REG_WIDTH           : WIDTH OF ENTRY
+
+[INPUT/OUTPUT]
+    clk                 : [INPUT ] SYSTEM CLOCK
+    reset_n             : [INPUT ] SYSTEM ACTIVE-LOW RESET
+    i_read_get          : [INPUT ] READ ENTRIES FROM READ CHANNEL
+    i_write_we          : [INPUT ] WRITE ENABLE OF WRITE CHANNEL
+    i_write_data        : [INPUT ] DATA OF WRITE CHANNEL
+    o_read_data         : [OUTPUT] DATA OF READ CHANNEL
+##########################################################################################
+*/
+module fifo_sram #(
+    parameter       ENTRIES         = 16,
+    parameter       REG_WIDTH       = 32,
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+) (
+    input                                               clk                 ,
+    input                                               reset_n             ,
+    input                                               i_read_get          ,
+    input                                               i_write_we          ,
+    input       [REG_WIDTH-1:0]                         i_write_data        ,
+    output reg  [REG_WIDTH-1:0]                         o_read_data
+);
+
+    // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
+    reg ram_we, ram_we_next;
+    reg [ENTRY_ADDR_WIDTH-1:0] ram_read_addr, ram_addr_next;
+    wire [REG_WIDTH-1:0] ram_data_insert;
+    wire [REG_WIDTH-1:0] ram_data_output;
+
+    // Registers MODELING
+    always @(posedge clk or negedge reset_n) begin
+        if (reset_n == 0) begin
+            ram_we <= 1'b0;
+            ram_addr <= 0;
+            ram_data_insert <= 0;
+        end
+        else begin
+            ram_we <= ram_we_next;
+            ram_addr <= ram_addr_next;
+            ram_data_insert <= ram_data_insert_next;
+        end
+    end
+
+    // Read System MODELING ( COMBINATIONAL LOGIC )
+    always @(*) begin
+        //
+    end
+
+    // Write System MODELING ( COMBINATIONAL LOGIC )
+    always @(*) begin
+        //
+    end
+endmodule
+
+// TODO: Single Channel FIFO, SRAM CONTROLLER, Single Channel SRAM ACCESS FIFO CONTROLLER
