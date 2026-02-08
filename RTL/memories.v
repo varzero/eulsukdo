@@ -122,14 +122,13 @@ module fifo_sram #(
     output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data
 );
     // Constant
-    localparam RAM_ADDR_WIDTH = (ENTRIES/WRITE_CHANNEL);
-    localparam RAM_DATA_WIDTH = (REG_WIDTH*WRITE_CHANNEL);
+    localparam INTERNAL_ADDR_WIDTH = (ENTRIES/WRITE_CHANNEL);
+    localparam INTERNAL_DATA_WIDTH = (REG_WIDTH*WRITE_CHANNEL);
 
     // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
     reg ram_we; // CL
-    reg [ENTRY_ADDR_WIDTH-1:0] ram_addr;
-
-
+    reg [INTERNAL_ADDR_WIDTH-1:0] ram_addr;
+    wire [INTERNAL_DATA_WIDTH-1:0] ram_data_o;
 
     // DATAPATH Registers
     reg [RAM_DATA_WIDTH-1:0] buf_read, buf_read_next;
