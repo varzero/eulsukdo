@@ -102,14 +102,13 @@ LOGICAL
 [INPUT/OUTPUT]
     clk                 : [INPUT ] SYSTEM CLOCK
     reset_n             : [INPUT ] SYSTEM ACTIVE-LOW RESET
-    i_read_new          : [INPUT ] ADDRESS OF READ CHANNELS
     i_write_wes         : [INPUT ] WRITE ENABLE OF WRITE CHANNELS
     i_write_data        : [INPUT ] DATA OF WRITE CHANNELS
     o_read_data         : [OUTPUT] DATA OF READ CHANNELS
 ##########################################################################################
 */
 module fifo_sram #(
-    parameter       READ_CHANNEL    = 4 ,
+    parameter       READ_CHANNEL    = 8 ,
     parameter       WRITE_CHANNEL   = 4 ,
     parameter       ENTRIES         = 16,
     parameter       REG_WIDTH       = 32,
@@ -122,6 +121,19 @@ module fifo_sram #(
     input       [WRITE_CHANNEL*REG_WIDTH-1:0]           i_write_data        ,
     output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data
 );
+    // Constant
+    localparam RAM_ADDR_WIDTH = (ENTRIES/WRITE_CHANNEL);
+    localparam RAM_DATA_WIDTH = (REG_WIDTH*WRITE_CHANNEL);
 
-    reg [ENTRIES*WRITE_CHANNEL-1:0] buf_read
+    // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
+    reg ram_we; // CL
+    reg [ENTRY_ADDR_WIDTH-1:0] ram_addr;
+
+
+
+    // DATAPATH Registers
+    reg [RAM_DATA_WIDTH-1:0] buf_read, buf_read_next;
+    reg [RAM_DATA_WIDTH-1:0] buf_write, buf_write_next;
+
+    // Registers MODELING
 endmodule
