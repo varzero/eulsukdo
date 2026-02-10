@@ -257,7 +257,7 @@ module fifo_sram #(
             end
         endcase
 
-        // 동시 처리하기!!!!!!!!
+        동시 처리하기!!!!!!!!
     end
 
     // OUTPUT MODELING ( COMBINATIONAL LOGIC )
@@ -330,9 +330,10 @@ module fifo_multi_chan_sram #(
 
     // DATAPATH Registers
     reg [INTERNAL_DATA_WIDTH-1:0] buf_read, buf_read_next;
-    reg [(INTERNAL_DATA_WIDTH*2)-2:0] buf_leave1_read, buf_leave1_read_next;
-    reg [INTERNAL_DATA_WIDTH-1:0] buf_leave2_read, buf_leave2_read_next;
-    reg [INTERNAL_DATA_WIDTH-1:0] buf_write, buf_write_next;
+    reg [$clog2(WRITE_CHANNEL)-1:0] buf_L1_cnt_write, buf_L1_cnt_write_next;
+    reg [WRITE_CHANNEL*REG_WIDTH-1:0] buf_L1_write, buf_L1_write_next;
+    reg [$clog2(WRITE_CHANNEL*2)-1:0] buf_L2_leave_cnt_write, buf_L2_leave_cnt_write_next;
+    reg [(WRITE_CHANNEL*2)*REG_WIDTH-1:0] buf_L2_write, buf_L2_write_next;
 
     // Registers MODELING
     always @(posedge clk or negedge reset_n) begin
@@ -341,55 +342,51 @@ module fifo_multi_chan_sram #(
             ram_addr <= 0;
 
             buf_read <= 0;
-            buf_leave1_read <= 0;
-            buf_leave2_read <= 0;
-            buf_write <= 0;
+            buf_L1_cnt_write <= 0;
+            buf_L1_write <= 0;
+            buf_L2_leave_cnt_write <= 0;
+            buf_L2_write <= 0;
         end
         else begin
             ram_we <= ram_we_next;
             ram_addr_insert <= ram_addr_insert_next;
 
             buf_read <= buf_read_next;
-            buf_leave1_read <= buf_leave1_read_next;
-            buf_leave2_read <= buf_leave2_read_next;
-            buf_write <= buf_write_next;
+            buf_L1_cnt_write <= buf_L1_cnt_write_next;
+            buf_L1_write <= buf_L1_write_next;
+            buf_L2_leave_cnt_write <= buf_L2_leave_cnt_write_next;
+            buf_L2_write <= buf_L2_write_next;
         end
     end
 
     // Read System MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
-        o_read_data = '0;
-        var_read_data_bit_position = 0;
-        var_read_buf_idx = 0;
-        
-        for (var_read_entry_idx = 0; var_read_entry_idx < READ_CHANNEL; var_read_entry_idx = var_read_entry_idx + 1) begin
-            if (i_read_get[var_read_entry_idx]) begin
-                o_read_data[(var_read_data_bit_position*REG_WIDTH) +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
-                var_read_data_bit_position = var_read_data_bit_position + 1;
-            end
-            else begin
-                buf_read_next[(var_read_buf_idx*REG_WIDTH) +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
-                var_read_buf_idx = var_read_buf_idx + 1;
-            end
-        end
-        var_read_entry_idx = 0;
-        for (; var_read_buf_idx < READ_CHANNEL; var_read_buf_idx = var_read_buf_idx + 1) begin
-            buf_read_next[(var_read_buf_idx*REG_WIDTH) +: REG_WIDTH] = buf_leave1_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
-            var_read_entry_idx = var_read_entry_idx + 1;
-        end
     end
 
     // Write System MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
-        buf_write_next = '0;
+        // Layer 1 Set
+        buf_L1_cnt_write_next = '0;
+        buf_L1_write_next = '0;
         var_write_data_bit_position = 0;
         ram_we_next = |i_write_wes;
+
         for (var_write_entry_idx = 0; var_write_entry_idx < WRITE_CHANNEL; var_write_entry_idx = var_write_entry_idx + 1) begin
+            // Gathering scattered input
             if (i_write_wes[var_write_entry_idx]) begin
-                buf_write_next[var_write_data_bit_position +: REG_WIDTH] = i_write_data[(var_write_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                buf_L1_write_next[var_write_data_bit_position +: REG_WIDTH] = i_write_data[(var_write_entry_idx*REG_WIDTH) +: REG_WIDTH];
                 var_write_data_bit_position = var_write_data_bit_position + REG_WIDTH;
+
+                buf_L1_cnt_write_next = buf_L1_cnt_write_next + 1;
             end
         end
+        
+        buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write;
+        buf_L2_write_next = buf_L2_write;
+
+        // Attach
+        buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write | (buf_L1_cnt_write << buf_L2_leave_cnt_write);
+        추가 조건 넣기 (앞 뒤쪽으로 왔다갔다 하기)
     end
 endmodule
 
