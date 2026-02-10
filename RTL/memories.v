@@ -82,7 +82,7 @@ module regfile #(
 
 endmodule
 
-// (FOR FIFO_RAM)=======================================================================
+// (FOR FIFO_RAM PIPELINING)=============================================================
 module priority_decoder #(
     parameter       ENTRIES         = 7
 ) (
@@ -104,6 +104,164 @@ module priority_decoder #(
                 o_valid = 1'b1;
             end
         end
+    end
+
+endmodule
+
+module on_chip_sync_dual_port_ram #(
+    parameter       ENTRIES         = 16,
+    parameter       ENTRY_WIDTH     = 32,
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+) (
+    input                                               clk,
+    input       [ENTRY_ADDR_WIDTH-1:0]                  r_addr,
+    input                                               we,
+    input       [ENTRY_ADDR_WIDTH-1:0]                  w_addr,
+    input       [ENTRY_WIDTH-1:0]                       w_data,
+    output reg  [ENTRY_WIDTH-1:0]                       r_data
+);
+    // Set memory
+    reg [ENTRY_WIDTH-1:0] mem [0:ENTRIES-1];
+    always @(posedge clk) begin
+        r_data = mem[r_addr];
+
+        if (we) begin
+            mem[w_addr] = w_data;
+        end
+    end
+
+endmodule
+
+/*
+[fifo_sram]
+##########################################################################################
+PARAMETERIZE SINGLE READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
+- READ LATENCY          : IMMEDIATELY
+- WRITE LATENCY         : 1 CYCLE
+
+* TESTBENCH MODULE      : tb_fifo_sram
+------------------------------------------------------------------------------------------
+[PARAMETER(USER MODIFY)]
+    ENTRIES             : NUMBER OF ENTRIES
+    REG_WIDTH           : WIDTH OF ENTRY
+
+[INPUT/OUTPUT]
+    clk                 : [INPUT ] SYSTEM CLOCK
+    reset_n             : [INPUT ] SYSTEM ACTIVE-LOW RESET
+    i_read_get          : [INPUT ] READ ENTRIES FROM READ CHANNEL
+    i_write_we          : [INPUT ] WRITE ENABLE OF WRITE CHANNEL
+    i_write_data        : [INPUT ] DATA OF WRITE CHANNEL
+    o_read_data         : [OUTPUT] DATA OF READ CHANNEL
+    o_empty             : [OUTPUT] EMPTY INDECATOR OF FIFO
+    o_full              : [OUTPUT] FULL INDECATOR OF FIFO
+##########################################################################################
+*/
+module fifo_sram #(
+    parameter       ENTRIES         = 16,
+    parameter       REG_WIDTH       = 32,
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+) (
+    input                                               clk                 ,
+    input                                               reset_n             ,
+    input                                               i_read_get          ,
+    input                                               i_write_we          ,
+    input       [REG_WIDTH-1:0]                         i_write_data        ,
+    output      [REG_WIDTH-1:0]                         o_read_data         ,
+    output reg                                          o_empty             ,
+    output reg                                          o_full
+);
+    // CONSTANT
+    localparam HIGHEST_INDEX_NUMBER = ENTRIES - 1;
+
+    // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
+    reg [ENTRY_ADDR_WIDTH-1:0] ram_read_addr, ram_read_addr_next;
+    reg [ENTRY_ADDR_WIDTH-1:0] ram_write_addr, ram_write_addr_next;
+    reg [ENTRY_ADDR_WIDTH-1:0] ram_entry_cnt, ram_entry_cnt_next;
+    reg                        ram_we;
+
+    // Connect SRAM
+    on_chip_sync_dual_port_ram #(.ENTRIES(ENTRIES), ENTRY_WIDTH(ENTRY_WIDTH)) 
+            U_INTERNAL_SRAM(.clk(clk), .r_addr(ram_read_addr), .we(ram_we),
+                            .w_addr(ram_write_addr), .w_data(i_write_data), 
+                            .r_data(o_read_data));
+
+    // States
+    localparam R_EMPTY      = 1'd0;
+    localparam R_READABLE   = 1'd1;
+
+    localparam W_WRITEABLE  = 1'd0;
+    localparam W_FULL       = 1'd1;
+
+    // State Register
+    reg read_state, read_state_next;
+    reg write_state, write_state_next;
+
+    // Registers MODELING
+    always @(posedge clk or negedge reset_n) begin
+        if (reset_n == 0) begin
+            ram_read_addr <= 0;
+            ram_write_addr <= 0;
+            ram_entry_cnt <= 0;
+
+            read_state <= R_EMPTY;
+            write_state <= W_WRITEABLE;
+        end
+        else begin
+            ram_read_addr <= ram_read_addr_next;
+            ram_write_addr <= ram_write_addr_next;
+            ram_entry_cnt <= ram_entry_cnt_next;
+
+            read_state <= read_state_next;
+            write_state <= write_state_next;
+        end
+    end
+
+    // NEXT STATE, OPERATION MODELING ( COMBINATIONAL LOGIC )
+    always @(*) begin
+        read_state_next = read_state;
+        ram_write_addr_next = ram_write_addr;
+
+        ram_we = 1'b0; // CL
+        ram_read_addr_next = ram_read_addr;
+        ram_entry_cnt_next = ram_entry_cnt;
+
+        case(read_state)
+            R_EMPTY: begin
+                if (ram_entry_cnt != 0) read_state_next = R_READABLE;
+            end
+            R_READABLE: begin
+                if (ram_entry_cnt == 0) read_state_next = R_EMPTY;
+                
+                if (i_read_get) begin
+                    ram_entry_cnt_next = ram_entry_cnt - 1;
+                    if (ram_read_addr == HIGHEST_INDEX_NUMBER) ram_read_addr_next = 0;
+                    else ram_read_addr_next = ram_read_addr + 1;
+                end
+            end
+        endcase
+
+        case(write_state)
+            W_WRITEABLE: begin
+                if (ram_entry_cnt == HIGHEST_INDEX_NUMBER) write_state_next = W_FULL;
+
+                if (i_write_we) begin
+                    ram_we = 1'b1;
+                    ram_entry_cnt_next = ram_entry_cnt + 1;
+                    if (ram_write_addr == HIGHEST_INDEX_NUMBER) ram_write_addr_next = 0;
+                    else ram_write_addr_next = ram_write_addr + 1;
+                end
+            end
+            W_FULL: begin
+                if (ram_entry_cnt != HIGHEST_INDEX_NUMBER) write_state_next = W_WRITEABLE;
+            end
+        endcase
+    end
+
+    // OUTPUT MODELING ( COMBINATIONAL LOGIC )
+    always @(*) begin
+        // outputs
+        o_empty = (ram_entry_cnt == 0)? 1'b1 : 1'b0;
+        o_full = (ram_entry_cnt == HIGHEST_INDEX_NUMBER)? 1'b1 : 1'b0;
     end
 
 endmodule
@@ -227,72 +385,6 @@ module fifo_multi_chan_sram #(
                 var_write_data_bit_position = var_write_data_bit_position + REG_WIDTH;
             end
         end
-    end
-endmodule
-
-/*
-[fifo_sram]
-##########################################################################################
-PARAMETERIZE SINGLE READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
-- READ LATENCY          : IMMEDIATELY
-- WRITE LATENCY         : 1 CYCLE
-
-* TESTBENCH MODULE      : tb_fifo_sram
-------------------------------------------------------------------------------------------
-[PARAMETER(USER MODIFY)]
-    ENTRIES             : NUMBER OF ENTRIES
-    REG_WIDTH           : WIDTH OF ENTRY
-
-[INPUT/OUTPUT]
-    clk                 : [INPUT ] SYSTEM CLOCK
-    reset_n             : [INPUT ] SYSTEM ACTIVE-LOW RESET
-    i_read_get          : [INPUT ] READ ENTRIES FROM READ CHANNEL
-    i_write_we          : [INPUT ] WRITE ENABLE OF WRITE CHANNEL
-    i_write_data        : [INPUT ] DATA OF WRITE CHANNEL
-    o_read_data         : [OUTPUT] DATA OF READ CHANNEL
-##########################################################################################
-*/
-module fifo_sram #(
-    parameter       ENTRIES         = 16,
-    parameter       REG_WIDTH       = 32,
-    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
-) (
-    input                                               clk                 ,
-    input                                               reset_n             ,
-    input                                               i_read_get          ,
-    input                                               i_write_we          ,
-    input       [REG_WIDTH-1:0]                         i_write_data        ,
-    output reg  [REG_WIDTH-1:0]                         o_read_data
-);
-
-    // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
-    reg ram_we, ram_we_next;
-    reg [ENTRY_ADDR_WIDTH-1:0] ram_read_addr, ram_addr_next;
-    wire [REG_WIDTH-1:0] ram_data_insert;
-    wire [REG_WIDTH-1:0] ram_data_output;
-
-    // Registers MODELING
-    always @(posedge clk or negedge reset_n) begin
-        if (reset_n == 0) begin
-            ram_we <= 1'b0;
-            ram_addr <= 0;
-            ram_data_insert <= 0;
-        end
-        else begin
-            ram_we <= ram_we_next;
-            ram_addr <= ram_addr_next;
-            ram_data_insert <= ram_data_insert_next;
-        end
-    end
-
-    // Read System MODELING ( COMBINATIONAL LOGIC )
-    always @(*) begin
-        //
-    end
-
-    // Write System MODELING ( COMBINATIONAL LOGIC )
-    always @(*) begin
-        //
     end
 endmodule
 
