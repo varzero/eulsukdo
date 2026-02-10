@@ -173,7 +173,7 @@ module fifo_sram #(
     // CONSTANT
     localparam HIGHEST_INDEX_NUMBER = ENTRIES - 1;
 
-    // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
+    // SRAM/BRAM Control Value
     reg [ENTRY_ADDR_WIDTH-1:0] ram_read_addr, ram_read_addr_next;
     reg [ENTRY_ADDR_WIDTH-1:0] ram_write_addr, ram_write_addr_next;
     reg [ENTRY_ADDR_WIDTH-1:0] ram_entry_cnt, ram_entry_cnt_next;
