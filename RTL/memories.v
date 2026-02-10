@@ -256,6 +256,8 @@ module fifo_sram #(
                 if (ram_entry_cnt != HIGHEST_INDEX_NUMBER) write_state_next = W_WRITEABLE;
             end
         endcase
+
+        // 동시 처리하기!!!!!!!!
     end
 
     // OUTPUT MODELING ( COMBINATIONAL LOGIC )
