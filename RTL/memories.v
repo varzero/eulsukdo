@@ -219,10 +219,11 @@ module fifo_sram #(
     // NEXT STATE, OPERATION MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
         read_state_next = read_state;
-        ram_write_addr_next = ram_write_addr;
+        write_state_next = write_state;
 
         ram_we = 1'b0; // CL
         ram_read_addr_next = ram_read_addr;
+        ram_write_addr_next = ram_write_addr;
         ram_entry_cnt_next = ram_entry_cnt;
 
         case(read_state)
