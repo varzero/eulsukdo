@@ -291,6 +291,7 @@ WRITE_CHANNEL > READ_CHANNEL
     i_write_wes         : [INPUT ] WRITE ENABLE OF WRITE CHANNELS
     i_write_data        : [INPUT ] DATA OF WRITE CHANNELS
     o_read_data         : [OUTPUT] DATA OF READ CHANNELS
+    o_read_valid        : [OUTPUT] VALID OF READ CHANNELS
 ##########################################################################################
 */
 module fifo_multi_chan_sram #(
@@ -306,6 +307,7 @@ module fifo_multi_chan_sram #(
     input       [WRITE_CHANNEL-1:0]                     i_write_wes         ,
     input       [WRITE_CHANNEL*REG_WIDTH-1:0]           i_write_data        ,
     output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data
+    output reg  [READ_CHANNEL-1:0]                      o_read_valid
 );
     // Synthesis Variables
     integer var_read_entry_idx = 0;
