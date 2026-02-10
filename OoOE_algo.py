@@ -82,7 +82,7 @@ def rob_entry_update(rob_no, ready_reg):
 
 # ROB's action (done: WB->ROB)
 def rob_done(rob_no):
-    rob[rob_no]["done"] = 1
+    rob[rob_no]["DONE"] = 1
 
 # PRRBMT's action (WRITE_BACK->PRRBMT)
 def wb_prrbmt_req(reg_no):
