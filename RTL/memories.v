@@ -180,7 +180,7 @@ module fifo_sram #(
     reg                        ram_we;
 
     // Connect SRAM
-    on_chip_sync_dual_port_ram #(.ENTRIES(ENTRIES), ENTRY_WIDTH(ENTRY_WIDTH)) 
+    on_chip_sync_dual_port_ram #(.ENTRIES(ENTRIES), .ENTRY_WIDTH(REG_WIDTH)) 
             U_INTERNAL_SRAM(.clk(clk), .r_addr(ram_read_addr), .we(ram_we),
                             .w_addr(ram_write_addr), .w_data(i_write_data), 
                             .r_data(o_read_data));
