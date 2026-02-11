@@ -123,10 +123,10 @@ module on_chip_sync_dual_port_ram #(
     // Set memory
     reg [ENTRY_WIDTH-1:0] mem [0:ENTRIES-1];
     always @(posedge clk) begin
-        r_data = mem[r_addr];
+        r_data <= mem[r_addr];
 
         if (we) begin
-            mem[w_addr] = w_data;
+            mem[w_addr] <= w_data;
         end
     end
 
@@ -159,42 +159,36 @@ PARAMETERIZE SINGLE READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
 module fifo_sram #(
     parameter       ENTRIES         = 16,
     parameter       REG_WIDTH       = 32,
-    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES)
 ) (
     input                                               clk                 ,
     input                                               reset_n             ,
     input                                               i_read_get          ,
     input                                               i_write_we          ,
     input       [REG_WIDTH-1:0]                         i_write_data        ,
-    output      [REG_WIDTH-1:0]                         o_read_data         ,
+    output reg  [REG_WIDTH-1:0]                         o_read_data         ,
     output reg                                          o_empty             ,
     output reg                                          o_full
 );
     // CONSTANT
     localparam HIGHEST_INDEX_NUMBER = ENTRIES - 1;
 
-    // SRAM/BRAM Control Value
+    // SRAM/BRAM Control Variables
     reg [ENTRY_ADDR_WIDTH-1:0] ram_read_addr, ram_read_addr_next;
     reg [ENTRY_ADDR_WIDTH-1:0] ram_write_addr, ram_write_addr_next;
     reg [ENTRY_ADDR_WIDTH-1:0] ram_entry_cnt, ram_entry_cnt_next;
+    reg                        sram_updating, sram_updating_next;
     reg                        ram_we;
 
+    // Data buffer
+    reg [REG_WIDTH-1:0]        write_buf, write_buf_next;
+
     // Connect SRAM
+    wire [REG_WIDTH-1:0]       ram_read_data;
     on_chip_sync_dual_port_ram #(.ENTRIES(ENTRIES), .ENTRY_WIDTH(REG_WIDTH)) 
             U_INTERNAL_SRAM(.clk(clk), .r_addr(ram_read_addr), .we(ram_we),
                             .w_addr(ram_write_addr), .w_data(i_write_data), 
-                            .r_data(o_read_data));
-
-    // States
-    localparam R_EMPTY      = 1'd0;
-    localparam R_READABLE   = 1'd1;
-
-    localparam W_WRITEABLE  = 1'd0;
-    localparam W_FULL       = 1'd1;
-
-    // State Register
-    reg read_state, read_state_next;
-    reg write_state, write_state_next;
+                            .r_data(ram_read_data));
 
     // Registers MODELING
     always @(posedge clk or negedge reset_n) begin
@@ -202,69 +196,59 @@ module fifo_sram #(
             ram_read_addr <= 0;
             ram_write_addr <= 0;
             ram_entry_cnt <= 0;
+            sram_updating <= 0;
 
-            read_state <= R_EMPTY;
-            write_state <= W_WRITEABLE;
+            write_buf <= 0;
         end
         else begin
             ram_read_addr <= ram_read_addr_next;
             ram_write_addr <= ram_write_addr_next;
             ram_entry_cnt <= ram_entry_cnt_next;
+            sram_updating <= sram_updating_next;
 
-            read_state <= read_state_next;
-            write_state <= write_state_next;
+            write_buf <= write_buf_next;
         end
     end
 
-    // NEXT STATE, OPERATION MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
-        read_state_next = read_state;
-        write_state_next = write_state;
+        // output
+        o_read_data = ram_read_data;
+        ram_we = 1'b0;
 
-        ram_we = 1'b0; // CL
+        // register updates 
         ram_read_addr_next = ram_read_addr;
         ram_write_addr_next = ram_write_addr;
         ram_entry_cnt_next = ram_entry_cnt;
+        sram_updating_next = 0;
 
-        case(read_state)
-            R_EMPTY: begin
-                if (ram_entry_cnt != 0) read_state_next = R_READABLE;
-            end
-            R_READABLE: begin
-                if (ram_entry_cnt == 0) read_state_next = R_EMPTY;
-                
-                if (i_read_get) begin
-                    ram_entry_cnt_next = ram_entry_cnt - 1;
-                    if (ram_read_addr == HIGHEST_INDEX_NUMBER) ram_read_addr_next = 0;
-                    else ram_read_addr_next = ram_read_addr + 1;
-                end
-            end
-        endcase
+        write_buf_next = write_buf;
 
-        case(write_state)
-            W_WRITEABLE: begin
-                if (ram_entry_cnt == HIGHEST_INDEX_NUMBER) write_state_next = W_FULL;
+        // PUSH/POP CONTROL
+        if (i_read_get && (ram_entry_cnt != 0)) begin
+            ram_entry_cnt_next = ram_entry_cnt_next - 1;
+            if (ram_read_addr == HIGHEST_INDEX_NUMBER) ram_read_addr_next = 0;
+            else ram_read_addr_next = ram_read_addr + 1;
+        end
 
-                if (i_write_we) begin
-                    ram_we = 1'b1;
-                    ram_entry_cnt_next = ram_entry_cnt + 1;
-                    if (ram_write_addr == HIGHEST_INDEX_NUMBER) ram_write_addr_next = 0;
-                    else ram_write_addr_next = ram_write_addr + 1;
-                end
-            end
-            W_FULL: begin
-                if (ram_entry_cnt != HIGHEST_INDEX_NUMBER) write_state_next = W_WRITEABLE;
-            end
-        endcase
+        if (i_write_we && ((ram_entry_cnt != ENTRIES) || (i_read_get && (ram_entry_cnt != 0)))) begin
+            ram_we = 1'b1;
+            ram_entry_cnt_next = ram_entry_cnt_next + 1;
+            if (ram_write_addr == HIGHEST_INDEX_NUMBER) ram_write_addr_next = 0;
+            else ram_write_addr_next = ram_write_addr + 1;
+        end
 
-        동시 처리하기!!!!!!!!
-    end
-
-    // OUTPUT MODELING ( COMBINATIONAL LOGIC )
-    always @(*) begin
-        // outputs
-        o_empty = (ram_entry_cnt == 0)? 1'b1 : 1'b0;
-        o_full = (ram_entry_cnt == HIGHEST_INDEX_NUMBER)? 1'b1 : 1'b0;
+        // SRAM Read Latency Control - write after read next cycle
+        if (i_write_we && (ram_entry_cnt == 0)) begin
+            sram_updating_next = 1'b1;
+            write_buf_next = i_write_data;
+        end
+        if (i_read_get && sram_updating) begin
+            o_read_data = write_buf;
+        end
+    
+        // OUTPUT MODELING ( COMBINATIONAL LOGIC )
+        o_empty = (ram_entry_cnt == 0)      ? 1'b1 : 1'b0;
+        o_full  = (ram_entry_cnt == ENTRIES)? 1'b1 : 1'b0;
     end
 
 endmodule
