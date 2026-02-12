@@ -322,7 +322,8 @@ module fifo_multi_chan_sram #(
     reg upper_area_write, upper_area_write_next;
     reg [$clog2(WRITE_CHANNEL)-1:0] buf_L1_cnt_write, buf_L1_cnt_write_next;
     reg [WRITE_CHANNEL*REG_WIDTH-1:0] buf_L1_write, buf_L1_write_next;
-    reg [$clog2(WRITE_CHANNEL*2)-1:0] buf_L2_leave_cnt_write, buf_L2_leave_cnt_write_next;
+    reg [$clog2(WRITE_CHANNEL*2)-1:0] buf_L2_leave_cnt_write;
+    reg [$clog2(WRITE_CHANNEL*2):0] buf_L2_leave_cnt_write_next;
     reg [(WRITE_CHANNEL*2)*REG_WIDTH-1:0] buf_L2_write, buf_L2_write_next;
         // read
     reg [INTERNAL_DATA_WIDTH-1:0] buf_read, buf_read_next;
@@ -372,9 +373,23 @@ module fifo_multi_chan_sram #(
 
         upper_area_write_next = 1'b0;
 
-        // Layer 1 Set
         write_update_blocking = fifo_full;
-
+        
+        buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write;
+        buf_L2_write_next = buf_L2_write;
+        
+        // RAM Write Data Select
+        if (ram_we) begin
+            if (upper_area_write) begin
+                ram_data_insert = buf_L2_write[((WRITE_CHANNEL*2)*REG_WIDTH)-1:(WRITE_CHANNEL*REG_WIDTH)];
+                buf_L2_write_next[((WRITE_CHANNEL*2)*REG_WIDTH)-1:(WRITE_CHANNEL*REG_WIDTH)] = 0;
+            end
+            else begin
+                ram_data_insert = buf_L2_write[(WRITE_CHANNEL*REG_WIDTH)-1:0];
+                buf_L2_write_next[(WRITE_CHANNEL*REG_WIDTH)-1:0] = 0;
+            end
+        end
+        
         // Insert Logic/Datapath
         if (~write_update_blocking) begin
             // L1 buffer
@@ -391,22 +406,19 @@ module fifo_multi_chan_sram #(
                     buf_L1_cnt_write_next = buf_L1_cnt_write_next + 1;
                 end
             end
-            
-            buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write;
-            buf_L2_write_next = buf_L2_write;
 
             // L2 buffer
             buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next + buf_L1_cnt_write_next;
-            buf_L2_write_next = buf_L2_write_next | (buf_L1_write << buf_L2_leave_cnt_write);
+            buf_L2_write_next = buf_L2_write_next | (buf_L1_write << (buf_L2_leave_cnt_write*REG_WIDTH) );
 
             if (buf_L2_leave_cnt_write_next >= (WRITE_CHANNEL*2)) begin
                 ram_we_next = 1'b1;
                 upper_area_write_next = 1'b1;
 
-                buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next - (WRITE_CHANNEL*2);
                 if (buf_L2_leave_cnt_write_next > (WRITE_CHANNEL*2)) begin
-                    buf_L2_write_next = buf_L2_write_next | (buf_L1_write >> ((WRITE_CHANNEL*2) - buf_L2_leave_cnt_write));
+                    buf_L2_write_next = buf_L2_write_next | (buf_L1_write >> (((WRITE_CHANNEL*2) - buf_L2_leave_cnt_write) *REG_WIDTH ) );
                 end
+                buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next - (WRITE_CHANNEL*2);
             end
             else if (buf_L2_leave_cnt_write_next >= WRITE_CHANNEL) begin
                 ram_we_next = 1'b1;
@@ -415,20 +427,10 @@ module fifo_multi_chan_sram #(
         else begin
             buf_L1_cnt_write_next = buf_L1_cnt_write;
             buf_L1_write_next = buf_L1_write;
-            buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write;
-            buf_L2_write_next = buf_L2_write;
-        end
-
-        // RAM Write Data Select
-        if (upper_area_write) begin
-            ram_data_insert = buf_L2_write[(WRITE_CHANNEL*2)-1:WRITE_CHANNEL];
-        end
-        else begin
-            ram_data_insert = buf_L2_write[WRITE_CHANNEL-1:0];
         end
 
         // Output 
-        o_write_ready = write_update_blocking;
+        o_write_ready = ~write_update_blocking;
     end
     
     // Read System MODELING ( COMBINATIONAL LOGIC )
