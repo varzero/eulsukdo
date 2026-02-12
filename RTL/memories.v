@@ -378,8 +378,8 @@ module fifo_multi_chan_sram #(
         // Insert Logic/Datapath
         if (~write_update_blocking) begin
             // L1 buffer
-            buf_L1_cnt_write_next = '0;
-            buf_L1_write_next = '0;
+            buf_L1_cnt_write_next = 0;
+            buf_L1_write_next = 0;
             var_write_data_bit_position = 0;
 
             for (var_write_entry_idx = 0; var_write_entry_idx < WRITE_CHANNEL; var_write_entry_idx = var_write_entry_idx + 1) begin
