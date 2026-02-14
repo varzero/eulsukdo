@@ -308,7 +308,8 @@ module fifo_multi_chan_sram #(
     // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
     wire fifo_empty;
     wire fifo_full;
-        // write
+    // write
+    reg fifo_we;
     reg ram_we, ram_we_next;
     reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_insert;
     reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_out;
@@ -332,9 +333,9 @@ module fifo_multi_chan_sram #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_get          (),
-        .i_write_we          (ram_we),
+        .i_write_we          (fifo_we),
         .i_write_data        (ram_data_insert),
-        .o_read_data         (),
+        .o_read_data         (ram_data_out),
         .o_empty             (fifo_empty),
         .o_full              (fifo_full)
     );
@@ -436,6 +437,8 @@ module fifo_multi_chan_sram #(
     
     // Read System MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
+        fifo_we = ram_we; // some case, fifo_we is unable
+
         buf_cnt_read_next = buf_cnt_read;
         buf_read_next = buf_read;
         
@@ -466,6 +469,21 @@ module fifo_multi_chan_sram #(
                     var_read_data_bit_position = var_read_data_bit_position + REG_WIDTH;
                 end
                 buf_cnt_read_next = buf_cnt_read_next + INTERNAL_CHANNEL;
+            end
+            else begin
+                // Get data from write buffer
+
+                if (ram_we) begin
+                    // Case1: Data that is located Write L2 buffer and push this time is exist
+                    fifo_we = 1'b0;
+                    for (var_read_entry_idx = 0; var_read_entry_idx < INTERNAL_CHANNEL; var_read_entry_idx = var_read_entry_idx + 1) begin
+                        buf_read_next[var_read_data_bit_position +: REG_WIDTH] = ram_data_insert[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                        var_read_data_bit_position = var_read_data_bit_position + REG_WIDTH;
+                    end
+                end
+                    // Case2: Data that is located Write L2 buffer and not push is exist
+                    // Case3: Data that is located Write L1 buffer is exist
+                    // We didn't use Case2 and Case3 because of propagation delay, TODO
             end
         end
         // FILL BLANK AREA
