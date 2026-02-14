@@ -260,8 +260,6 @@ PARAMETERIZE MULTI READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
 - READ LATENCY          : IMMEDIATELY
 - WRITE LATENCY         : 1 CYCLE
 
-WRITE_CHANNEL > READ_CHANNEL
-
 * TESTBENCH MODULE      : tb_fifo_multi_chan_sram
 ------------------------------------------------------------------------------------------
 [PARAMETER(USER MODIFY)]
@@ -297,24 +295,23 @@ module fifo_multi_chan_sram #(
     output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data         ,
     output reg  [READ_CHANNEL-1:0]                      o_read_valid
 );
+    // Constants
+    parameter INTERNAL_CHANNEL = (WRITE_CHANNEL > READ_CHANNEL)? WRITE_CHANNEL : READ_CHANNEL;
+
     // Synthesis Variables
     integer var_read_entry_idx = 0;
     integer var_read_data_bit_position = 0;
     integer var_read_buf_idx = 0;
     integer var_write_entry_idx = 0;
     integer var_write_data_bit_position = 0;
-    
-    // Constant
-    localparam INTERNAL_DEPTH = ENTRIES / WRITE_CHANNEL;
-    localparam INTERNAL_ADDR_WIDTH = $clog2(INTERNAL_DEPTH);
-    localparam INTERNAL_DATA_WIDTH = (REG_WIDTH*WRITE_CHANNEL);
 
     // SRAM/BRAM Control Value: SYNTHESIS => WIRES OR COMBINATIONAL LOGIC
     wire fifo_empty;
     wire fifo_full;
         // write
     reg ram_we, ram_we_next;
-    reg [INTERNAL_DATA_WIDTH-1:0] ram_data_insert;
+    reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_insert;
+    reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_out;
 
     // DATAPATH Wire, Registers
         // write
@@ -322,21 +319,23 @@ module fifo_multi_chan_sram #(
     reg upper_area_write, upper_area_write_next;
     reg [$clog2(WRITE_CHANNEL)-1:0] buf_L1_cnt_write, buf_L1_cnt_write_next;
     reg [WRITE_CHANNEL*REG_WIDTH-1:0] buf_L1_write, buf_L1_write_next;
-    reg [$clog2(WRITE_CHANNEL*2)-1:0] buf_L2_leave_cnt_write;
-    reg [$clog2(WRITE_CHANNEL*2):0] buf_L2_leave_cnt_write_next;
-    reg [(WRITE_CHANNEL*2)*REG_WIDTH-1:0] buf_L2_write, buf_L2_write_next;
+    reg [$clog2(INTERNAL_CHANNEL*2)-1:0] buf_L2_leave_cnt_write;
+    reg [$clog2(INTERNAL_CHANNEL*2):0] buf_L2_leave_cnt_write_next;
+    reg [(INTERNAL_CHANNEL*2)*REG_WIDTH-1:0] buf_L2_write, buf_L2_write_next;
         // read
-    reg [INTERNAL_DATA_WIDTH-1:0] buf_read, buf_read_next;
+    reg read_update_blocking; // wire
+    reg [$clog2(INTERNAL_CHANNEL*2)-1:0] buf_cnt_read, buf_cnt_read_next;
+    reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] buf_read, buf_read_next;
 
     // FIFO
-    fifo_sram #(.ENTRIES(ENTRIES), .REG_WIDTH(REG_WIDTH)) U_INTERNAL_FIFO (
+    fifo_sram #(.ENTRIES(ENTRIES), .REG_WIDTH(INTERNAL_CHANNEL*REG_WIDTH)) U_INTERNAL_FIFO (
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_get          (),
         .i_write_we          (ram_we),
         .i_write_data        (ram_data_insert),
         .o_read_data         (),
-        .o_empty             (),
+        .o_empty             (fifo_empty),
         .o_full              (fifo_full)
     );
 
@@ -351,6 +350,7 @@ module fifo_multi_chan_sram #(
             buf_L2_leave_cnt_write <= 0;
             buf_L2_write <= 0;
 
+            buf_cnt_read <= 0;
             buf_read <= 0;
         end
         else begin
@@ -362,6 +362,7 @@ module fifo_multi_chan_sram #(
             buf_L2_leave_cnt_write <= buf_L2_leave_cnt_write_next;
             buf_L2_write <= buf_L2_write_next;
 
+            buf_cnt_read <= buf_cnt_read_next;
             buf_read <= buf_read_next;
         end
     end
@@ -381,12 +382,12 @@ module fifo_multi_chan_sram #(
         // RAM Write Data Select
         if (ram_we) begin
             if (upper_area_write) begin
-                ram_data_insert = buf_L2_write[((WRITE_CHANNEL*2)*REG_WIDTH)-1:(WRITE_CHANNEL*REG_WIDTH)];
-                buf_L2_write_next[((WRITE_CHANNEL*2)*REG_WIDTH)-1:(WRITE_CHANNEL*REG_WIDTH)] = 0;
+                ram_data_insert = buf_L2_write[((INTERNAL_CHANNEL*2)*REG_WIDTH)-1:(INTERNAL_CHANNEL*REG_WIDTH)];
+                buf_L2_write_next[((INTERNAL_CHANNEL*2)*REG_WIDTH)-1:(INTERNAL_CHANNEL*REG_WIDTH)] = 0;
             end
             else begin
-                ram_data_insert = buf_L2_write[(WRITE_CHANNEL*REG_WIDTH)-1:0];
-                buf_L2_write_next[(WRITE_CHANNEL*REG_WIDTH)-1:0] = 0;
+                ram_data_insert = buf_L2_write[(INTERNAL_CHANNEL*REG_WIDTH)-1:0];
+                buf_L2_write_next[(INTERNAL_CHANNEL*REG_WIDTH)-1:0] = 0;
             end
         end
         
@@ -411,16 +412,16 @@ module fifo_multi_chan_sram #(
             buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next + buf_L1_cnt_write_next;
             buf_L2_write_next = buf_L2_write_next | (buf_L1_write << (buf_L2_leave_cnt_write*REG_WIDTH) );
 
-            if (buf_L2_leave_cnt_write_next >= (WRITE_CHANNEL*2)) begin
+            if (buf_L2_leave_cnt_write_next >= (INTERNAL_CHANNEL*2)) begin
                 ram_we_next = 1'b1;
                 upper_area_write_next = 1'b1;
 
-                if (buf_L2_leave_cnt_write_next > (WRITE_CHANNEL*2)) begin
-                    buf_L2_write_next = buf_L2_write_next | (buf_L1_write >> (((WRITE_CHANNEL*2) - buf_L2_leave_cnt_write) *REG_WIDTH ) );
+                if (buf_L2_leave_cnt_write_next > (INTERNAL_CHANNEL*2)) begin
+                    buf_L2_write_next = buf_L2_write_next | (buf_L1_write >> (((INTERNAL_CHANNEL*2) - buf_L2_leave_cnt_write) *REG_WIDTH ) );
                 end
-                buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next - (WRITE_CHANNEL*2);
+                buf_L2_leave_cnt_write_next = buf_L2_leave_cnt_write_next - (INTERNAL_CHANNEL*2);
             end
-            else if (buf_L2_leave_cnt_write_next >= WRITE_CHANNEL) begin
+            else if (buf_L2_leave_cnt_write_next >= INTERNAL_CHANNEL) begin
                 ram_we_next = 1'b1;
             end
         end
@@ -435,6 +436,40 @@ module fifo_multi_chan_sram #(
     
     // Read System MODELING ( COMBINATIONAL LOGIC )
     always @(*) begin
+        buf_cnt_read_next = buf_cnt_read;
+        buf_read_next = buf_read;
+        
+        var_read_data_bit_position = 0;
+
+        for (var_read_entry_idx = 0; var_read_entry_idx < READ_CHANNEL; var_read_entry_idx = var_read_entry_idx + 1) begin
+            // READ CHANNEL Gather
+            if (~i_read_get[var_read_entry_idx]) begin
+                buf_read_next[var_read_data_bit_position +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                var_read_data_bit_position = var_read_data_bit_position + REG_WIDTH;
+                
+                buf_cnt_read_next = buf_cnt_read_next - 1;
+            end
+        end
+
+        if (buf_cnt_read_next >= INTERNAL_CHANNEL) begin
+            // BUFFER Gather
+            for (var_read_entry_idx = READ_CHANNEL; var_read_entry_idx < (INTERNAL_CHANNEL*2); var_read_entry_idx = var_read_entry_idx + 1) begin
+                buf_read_next[var_read_data_bit_position +: REG_WIDTH] = buf_read[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                var_read_data_bit_position = var_read_data_bit_position + REG_WIDTH;
+            end
+        end
+        else begin
+            if (~fifo_empty) begin
+                // ADDING NEW Entries
+                for (var_read_entry_idx = 0; var_read_entry_idx < INTERNAL_CHANNEL; var_read_entry_idx = var_read_entry_idx + 1) begin
+                    buf_read_next[var_read_data_bit_position +: REG_WIDTH] = ram_data_out[(var_read_entry_idx*REG_WIDTH) +: REG_WIDTH];
+                    var_read_data_bit_position = var_read_data_bit_position + REG_WIDTH;
+                end
+                buf_cnt_read_next = buf_cnt_read_next + INTERNAL_CHANNEL;
+            end
+        end
+        // FILL BLANK AREA
+        buf_read_next[(INTERNAL_CHANNEL*REG_WIDTH):var_read_data_bit_position] = 0;
     end
 
 endmodule
