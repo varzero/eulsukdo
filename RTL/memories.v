@@ -312,7 +312,7 @@ module fifo_multi_chan_sram #(
     reg fifo_we;
     reg ram_we, ram_we_next;
     reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_insert;
-    reg [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_out;
+    wire [(INTERNAL_CHANNEL*REG_WIDTH)-1:0] ram_data_out;
 
     // DATAPATH Wire, Registers
         // write
@@ -332,7 +332,7 @@ module fifo_multi_chan_sram #(
     fifo_sram #(.ENTRIES(ENTRIES), .REG_WIDTH(INTERNAL_CHANNEL*REG_WIDTH)) U_INTERNAL_FIFO (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_get          (),
+        .i_read_get          (ram_data_out),
         .i_write_we          (fifo_we),
         .i_write_data        (ram_data_insert),
         .o_read_data         (ram_data_out),
@@ -483,6 +483,7 @@ module fifo_multi_chan_sram #(
                 end
                     // Case2: Data that is located Write L2 buffer and not push is exist
                     // Case3: Data that is located Write L1 buffer is exist
+                
                     // We didn't use Case2 and Case3 because of propagation delay, TODO
             end
         end
