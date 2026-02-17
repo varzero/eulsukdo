@@ -66,3 +66,6 @@ module rob_ready_update #(
     assign rob_addr_out = rob_addr_in;
 
 endmodule
+
+module rob_ #() ();
+endmodule
