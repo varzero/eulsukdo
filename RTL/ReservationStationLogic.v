@@ -1,12 +1,13 @@
 module reservation_station #(
-    parameter RS_NEW_ENTRY = 5,
     parameter ISSUES = 5,
     parameter RS_ENTRIES = 32,
-
+    
     parameter ROB_NUM_MAX = 128,
     parameter INST_MICROOP_WIDTH = 8, // microOP = {EX No, EX opcode}
     parameter INST_PHYSICALREG_WIDTH = 6,
     parameter INST_OPERANDS = 2,
+
+    parameter RS_NEW_ENTRY = ISSUES,
     parameter ROB_NUM_WIDTH = $clog2(ROB_NUM_MAX),
     parameter RS_ENTRY_BIT_WIDTH = 
                     ( ROB_NUM_WIDTH + INST_MICROOP_WIDTH +
@@ -18,32 +19,44 @@ module reservation_station #(
     input reset_n,
 
     // ROB Push
-    input [RS_NEW_ENTRY*ISSUES]
-    input [RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY*ISSUES]
-);
+    input [(RS_NEW_ENTRY*ISSUES)-1:0] i_rob_new_entry_valid,
+    input [(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY*ISSUES)-1:0] i_rob_new_entries,
+    output [ISSUES-1:0] o_rs_chan_avaliable,
 
-    wire issue_chan_fifo_push [0:ISSUES-1];
-    wire [RS_ENTRY_BIT_WIDTH-1:0] issue_chan_fifo_input [0:ISSUES-1];
+    // RS Pop
+    input [ISSUES-1:0] i_rs_get,    // PE's ~busy
+);
+    // Push Section
+    wire [RS_NEW_ENTRY-1:0] issue_chan_fifo_push [0:ISSUES-1];
+    wire [(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY)-1:0] issue_chan_fifo_input [0:ISSUES-1];
+
+    // Pop Section
+    wire [(RS_ENTRY_BIT_WIDTH*ISSUES)-1:0] fifos_data;
+    wire [ISSUES-1:0] fifos_data_valid;
 
     genvar rs_channels;
 
     generate
+        for (rs_channels = 0; rs_channels < ISSUES; rs_channels = rs_channels + 1) begin
+            assign issue_chan_fifo_push[rs_channels] = i_rob_new_entry_valid[(rs_channels+1)*RS_NEW_ENTRY:rs_channels*RS_NEW_ENTRY];
+            assign issue_chan_fifo_input[rs_channels] 
+                        = i_rob_new_entry_valid[(rs_channels+1)*(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY):rs_channels*(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY)];
 
-
-        fifo_multi_chan_sram #(
-            .READ_CHANNEL    (1),
-            .WRITE_CHANNEL   (ISSUES),
-            .ENTRIES         (RS_ENTRIES),
-            .REG_WIDTH       (RS_ENTRY_BIT_WIDTH),
-        ) (
-            input                                               .clk                 (clk),
-            input                                               .reset_n             (reset_n),
-            input       [READ_CHANNEL-1:0]                      .i_read_get          (),
-            input       [WRITE_CHANNEL-1:0]                     .i_write_wes         (issue_chan_fifo_push[rs_channels]),
-            input       [WRITE_CHANNEL*REG_WIDTH-1:0]           .i_write_data        (issue_chan_fifo_input[rs_channels]),
-            output reg                                          .o_write_ready       (),
-            output reg  [READ_CHANNEL*REG_WIDTH-1:0]            .o_read_data         (),
-            output reg  [READ_CHANNEL-1:0]                      .o_read_valid        ()
-        );
+            fifo_multi_chan_sram #(
+                .READ_CHANNEL    (1),
+                .WRITE_CHANNEL   (RS_NEW_ENTRY),
+                .ENTRIES         (RS_ENTRIES),
+                .REG_WIDTH       (RS_ENTRY_BIT_WIDTH),
+            ) (
+                .clk                 (clk),
+                .reset_n             (reset_n),
+                .i_read_get          (i_rs_get[rs_channels]),
+                .i_write_wes         (issue_chan_fifo_push[rs_channels]),
+                .i_write_data        (issue_chan_fifo_input[rs_channels]),
+                .o_write_ready       (o_rs_chan_avaliable[rs_channels]),
+                .o_read_data         (fifos_data[rs_channels]),
+                .o_read_valid        (fifos_data_valid[rs_channels])
+            );
+        end
     endgenerate
 endmodule
