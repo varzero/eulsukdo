@@ -20,6 +20,7 @@ module rob_ready_update #(
 ) (
     input active,
     input rs_full,
+    input [ROB_PHYSICALREG_BIT_WIDTH-1:0] done_regname,
     input [ROB_ENTRY_ADDR_WIDTH-1:0] rob_addr_in,
     input [ROB_ENTRY_BIT_WIDTH-1:0] rob_entry_current,
     output [ROB_ENTRY_ADDR_WIDTH-1:0] rob_addr_out,
@@ -46,8 +47,8 @@ module rob_ready_update #(
         rs_entry = 0;
 
         if (active & ~rs_full) begin
-            for (operand_index = 0; operand_index < ROB_OPERANDS; operand_index = operand_index+!) begin
-                if (rob_entry_current[((operand_index*ROB_PHYSICALREG_BIT_WIDTH) + ROB_OPERANDS_POSITION_START) +: ROB_PHYSICALREG_BIT_WIDTH]) begin
+            for (operand_index = 0; operand_index < ROB_OPERANDS; operand_index = operand_index+1) begin
+                if (rob_entry_current[((operand_index*ROB_PHYSICALREG_BIT_WIDTH) + ROB_OPERANDS_POSITION_START) +: ROB_PHYSICALREG_BIT_WIDTH] == done_regname) begin
                     rob_entry_next[ROB_READY_POSITION_START + operand_index] = 1'b1;
                 end
             end

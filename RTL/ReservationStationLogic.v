@@ -3,7 +3,7 @@ module reservation_station #(
     parameter RS_ENTRIES = 32,
     
     parameter ROB_NUM_MAX = 128,
-    parameter INST_MICROOP_WIDTH = 8, // microOP = {EX No, EX opcode}
+    parameter INST_MICROOP_WIDTH = 8, // microOP = { EX opcode, EX No }
     parameter INST_PHYSICALREG_WIDTH = 6,
     parameter INST_OPERANDS = 2,
 
@@ -19,8 +19,8 @@ module reservation_station #(
     input reset_n,
 
     // ROB Push
-    input [(RS_NEW_ENTRY*ISSUES)-1:0] i_rob_new_entry_valid,
-    input [(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY*ISSUES)-1:0] i_rob_new_entries,
+    input [RS_NEW_ENTRY-1:0] i_rob_new_entry_valid,
+    input [(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY)-1:0] i_rob_new_entries,
     output [ISSUES-1:0] o_rs_chan_avaliable,
 
     // RS Pop
@@ -38,7 +38,10 @@ module reservation_station #(
 
     generate
         for (rs_channels = 0; rs_channels < ISSUES; rs_channels = rs_channels + 1) begin
-            assign issue_chan_fifo_push[rs_channels] = i_rob_new_entry_valid[(rs_channels+1)*RS_NEW_ENTRY:rs_channels*RS_NEW_ENTRY];
+            assign issue_chan_fifo_push[rs_channels] = 
+                        (i_rob_new_entry_valid[rs_channels] && 
+                            (rs_channels == issue_chan_fifo_input[(rs_channels*RS_ENTRY_BIT_WIDTH)+MICROOP_ISSUE_WIDTH-1:rs_channels*RS_ENTRY_BIT_WIDTH]))
+                                ? 1'b1 : 1'b0;
             assign issue_chan_fifo_input[rs_channels] 
                         = i_rob_new_entry_valid[(rs_channels+1)*(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY):rs_channels*(RS_ENTRY_BIT_WIDTH*RS_NEW_ENTRY)];
 
