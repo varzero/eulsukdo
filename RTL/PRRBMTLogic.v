@@ -3,48 +3,49 @@ module prrbmt #(
     parameter NEW_ENTRIES_INPUT_MAX = 4,
     parameter COMPLETE_RUN = 7,
     parameter SRAM_LIST_WIDTH = 8,
-    parameter INST_OPERANDS = 2
+    parameter INST_OPERANDS = 2,
+    parameter ENTRIES_ADDR_WIDTH = $clog2(PHYSICAL_REGISTERS),
+    parameter NEW_ENTRIES_BITWIDTH = ENTRIES_ADDR_WIDTH*NEW_ENTRIES_INPUT_MAX,
+    parameter DESTROY_ENTRIES_BITWIDTH = ENTRIES_ADDR_WIDTH*COMPLETE_RUN
 ) (
     input clk,
     input reset_n,
 
     // New Physical Registers Allocate
+    input [NEW_ENTRIES_INPUT_MAX-1:0]        new_entries_get,
+    output [NEW_ENTRIES_INPUT_MAX-1:0]       new_entries_valid,
+    output [NEW_ENTRIES_BITWIDTH-1:0]        new_entries,
 
     // Complete Registers Read
 
     // Unallocate Physical Registers
+    input [COMPLETE_RUN-1:0]    destroy_entries_update,
+    input [DESTROY_ENTRIES_BITWIDTH-1:0]        destroy_entries
 );
 
-    input                                       clk,
-    input                                       reset_n,
     input                                       init,
     output reg                                  init_fifo_done,
-    input [NEW_ENTRIES_MAX_ONE_TIME-1:0]        new_entries_get,
-    output reg [NEW_ENTRIES_MAX_ONE_TIME-1:0]   new_entries_valid,
-    output reg [NEW_ENTRIES_BITWIDTH-1:0]       new_entries,
-    input [DESTROY_ENTRIES_MAX_ONE_TIME-1:0]    destroy_entries_update,
-    input [DESTROY_ENTRIES_BITWIDTH-1:0]        destroy_entries
 
-    input       [READ_CHANNEL*ENTRY_ADDR_WIDTH-1:0]     i_read_addresses    ;
-    input       [WRITE_CHANNEL-1:0]                     i_write_wes         ;
-    input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0]    i_write_addresses   ;
-    input       [WRITE_CHANNEL*REG_WIDTH-1:0]           i_write_data        ;
-    output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data         ;
+    input  [COMPLETE_RUN*ENTRIES_ADDR_WIDTH-1:0]            i_read_addresses    ;
+    input  [NEW_ENTRIES_INPUT_MAX-1:0]                      i_write_wes         ;
+    input  [NEW_ENTRIES_INPUT_MAX*ENTRIES_ADDR_WIDTH-1:0]   i_write_addresses   ;
+    input  [NEW_ENTRIES_INPUT_MAX*REG_WIDTH-1:0]            i_write_data        ;
+    output [COMPLETE_RUN*REG_WIDTH-1:0]                     o_read_data         ;
 
     entrynum #(
         .ENTRIES(PHYSICAL_REGISTERS),
         .NEW_ENTRIES_MAX_ONE_TIME(NEW_ENTRIES_INPUT_MAX),
         .DESTROY_ENTRIES_MAX_ONE_TIME = 7
     ) (
-        input                                       clk,
-        input                                       reset_n,
-        input                                       init,
-        output reg                                  init_fifo_done,
-        input [NEW_ENTRIES_MAX_ONE_TIME-1:0]        new_entries_get,
-        output reg [NEW_ENTRIES_MAX_ONE_TIME-1:0]   new_entries_valid,
-        output reg [NEW_ENTRIES_BITWIDTH-1:0]       new_entries,
-        input [DESTROY_ENTRIES_MAX_ONE_TIME-1:0]    destroy_entries_update,
-        input [DESTROY_ENTRIES_BITWIDTH-1:0]        destroy_entries
+        .clk                            (clk),
+        .reset_n                        (reset_n),
+        .init                           (init),
+        .init_fifo_done                 (init_fifo_done),
+        .new_entries_get                (new_entries_get),
+        .new_entries_valid              (new_entries_valid),
+        .new_entries                    (new_entries),
+        .destroy_entries_update         (destroy_entries_update),
+        .destroy_entries                (destroy_entries)
     );
 
     regfile #(
