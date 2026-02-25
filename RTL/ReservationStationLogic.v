@@ -50,7 +50,7 @@ module reservation_station #(
                 .WRITE_CHANNEL   (RS_NEW_ENTRY),
                 .ENTRIES         (RS_ENTRIES),
                 .REG_WIDTH       (RS_ENTRY_BIT_WIDTH),
-            ) (
+            ) U_RS_CHAN (
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_get          (i_rs_get[rs_channels]),
