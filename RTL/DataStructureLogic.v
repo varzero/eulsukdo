@@ -247,7 +247,7 @@ module entrynum #(
                 state_next = RUNNING;
             end
             RUNNING: begin
-                init_fifo_done = 0;
+                init_fifo_done = 1;
 
                 new_entries_valid = o_fifo_read_valid;
                 new_entries = o_fifo_read_data;
