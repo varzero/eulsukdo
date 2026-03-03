@@ -19,6 +19,7 @@ module prrbmt_allocate_reg #(
     input [:0] i_nrobel_get_entries,
 
         // PHY Reg ROB Num Update: Opreand input
+    input [:0] i_update_phyreg_position,
     input [:0] i_update_phyreg_from_opreands,
     input [:0] i_rob_number,
 
@@ -44,9 +45,9 @@ module prrbmt_allocate_reg #(
 
 
     entrynum #(
-        .ENTRIES(PHYSICAL_REGISTERS),
-        .NEW_ENTRIES_MAX_ONE_TIME(NEW_ENTRIES_INPUT_MAX),
-        .DESTROY_ENTRIES_MAX_ONE_TIME(COMPLETE_RUN)
+        .ENTRIES                        (PHYSICAL_REGISTERS),
+        .NEW_ENTRIES_MAX_ONE_TIME       (NEW_ENTRIES_INPUT_MAX),
+        .DESTROY_ENTRIES_MAX_ONE_TIME   (COMPLETE_RUN)
     ) U_PRRBMT_PHYREG_AVAILABLE_LIST (
         .clk                            (clk),
         .reset_n                        (reset_n),
