@@ -33,7 +33,6 @@ module rs #(
 				) (
 					.valid_position_i(input_valid_position[ex_path]),
 					.position_data_i(entry_data_i),
-					.value_entries_o(),
 					.out_position_o(position_ordering[ex_path])
 					.data_o(data_ordering[ex_path])
 				);
