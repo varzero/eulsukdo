@@ -1,15 +1,15 @@
 module rs #( // Ready Station
 	parameter IN_ENTRIES = 5,
 	parameter NUM_OF_EX = 5,
-	parameter ROB_ENTRIES = 128,
+	parameter IST_ENTRIES = 128,
 	parameter MICRO_OP_LENGHT = 5, // LSB 쪽으로 EX_SPECIFY_WIDTH 만큼은 EX 선택용
 	parameter NUM_OF_PHY_REGS = 64,
 	parameter OPREANDS = 2,
 	parameter FIFO_ENTRIES = 32,
 	parameter EX_SPECIFY_WIDTH = $clog2(NUM_OF_EX),
-	parameter ROB_ADDR_WIDTH = $clog2(ROB_ENTRIES),
+	parameter IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
 	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS),
-	parameter RS_ENTRY_WIDTH = ROB_ADDR_WIDTH + MICRO_OP_LENGHT + PHYREG_ADDR_WIDTH + (PHYREG_ADDR_WIDTH * OPREANDS)
+	parameter RS_ENTRY_WIDTH = IST_ADDR_WIDTH + MICRO_OP_LENGHT + PHYREG_ADDR_WIDTH + (PHYREG_ADDR_WIDTH * OPREANDS)
 ) (
 	input clk,
 	input reset_n,
