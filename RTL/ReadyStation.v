@@ -1,4 +1,4 @@
-module rs #(
+module rs #( // Ready Station
 	parameter IN_ENTRIES = 5,
 	parameter NUM_OF_EX = 5,
 	parameter ROB_ENTRIES = 128,
@@ -13,14 +13,20 @@ module rs #(
 ) (
 	input clk,
 	input reset_n,
-	input [(IN_ENTRIES * EX_SPECIFIY_WIDTH)-1:0] ex_target_i,
+	input [(IN_ENTRIES * EX_SPECIFY_WIDTH)-1:0] ex_target_i,
 	input [(IN_ENTRIES * RS_ENTRY_WIDTH)-1:0] entry_data_i,
+	input [NUM_OF_EX-1:0] ex_busy_i,
 	output [NUM_OF_EX-1:0] ex_fifo_valid_o,
-	output [(NUM_OF_EX * RS_ENTRY_WIDTH)-1:0] ex_fifo_data_o 
+	output [(NUM_OF_EX * RS_ENTRY_WIDTH)-1:0] ex_fifo_data_o,
+	output fifo_full_block
 );
 	reg [IN_ENTRIES-1:0] input_valid_position [0:NUM_OF_EX-1];
 	wire [IN_ENTRIES-1:0] position_ordering [0:NUM_OF_EX-1]; 
 	wire [(IN_ENTRIES * RS_ENTRY_WIDTH)-1:0] data_ordering [0:NUM_OF_EX-1]; 
+	wire [IN_ENTRIES-1:0] fifo_empty, fifo_full;
+
+	assign ex_fifo_valid_o = ~fifo_empty;
+	assign fifo_full_block = &fifo_full;s
 
 	genvar ex_path;
 	integer valid_check, check_target;
@@ -43,12 +49,12 @@ module rs #(
 			) (
 			    .clk                (clk),
 			    .reset_n            (reset_n),
-			    .i_read_get         (),
+			    .i_read_get         (ex_busy_i[ex_path]),
 			    .i_write_we         (position_ordering[ex_path]),
 			    .i_write_data       (data_ordering[ex_path]),
-			    .o_read_data        (),
-			    .o_empty            (),
-			    .o_full             ()
+			    .o_read_data        (ex_fifo_data_o[(ex_path*RS_ENTRY_WIDTH) +: RS_ENTRY_WIDTH]),
+			    .o_empty            (fifo_empty[ex_path]),
+			    .o_full             (fifo_full[ex_path])
 			);
 		end
 	endgenerate
