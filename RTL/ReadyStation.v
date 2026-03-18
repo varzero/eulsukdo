@@ -1,11 +1,14 @@
 module rs #( // Ready Station
 	parameter IN_ENTRIES = 5,
 	parameter NUM_OF_EX = 5,
+
 	parameter IST_ENTRIES = 128,
 	parameter MICRO_OP_LENGHT = 5, // LSB 쪽으로 EX_SPECIFY_WIDTH 만큼은 EX 선택용
 	parameter NUM_OF_PHY_REGS = 64,
 	parameter OPREANDS = 2,
+
 	parameter FIFO_ENTRIES = 32,
+
 	parameter EX_SPECIFY_WIDTH = $clog2(NUM_OF_EX),
 	parameter IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
 	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS),
@@ -28,7 +31,7 @@ module rs #( // Ready Station
 	wire [IN_ENTRIES-1:0] fifo_empty, fifo_full;
 
 	assign ex_fifo_valid_o = ~fifo_empty;
-	assign fifo_full_block = &fifo_full;s
+	assign fifo_full_block = &fifo_full;
 
 	genvar ex_path;
 	integer valid_check, check_target;
@@ -69,9 +72,8 @@ module rs #( // Ready Station
 											+ (EX_SPECIFY_WIDTH * check_target) ) 
 										+: EX_SPECIFY_WIDTH];
 				microop_inst = entry_one[ROB_ADDR_WIDTH +: MICRO_OP_LENGHT];
-				if ( microop_inst && valid_check )
-				begin
-					input_valid_position[velid_check-1][check_target] = 1'b1;
+				if ( microop_inst && valid_check ) begin
+					input_valid_position[valid_check-1][check_target] = 1'b1;
 				end
 			end
 		end

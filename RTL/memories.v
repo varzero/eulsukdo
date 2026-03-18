@@ -111,7 +111,7 @@ endmodule
 module on_chip_sync_dual_port_ram #(
     parameter       ENTRIES         = 16,
     parameter       ENTRY_WIDTH     = 32,
-    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES)
 ) (
     input                                               clk,
     input       [ENTRY_ADDR_WIDTH-1:0]                  r_addr,
