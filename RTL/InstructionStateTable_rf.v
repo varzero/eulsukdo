@@ -1,4 +1,5 @@
-module ist #( // Instruction State Table
+// 최초 구현은 Register File 기반 Entry 이용
+module ist_rf #( // Instruction State Table
 	parameter IST_ENTRIES = 128,
     parameter NEW_INSTRUCTION = 4,
     parameter DONE_INSTRUCTION = 4,
@@ -22,6 +23,7 @@ module ist #( // Instruction State Table
     input reset_n,
 
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
+    input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
     output active
 );
@@ -41,6 +43,22 @@ module ist #( // Instruction State Table
     	.init_done            (active)
     );
 
+    // IST ENTRIES
+    regfile #(
+        .READ_CHANNEL    (COMPLETE_EX),
+        .WRITE_CHANNEL   (NEW_INSTRUCTION),
+        .ENTRIES         (IST_ENTRIES),
+        .REG_WIDTH       (IST_ENTRY_WIDTH)
+    ) U_ (
+        .clk                 (clk),
+        .reset_n             (reset_n),
+        .i_read_addresses    (),
+        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
+        /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
+        /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (),
+        .o_read_data         ()
+    );
+
     // Opreands
     wire [(COMPLETE_EX * (NUM_OF_PHY_REGS * OPREANDS))-1:0] inst_opreands;
     regfile #(
@@ -51,11 +69,11 @@ module ist #( // Instruction State Table
     ) U_OPERANDS_LIST (
         .clk                 (clk),
         .reset_n             (reset_n),
-        /* input       [READ_CHANNEL*ENTRY_ADDR_WIDTH-1:0]  */ .i_read_addresses    (),
+        .i_read_addresses    (ready_ist_entrites_i),
         /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
         /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
         /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (),
-        /* output reg  [READ_CHANNEL*REG_WIDTH-1:0]         */ .o_read_data         (inst_opreands)
+        .o_read_data         (inst_opreands)
     );
 
     // Readies
@@ -74,7 +92,7 @@ module ist #( // Instruction State Table
             ) U_READY_OPERAND (
                 .clk                 (clk),
                 .reset_n             (reset_n),
-                /* input       [READ_CHANNEL*ENTRY_ADDR_WIDTH-1:0]  */ .i_read_addresses    (),
+                .i_read_addresses    (ready_ist_entrites_i),
                 /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
                 /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
                 .i_write_data        ( {opreands_ready_new[target_opreand], opreands_ready_after[target_opreand]} ),
@@ -83,14 +101,11 @@ module ist #( // Instruction State Table
         end
     endgenerate
 
-    integer ready_position_check, opreand_position, ready_entries_num;
+    integer ready_position_check, opreand_position;
     reg [OPREANDS-1:0] ready_vector;
     reg [(COMPLETE_EX + NEW_INSTRUCTION)-1:0] ist_2_rs_valid;
-    reg [(IST_ADDR_WIDTH * (COMPLETE_EX + NEW_INSTRUCTION))-1:0] ist_2_rs_inst_num; // SRAM Request
     always @(*) begin
         ready_vector = 0;
-
-        ready_entries_num = 0;
 
         for (ready_position_check = 0; ready_position_check < COMPLETE_EX; ready_position_check = ready_position_check + 1) begin
             opreands_ready_after[target_opreand] = opreands_ready_before[target_opreand];
@@ -107,12 +122,9 @@ module ist #( // Instruction State Table
                 end
             end
 
-            // 모두 준비 되었다면 RS로 전달하기 위한 SRAM 접근 부분에 전달
+            // 모두 준비 되었다면 RS로 전달하기 위한 SRAM 접근 부분에 유효 부분을 전달
             if (&ready_vector) begin
-                ist_2_rs_valid[ready_entries_num] = 1'b1;
-                ist_2_rs_inst[(ready_entries_num * IST_ADDR_WIDTH) +: IST_ADDR_WIDTH] = (IST 필드 주소);
-
-                ready_entries_num = ready_entries_num + 1;
+                ist_2_rs_valid[ready_position_check] = 1'b1;
             end
         end
     end
