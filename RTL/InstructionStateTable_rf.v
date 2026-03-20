@@ -22,6 +22,10 @@ module ist_rf #( // Instruction State Table
     input clk,
     input reset_n,
 
+    input [NEW_INSTRUCTION-1:0] new_inst_valid_i,
+    input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_i,
+    input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
+
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
     input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
@@ -43,7 +47,7 @@ module ist_rf #( // Instruction State Table
     	.init_done            (active)
     );
 
-    // IST ENTRIES
+    // IST ENTRIES (This version is Register File)
     regfile #(
         .READ_CHANNEL    (COMPLETE_EX),
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
@@ -53,18 +57,19 @@ module ist_rf #( // Instruction State Table
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (),
-        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
+        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (new_inst_valid_i),
         /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
-        /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (),
+        /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (new_inst_i),
         .o_read_data         ()
     );
 
     // Opreands
+    reg []
     wire [(COMPLETE_EX * (NUM_OF_PHY_REGS * OPREANDS))-1:0] inst_opreands;
     regfile #(
         .READ_CHANNEL    (COMPLETE_EX),
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
-        .ENTRIES         (IST_ENTRIES),
+        .ENTRIES         (),
         .REG_WIDTH       (NUM_OF_PHY_REGS * OPREANDS)
     ) U_OPERANDS_LIST (
         .clk                 (clk),
