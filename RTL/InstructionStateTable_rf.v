@@ -22,8 +22,15 @@ module ist_rf #( // Instruction State Table
     input clk,
     input reset_n,
 
+    input [NEW_INSTRUCTION-1:0] allocate_ist_entry_i,
+    output [NEW_INSTRUCTION-1:0] allocate_ist_entry_valid_o,
+    output [(NEW_INSTRUCTION * IST_ENTRIES)-1:0] allocate_ist_entry_number_o,
+
+    input [DONE_INSTRUCTION-1:0] unallocate_ist_entry_valid_i,
+    input [(DONE_INSTRUCTION * IST_ENTRIES)-1:0] unallocate_ist_entry_number_i,
+
     input [NEW_INSTRUCTION-1:0] new_inst_valid_i,
-    input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_i,
+    input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0]  ,
     input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
 
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
@@ -32,6 +39,14 @@ module ist_rf #( // Instruction State Table
     output active
 );
 
+    wire [NEW_INSTRUCTION-1:0] allocate_ist_entry_valid;
+    wire [(NEW_INSTRUCTION * IST_ENTRIES)-1:0] allocate_ist_entry_number;
+    assign allocate_ist_entry_valid_o   = allocate_ist_entry_valid;
+    assign allocate_ist_entry_number_o  = allocate_ist_entry_number;
+
+    wire [NEW_INSTRUCTION-1:0] create_ist_entry_valid;
+    assign create_ist_entry_valid       = new_inst_valid_i & allocate_ist_entry_valid;
+
     allocator #(
     	.NUM_OF_ENTRIES (IST_ENTRIES),
         .UNALLOCATES    (DONE_INSTRUCTION),
@@ -39,11 +54,11 @@ module ist_rf #( // Instruction State Table
     ) U_IST_ENTRIES_ALLOCATOR (
         .clk                  (clk),
         .reset_n              (reset_n),
-        /* input [UNALLOCATES-1:0]                     */ .unallocate_valid_i   (),
-        /* input [(UNALLOCATES * ENTRY_NUM_WIDTH)-1:0] */ .unallocate_entries_i (),
-        /* input [ALLOCATES-1:0]                       */ .allocating_i         (),
-	    /* output [ALLOCATES-1:0]                      */ .allocate_valid_o     (),
-        /* output [(ALLOCATES * ENTRY_NUM_WIDTH)-1:0]  */ .allocate_entries_o   (),
+        .unallocate_valid_i   (unallocate_ist_entry_valid_i),
+        .unallocate_entries_i (unallocate_ist_entry_number_i),
+        .allocating_i         (allocate_ist_entry_i),
+	    .allocate_valid_o     (allocate_ist_entry_valid),
+        .allocate_entries_o   (allocate_ist_entry_number),
     	.init_done            (active)
     );
 
@@ -56,10 +71,10 @@ module ist_rf #( // Instruction State Table
     ) U_ (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    (),
-        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (new_inst_valid_i),
-        /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
+        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (create_ist_entry_valid),
+        /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (allocate_ist_entry_number),
         /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (new_inst_i),
+        .i_read_addresses    (),
         .o_read_data         ()
     );
 
@@ -127,7 +142,7 @@ module ist_rf #( // Instruction State Table
                 end
             end
 
-            // 모두 준비 되었다면 RS로 전달하기 위한 SRAM 접근 부분에 유효 부분을 전달
+            // 모두 준비 되었다면 RS로 전달하기 위한 SRAM 접근 부분에 유효 부분을 전달 - 는 나중에 합시다.. 먼저 RF로..
             if (&ready_vector) begin
                 ist_2_rs_valid[ready_position_check] = 1'b1;
             end
