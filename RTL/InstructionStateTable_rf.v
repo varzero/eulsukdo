@@ -71,9 +71,9 @@ module ist_rf #( // Instruction State Table
     ) U_ (
         .clk                 (clk),
         .reset_n             (reset_n),
-        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (create_ist_entry_valid),
-        /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (allocate_ist_entry_number),
-        /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (new_inst_i),
+        .i_write_wes         (create_ist_entry_valid),
+        .i_write_addresses   (allocate_ist_entry_number),
+        .i_write_data        (new_inst_i),
         .i_read_addresses    (),
         .o_read_data         ()
     );
