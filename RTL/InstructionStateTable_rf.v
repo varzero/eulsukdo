@@ -122,8 +122,8 @@ module ist_rf #( // Instruction State Table
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_addresses    (ready_ist_entrites_i),
-                /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
-                /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
+                /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         ( {create_ist_entry_valid, } ),
+                /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   ( {allocate_ist_entry_number, } ),
                 .i_write_data        ( {opreands_ready_new[target_opreand], opreands_ready_after[target_opreand]} ),
                 .o_read_data         (opreands_ready_before[target_opreand])
             );
