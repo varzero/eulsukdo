@@ -33,6 +33,7 @@ module ist_rf #( // Instruction State Table
     input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_field_i,
     input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
 
+    input [COMPLETE_EX-1:0] ready_valid_i,
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
     input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
@@ -68,7 +69,7 @@ module ist_rf #( // Instruction State Table
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
         .ENTRIES         (IST_ENTRIES),
         .REG_WIDTH       (IST_ENTRY_WIDTH)
-    ) U_ (
+    ) U_IST_FIELD (
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_write_wes         (create_ist_entry_valid),
@@ -122,8 +123,8 @@ module ist_rf #( // Instruction State Table
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_addresses    (ready_ist_entrites_i),
-                /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         ( {create_ist_entry_valid, } ),
-                /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   ( {allocate_ist_entry_number, } ),
+                .i_write_wes         ( {create_ist_entry_valid, ready_valid_i} ),
+                .i_write_addresses   ( {allocate_ist_entry_number, ready_ist_entrites_i} ),
                 .i_write_data        ( {opreands_ready_new[target_opreand], opreands_ready_after[target_opreand]} ),
                 .o_read_data         (opreands_ready_before[target_opreand])
             );
