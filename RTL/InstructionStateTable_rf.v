@@ -30,7 +30,7 @@ module ist_rf #( // Instruction State Table
     input [(DONE_INSTRUCTION * IST_ENTRIES)-1:0] unallocate_ist_entry_number_i,
 
     input [NEW_INSTRUCTION-1:0] new_inst_valid_i,
-    input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0]  ,
+    input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_field_i,
     input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
 
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
@@ -73,28 +73,37 @@ module ist_rf #( // Instruction State Table
         .reset_n             (reset_n),
         .i_write_wes         (create_ist_entry_valid),
         .i_write_addresses   (allocate_ist_entry_number),
-        .i_write_data        (new_inst_i),
+        .i_write_data        (new_inst_field_i),
         .i_read_addresses    (),
         .o_read_data         ()
     );
 
     // Opreands
-    reg []
+    reg [((NUM_OF_PHY_REGS * OPREANDS))-1:0] new_inst_opr_fields;
     wire [(COMPLETE_EX * (NUM_OF_PHY_REGS * OPREANDS))-1:0] inst_opreands;
     regfile #(
         .READ_CHANNEL    (COMPLETE_EX),
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
-        .ENTRIES         (),
+        .ENTRIES         (IST_ENTRIES),
         .REG_WIDTH       (NUM_OF_PHY_REGS * OPREANDS)
     ) U_OPERANDS_LIST (
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (ready_ist_entrites_i),
-        /* input       [WRITE_CHANNEL-1:0]                  */ .i_write_wes         (),
-        /* input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0] */ .i_write_addresses   (),
-        /* input       [WRITE_CHANNEL*REG_WIDTH-1:0]        */ .i_write_data        (),
+        .i_write_wes         (create_ist_entry_valid),
+        .i_write_addresses   (allocate_ist_entry_number),
+        .i_write_data        (new_inst_opr_fields),
         .o_read_data         (inst_opreands)
     );
+    integer target_new_inst;
+    localparam OPREANDS_START_POSITION = PC_WIDTH + MICRO_OP_LENGHT 
+                                + NUM_OF_PHY_REGS + NUM_OF_LOGICAL_REGS;
+    always @(*) begin
+        for (target_new_inst = 0; target_new_inst < NEW_INSTRUCTION; target_new_inst = target_new_inst + 1) begin
+            new_inst_opr_fields[( (NUM_OF_PHY_REGS * OPREANDS) * target_new_inst ) +: (NUM_OF_PHY_REGS * OPREANDS)] 
+                = new_inst_field_i[( (target_new_inst * IST_ENTRY_WIDTH) + OPREANDS_START_POSITION ) +: (NUM_OF_PHY_REGS * OPREANDS)];
+        end
+    end
 
     // Readies
     wire [COMPLETE_EX-1:0] opreands_ready_before[0:OPREANDS-1];
