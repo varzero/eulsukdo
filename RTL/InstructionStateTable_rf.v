@@ -37,6 +37,8 @@ module ist_rf #( // Instruction State Table
     input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
     input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
+    output [(COMPLETE_EX + NEW_INSTRUCTION)-1:0] rs_send_valid_o,
+    output [((COMPLETE_EX + NEW_INSTRUCTION) * IST_ENTRY_WIDTH)-1:0] rs_send_ist_entries_o;
     output active
 );
 
@@ -47,6 +49,8 @@ module ist_rf #( // Instruction State Table
 
     wire [NEW_INSTRUCTION-1:0] create_ist_entry_valid;
     assign create_ist_entry_valid       = new_inst_valid_i & allocate_ist_entry_valid;
+
+    wire [(COMPLETE_EX * IST_ENTRIES)-1:0] ist_entries;
 
     allocator #(
     	.NUM_OF_ENTRIES (IST_ENTRIES),
@@ -75,8 +79,8 @@ module ist_rf #( // Instruction State Table
         .i_write_wes         (create_ist_entry_valid),
         .i_write_addresses   (allocate_ist_entry_number),
         .i_write_data        (new_inst_field_i),
-        .i_read_addresses    (),
-        .o_read_data         ()
+        .i_read_addresses    (ready_ist_entrites_i),
+        .o_read_data         (ist_entries)
     );
 
     // Opreands
@@ -137,6 +141,7 @@ module ist_rf #( // Instruction State Table
     always @(*) begin
         ready_vector = 0;
 
+        // PRM에서 온 Ready 확인
         for (ready_position_check = 0; ready_position_check < COMPLETE_EX; ready_position_check = ready_position_check + 1) begin
             opreands_ready_after[target_opreand] = opreands_ready_before[target_opreand];
             for (opreand_position = 0; opreand_position < OPREANDS; opreand_position = opreand_position + 1) begin
@@ -157,6 +162,20 @@ module ist_rf #( // Instruction State Table
                 ist_2_rs_valid[ready_position_check] = 1'b1;
             end
         end
+
+        // NEL에서 온 Ready 확인
+        for (ready_position_check = 0; ready_position_check < NEW_INSTRUCTION; NEW_INSTRUCTION = NEW_INSTRUCTION + 1) begin
+            for (opreand_position = 0; opreand_position < OPREANDS; opreand_position = opreand_position + 1) begin
+                ready_vector[opreand_position] = new_inst_opr_ready_i[( (ready_position_check * OPREANDS) ) + opreand_position];
+            end
+
+            if (&ready_vector) begin
+                ist_2_rs_valid[COMPLETE_EX + ready_position_check] = 1'b1;
+            end
+        end
     end
+
+    assign rs_send_valid_o = ist_2_rs_valid;
+    assign rs_send_ist_entries_o = { new_inst_field_i, ist_entries };
 
 endmodule
