@@ -29,7 +29,6 @@ module ist_rf #( // Instruction State Table
     input [DONE_INSTRUCTION-1:0] unallocate_ist_entry_valid_i,
     input [(DONE_INSTRUCTION * IST_ENTRIES)-1:0] unallocate_ist_entry_number_i,
 
-    input [NEW_INSTRUCTION-1:0] new_inst_valid_i,
     input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_field_i,
     input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
 
@@ -38,7 +37,7 @@ module ist_rf #( // Instruction State Table
     input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
     output [(COMPLETE_EX + NEW_INSTRUCTION)-1:0] rs_send_valid_o,
-    output [((COMPLETE_EX + NEW_INSTRUCTION) * IST_ENTRY_WIDTH)-1:0] rs_send_ist_entries_o;
+    output [((COMPLETE_EX + NEW_INSTRUCTION) * IST_ENTRY_WIDTH)-1:0] rs_send_ist_entries_o,
     output active
 );
 
@@ -48,7 +47,7 @@ module ist_rf #( // Instruction State Table
     assign allocate_ist_entry_number_o  = allocate_ist_entry_number;
 
     wire [NEW_INSTRUCTION-1:0] create_ist_entry_valid;
-    assign create_ist_entry_valid       = new_inst_valid_i & allocate_ist_entry_valid;
+    assign create_ist_entry_valid       = allocate_ist_entry_i & allocate_ist_entry_valid;
 
     wire [(COMPLETE_EX * IST_ENTRIES)-1:0] ist_entries;
 
@@ -166,6 +165,7 @@ module ist_rf #( // Instruction State Table
         // NEL에서 온 Ready 확인
         for (ready_position_check = 0; ready_position_check < NEW_INSTRUCTION; NEW_INSTRUCTION = NEW_INSTRUCTION + 1) begin
             for (opreand_position = 0; opreand_position < OPREANDS; opreand_position = opreand_position + 1) begin
+                opreands_ready_new[opreand_position][ready_position_check] = new_inst_opr_ready_i[( (ready_position_check * OPREANDS) ) + opreand_position];
                 ready_vector[opreand_position] = new_inst_opr_ready_i[( (ready_position_check * OPREANDS) ) + opreand_position];
             end
 
