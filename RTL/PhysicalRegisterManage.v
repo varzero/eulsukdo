@@ -15,12 +15,12 @@ module prm #(
     input reset_n,
 );
 
-	regfile U_PHY_REG_ROB_MAPPING_RF #(
+	regfile #(
     	.READ_CHANNEL    (),
     	.WRITE_CHANNEL   (),
     	.ENTRIES         (),
     	.REG_WIDTH       (),
-	) (
+	) U_PHY_REG_ROB_MAPPING_RF (
 	    .clk                 (),
 	    .reset_n             (),
 	    .i_read_addresses    (),
@@ -30,11 +30,11 @@ module prm #(
 	    .o_read_data		 ()
 	);
 
-	allocator_start_one U_UNALLOCATE_PHY_REG_ALLOCATOR #(
+	allocator_start_one #(
 		.NUM_OF_ENTRIES (),
     	.UNALLOCATES 	(),
     	.ALLOCATES 		()
-	) (
+	) U_UNALLOCATE_PHY_REG_ALLOCATOR (
 	    .clk					(),
 	    .reset_n				(),
 	    .unallocate_valid_i		(),
@@ -45,12 +45,12 @@ module prm #(
 		.init_done				()
 	);
 
-	regfile U_PRRM_LIST_BUF #(
+	regfile #(
     	.READ_CHANNEL    (),
     	.WRITE_CHANNEL   (),
     	.ENTRIES         (),
     	.REG_WIDTH       (),
-	) (
+	) U_PRRM_LIST_BUF (
 	    .clk                 (),
 	    .reset_n             (),
 	    .i_read_addresses    (),
@@ -60,11 +60,11 @@ module prm #(
 	    .o_read_data		 ()
 	);
 
-	allocator U_PRRM_LIST_SRAM_ADDR_ALLOCATOR #(
+	allocator #(
 		.NUM_OF_ENTRIES (),
     	.UNALLOCATES 	(),
     	.ALLOCATES 		()
-	) (
+	) U_PRRM_LIST_SRAM_ADDR_ALLOCATOR (
 	    .clk					(),
 	    .reset_n				(),
 	    .unallocate_valid_i		(),
@@ -75,10 +75,10 @@ module prm #(
 		.init_done				()
 	);
 	
-	on_chip_sync_dual_port_ram U_PRRM_LIST_SRAM #(
+	on_chip_sync_dual_port_ram #(
 	    .ENTRIES         (),
 	    .ENTRY_WIDTH     ()
-	) (
+	) U_PRRM_LIST_SRAM (
 	    .clk	(),
 	    .r_addr	(),
 	    .we		(),
