@@ -7,7 +7,7 @@ module prm #(
     parameter NUM_OF_WB_ENTRIES = 5,
 	parameter BUF_ENTRIES_PER_PHYREG = 4,
 
-    parameter SRAM_SIZE = 128,
+    parameter SRAM_ENTRIES_SIZE = 128,
 	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS),
 	parameter SRAM_ADDR_WIDTH = $clog2(SRAM_SIZE)
 ) (
@@ -31,9 +31,9 @@ module prm #(
 	);
 
 	allocator_start_one #(
-		.NUM_OF_ENTRIES (),
+		.NUM_OF_ENTRIES (NUM_OF_PHY_REGS),
     	.UNALLOCATES 	(),
-    	.ALLOCATES 		()
+    	.ALLOCATES 		(NUM_OF_NEW_ENTRIES)
 	) U_UNALLOCATE_PHY_REG_ALLOCATOR (
 	    .clk					(),
 	    .reset_n				(),
@@ -61,7 +61,7 @@ module prm #(
 	);
 
 	allocator #(
-		.NUM_OF_ENTRIES (),
+		.NUM_OF_ENTRIES (SRAM_ENTRIES_SIZE),
     	.UNALLOCATES 	(),
     	.ALLOCATES 		()
 	) U_PRRM_LIST_SRAM_ADDR_ALLOCATOR (
