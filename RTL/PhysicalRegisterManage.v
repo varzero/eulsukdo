@@ -11,6 +11,7 @@ module prm #(
 
     parameter SRAM_ENTRIES_SIZE = 128,
 	parameter SRAM_ADDR_WIDTH = $clog2(SRAM_SIZE),
+	parameter BUF_ENTRIES_CNT_BITWIDTH = $clog2(BUF_ENTRIES_PER_PHYREG),
 	parameter IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
 	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS)
 ) (
@@ -34,19 +35,26 @@ module prm #(
 	// Ready signal send to IST from PHYREG
 	output [NUM_OF_WB_ENTRIES-1:0] ready_valid_o,
 	output [(NUM_OF_WB_ENTRIES * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_o,
-	output [(NUM_OF_WB_ENTRIES * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_o
+	output [(NUM_OF_WB_ENTRIES * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_o,
+
+	// Write Back PHY Registers NUMBERS
+	input [NUM_OF_WB_ENTRIES-1:0] wb_done_valid_i,
+	input [(NUM_OF_WB_ENTRIES * PHYREG_ADDR_WIDTH)-1:0] wb_done_phyreg_i,
+
+    output active
 );
+	wire phyreg_allocate_reg_done, sram_allocate_reg_done, available_sram;
 
 	regfile #(
-    	.READ_CHANNEL    (),
-    	.WRITE_CHANNEL   (),
-    	.ENTRIES         (),
-    	.REG_WIDTH       (),
+    	.READ_CHANNEL    (NUM_OF_WB_ENTRIES),
+    	.WRITE_CHANNEL   (NUM_OF_NEW_ENTRIES * OPREANDS),
+    	.ENTRIES         (NUM_OF_PHY_REGS),
+    	.REG_WIDTH       (( PHYREG_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH),
 	) U_PHY_REG_ROB_MAPPING_RF (
-	    .clk                 (),
-	    .reset_n             (),
-	    .i_read_addresses    (),
-	    .i_write_wes         (),
+	    .clk                 (clk),
+	    .reset_n             (reset_n),
+	    .i_read_addresses    (wb_done_phyreg_i),
+	    .i_write_wes         (target_ist_valid_i),
 	    .i_write_addresses   (),
 	    .i_write_data        (),
 	    .o_read_data		 ()
@@ -54,27 +62,27 @@ module prm #(
 
 	allocator_start_one #(
 		.NUM_OF_ENTRIES (NUM_OF_PHY_REGS),
-    	.UNALLOCATES 	(),
+    	.UNALLOCATES 	(NUM_OF_DESTROY_ENTRIES),
     	.ALLOCATES 		(NUM_OF_NEW_ENTRIES)
 	) U_UNALLOCATE_PHY_REG_ALLOCATOR (
-	    .clk					(),
-	    .reset_n				(),
-	    .unallocate_valid_i		(),
-	    .unallocate_entries_i	(),
-	    .allocating_i			(),
-		.allocate_valid_o		(),
-	    .allocate_entries_o		(),
-		.init_done				()
+	    .clk					(clk),
+	    .reset_n				(reset_n),
+	    .unallocate_valid_i		(unallocate_phyreg_valid_i),
+	    .unallocate_entries_i	(unallocate_phyregs_i),
+	    .allocating_i			(allocate_phyreg_get_i),
+		.allocate_valid_o		(allocate_phyreg_valid_o),
+	    .allocate_entries_o		(allocate_phyregs_o),
+		.init_done				(phyreg_allocate_reg_done)
 	);
 
 	regfile #(
-    	.READ_CHANNEL    (),
-    	.WRITE_CHANNEL   (),
-    	.ENTRIES         (),
-    	.REG_WIDTH       (),
+    	.READ_CHANNEL    (NUM_OF_WB_ENTRIES),
+    	.WRITE_CHANNEL   (NUM_OF_NEW_ENTRIES * OPREANDS),
+    	.ENTRIES         (NUM_OF_PHY_REGS),
+    	.REG_WIDTH       (1 + SRAM_ADDR_WIDTH + SRAM_ADDR_WIDTH),
 	) U_PRRM_LIST_BUF (
-	    .clk                 (),
-	    .reset_n             (),
+	    .clk                 (clk),
+	    .reset_n             (reset_n),
 	    .i_read_addresses    (),
 	    .i_write_wes         (),
 	    .i_write_addresses   (),
@@ -87,21 +95,21 @@ module prm #(
     	.UNALLOCATES 	(),
     	.ALLOCATES 		()
 	) U_PRRM_LIST_SRAM_ADDR_ALLOCATOR (
-	    .clk					(),
-	    .reset_n				(),
+	    .clk					(clk),
+	    .reset_n				(reset_n),
 	    .unallocate_valid_i		(),
 	    .unallocate_entries_i	(),
 	    .allocating_i			(),
 		.allocate_valid_o		(),
 	    .allocate_entries_o		(),
-		.init_done				()
+		.init_done				(sram_allocate_reg_done)
 	);
 	
 	on_chip_sync_dual_port_ram #(
-	    .ENTRIES         (),
-	    .ENTRY_WIDTH     ()
+	    .ENTRIES         (SRAM_ENTRIES_SIZE),
+	    .ENTRY_WIDTH     (PHYREG_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG)
 	) U_PRRM_LIST_SRAM (
-	    .clk	(),
+	    .clk	(clk),
 	    .r_addr	(),
 	    .we		(),
 	    .w_addr	(),
