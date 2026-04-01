@@ -31,7 +31,10 @@ module prm #(
 	input [(NUM_OF_NEW_ENTRIES * IST_ADDR_WIDTH)-1:0] target_ist_entry_i,
 	input [((NUM_OF_NEW_ENTRIES * OPREANDS) * PHYREG_ADDR_WIDTH)-1:0] target_phyregs_i,
 
-
+	// Ready signal send to IST from PHYREG
+	output [NUM_OF_WB_ENTRIES-1:0] ready_valid_o,
+	output [(NUM_OF_WB_ENTRIES * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_o,
+	output [(NUM_OF_WB_ENTRIES * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_o
 );
 
 	regfile #(
