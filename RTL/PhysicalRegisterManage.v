@@ -27,7 +27,7 @@ module prm #(
 	input [NUM_OF_DESTROY_ENTRIES-1:0] unallocate_phyreg_valid_i,
 	input [(NUM_OF_DESTROY_ENTRIES * PHYREG_ADDR_WIDTH)-1:0] unallocate_phyregs_i,
 
-	// PHYREG Use IST Mapping
+	// PHYREG Use IST Mapping, Process on New Entry Logic
 	input [(NUM_OF_NEW_ENTRIES * OPREANDS)-1:0] target_ist_valid_i,
 	input [(NUM_OF_NEW_ENTRIES * IST_ADDR_WIDTH)-1:0] target_ist_entry_i,
 	input [((NUM_OF_NEW_ENTRIES * OPREANDS) * PHYREG_ADDR_WIDTH)-1:0] target_phyregs_i,
@@ -44,6 +44,11 @@ module prm #(
     output active
 );
 	wire phyreg_allocate_reg_done, sram_allocate_reg_done, available_sram;
+	wire [NUM_OF_NEW_ENTRIES-1:0] allocate_phyreg_target;
+	wire [(NUM_OF_NEW_ENTRIES * PHYREG_ADDR_WIDTH)-1:0] allocate_phyregs;
+
+	assign allocate_phyreg_target = allocate_phyreg_get_i & allocate_phyreg_valid_o;
+	assign allocate_phyregs_o = allocate_phyregs;
 
 	regfile #(
     	.READ_CHANNEL    (NUM_OF_WB_ENTRIES),
@@ -56,7 +61,7 @@ module prm #(
 	    .i_read_addresses    (wb_done_phyreg_i),
 	    .i_write_wes         (target_ist_valid_i),
 	    .i_write_addresses   (),
-	    .i_write_data        (),
+	    .i_write_data        (target_phyregs_i),
 	    .o_read_data		 ()
 	);
 
@@ -71,7 +76,7 @@ module prm #(
 	    .unallocate_entries_i	(unallocate_phyregs_i),
 	    .allocating_i			(allocate_phyreg_get_i),
 		.allocate_valid_o		(allocate_phyreg_valid_o),
-	    .allocate_entries_o		(allocate_phyregs_o),
+	    .allocate_entries_o		(allocate_phyregs),
 		.init_done				(phyreg_allocate_reg_done)
 	);
 
