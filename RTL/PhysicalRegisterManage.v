@@ -43,56 +43,11 @@ module prm #(
 
     output active
 );
-	wire phyreg_allocate_reg_done, sram_allocate_reg_done, available_sram;
-	wire [NUM_OF_NEW_ENTRIES-1:0] allocate_phyreg_target;
-	wire [(NUM_OF_NEW_ENTRIES * IST_ADDR_WIDTH)-1:0] allocate_phyregs;
-	wire [( (( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH) 
-			* (NUM_OF_WB_ENTRIES + (NUM_OF_NEW_ENTRIES * OPREANDS)) )-1:0]
-				prm_ist_map_table;
-	reg [( (NUM_OF_NEW_ENTRIES * OPREANDS) * (( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH) )-1:0]
-			prm_update_table;
-	reg [BUF_ENTRIES_CNT_BITWIDTH-1:0] prm_map_table_cnt, prm_map_table_cnt_next;
-	reg [( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )-1:0] prm_phyreg_buf;
-	reg [( (NUM_OF_NEW_ENTRIES * OPREANDS) * ( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG ) )-1:0]
-			prm_new_sram_data;
-
-	assign allocate_phyreg_target = allocate_phyreg_get_i & allocate_phyreg_valid_o;
-	assign allocate_phyregs_o = allocate_phyregs;
-
-	integer target_map_rf_read_channel, target_opreand;
-
-	always @(*) begin
-		prm_new_sram_data = 0;
-
-		for (target_map_rf_read_channel = 0; target_map_rf_read_channel < NUM_OF_NEW_ENTRIES; target_map_rf_read_channel = target_map_rf_read_channel + 1) begin
-			for (target_opreand = 0; target_opreand < OPREANDS; target_opreand = target_opreand + 1) begin
-				prm_map_table_cnt 
-					= prm_ist_map_table[ (( (( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH) 
-											* ( (target_map_rf_read_channel * OPREANDS) + target_opreand ) ) + ( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG ) )
-												+: BUF_ENTRIES_CNT_BITWIDTH];
-
-				if (target_ist_valid_i[(target_map_rf_read_channel*OPREANDS)+target_opreand]) begin
-					prm_map_table_cnt_next = prm_map_table_cnt + 1;
-					prm_phyreg_buf = prm_ist_map_table[( (( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH) 
-															* ( (target_map_rf_read_channel * OPREANDS) + target_opreand ) ) 
-																+: ( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )];
-					if (prm_map_table_cnt_next == BUF_ENTRIES_PER_PHYREG) begin
-						prm_map_table_cnt_next = 0;
-						prm_new_sram_data[(( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG ) * ((target_map_rf_read_channel * OPREANDS) + target_opreand)) 
-											+: ( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )]
-												= prm_phyreg_buf;
-					end
-					else begin
-						prm_phyreg_buf[(prm_map_table_cnt_next * IST_ADDR_WIDTH) +: IST_ADDR_WIDTH] = ;
-					end
-				end
-			end
-		end
-	end
+	
 
 	regfile #(
     	.READ_CHANNEL    (NUM_OF_WB_ENTRIES + (NUM_OF_NEW_ENTRIES * OPREANDS)),
-    	.WRITE_CHANNEL   (NUM_OF_NEW_ENTRIES * OPREANDS),
+    	.WRITE_CHANNEL   (NUM_OF_WB_ENTRIES + (NUM_OF_NEW_ENTRIES * OPREANDS)),
     	.ENTRIES         (NUM_OF_PHY_REGS),
     	.REG_WIDTH       (( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH),
 	) U_PHY_REG_IST_MAPPING_RF (
@@ -101,8 +56,8 @@ module prm #(
 	    .i_read_addresses    ({wb_done_phyreg_i, target_phyregs_i}),
 	    .i_write_wes         (),
 	    .i_write_addresses   (),
-	    .i_write_data        (prm_update_table),
-	    .o_read_data		 (prm_ist_map_table)
+	    .i_write_data        (),
+	    .o_read_data		 ()
 	);
 
 	allocator_start_one #(
