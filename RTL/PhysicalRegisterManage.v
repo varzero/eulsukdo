@@ -43,7 +43,7 @@ module prm #(
 
     output active
 );
-	
+	wire phyreg_allocate_reg_done, sram_allocate_reg_done;
 
 	regfile #(
     	.READ_CHANNEL    (NUM_OF_WB_ENTRIES + (NUM_OF_NEW_ENTRIES * OPREANDS)),
