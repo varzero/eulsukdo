@@ -30,8 +30,7 @@ module rs #( // Ready Station
 	wire [(IN_ENTRIES * RS_ENTRY_WIDTH)-1:0] data_ordering [0:NUM_OF_EX-1]; 
 	wire [IN_ENTRIES-1:0] fifo_empty, fifo_full;
 
-	assign ex_fifo_valid_o = ~fifo_empty;
-	assign fifo_full_block = &fifo_full;
+	assign fifo_full_block = |fifo_full;
 
 	genvar ex_path;
 	integer valid_check, check_target;
@@ -39,27 +38,29 @@ module rs #( // Ready Station
 	generate
 		for (ex_path = 0; ex_path < NUM_OF_EX; ex_path = ex_path+1) begin
 			position_spliter #(
-					.INPUT_ENTRIES(IN_ENTRIES),
-					.DATA_WIDTH(RS_ENTRY_WIDTH)
-				) U_RS_IN_PSP (
-					.valid_position_i(input_valid_position[ex_path]),
-					.position_data_i(entry_data_i),
-					.out_position_o(position_ordering[ex_path])
-					.data_o(data_ordering[ex_path])
-				);
+				.INPUT_ENTRIES(IN_ENTRIES),
+				.DATA_WIDTH(RS_ENTRY_WIDTH)
+			) U_RS_IN_PSP (
+				.valid_position_i(input_valid_position[ex_path]),
+				.position_data_i(entry_data_i),
+				.out_position_o(position_ordering[ex_path])
+				.data_o(data_ordering[ex_path])
+			);
 
-			fifo_sram #(
-    			.ENTRIES            ((FIFO_ENTRIES / IN_ENTRIES) + (((FIFO_ENTRIES % IN_ENTRIES) == 0)? 0 : 1)),
-    			.REG_WIDTH          (IN_ENTRIES * RS_ENTRY_WIDTH)
-			) U_RS_FIFO (
-			    .clk                (clk),
-			    .reset_n            (reset_n),
-			    .i_read_get         (ex_busy_i[ex_path]),
-			    .i_write_we         (position_ordering[ex_path]),
-			    .i_write_data       (data_ordering[ex_path]),
-			    .o_read_data        (ex_fifo_data_o[(ex_path*RS_ENTRY_WIDTH) +: RS_ENTRY_WIDTH]),
-			    .o_empty            (fifo_empty[ex_path]),
-			    .o_full             (fifo_full[ex_path])
+			fifo_ordering_position #(
+				.PUSH_DATA		(NUM_OF_EX),
+				.POP_DATA		(1),
+				.ENTRY_WIDTH	(IN_ENTRIES * RS_ENTRY_WIDTH),
+				.FIFO_DEPTH		((FIFO_ENTRIES / IN_ENTRIES) + (((FIFO_ENTRIES % IN_ENTRIES) == 0)? 0 : 1))
+			) U_RS_EX_FIFO (
+				.clk				(clk),
+				.reset_n			(reset_n),
+				.push_valid_i		(position_ordering[ex_path]),
+				.push_data_i		(data_ordering[ex_path]),
+				.pop_get_i			(~ex_busy_i[ex_path]),
+				.pop_valid_o		(ex_fifo_valid_o[ex_path]),
+				.pop_data_o			(ex_fifo_data_o[(ex_path * RS_ENTRY_WIDTH) +: RS_ENTRY_WIDTH]),
+				.push_available_o	(fifo_full[ex_path])
 			);
 		end
 	endgenerate

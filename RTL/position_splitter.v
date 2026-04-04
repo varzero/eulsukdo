@@ -39,7 +39,8 @@ module fifo_ordering_position #(
 	input [(PUSH_DATA * ENTRY_WIDTH)-1:0] push_data_i,
 	input [POP_DATA-1:0] pop_get_i,
 	output [POP_DATA-1:0] pop_valid_o,
-	output [(POP_DATA * ENTRY_WIDTH)-1:0] pop_data_o
+	output [(POP_DATA * ENTRY_WIDTH)-1:0] pop_data_o,
+	output push_available_o
 );
 	localparam FIFO_IO_ENTRIES = (PUSH_DATA > POP_DATA)? PUSH_DATA : POP_DATA;
 	localparam FIFO_WIDTH = FIFO_IO_ENTRIES * ENTRY_WIDTH;
@@ -68,7 +69,7 @@ module fifo_ordering_position #(
 	reg  [FIFO_WIDTH-1:0] push_fifo_data;
 
 	// for U_INTERNAL_FIFO and U_PS_FIFO_2_OUT
-	wire fifo_empty;
+	wire fifo_empty, fifo_full;
 	wire [FIFO_WIDTH-1:0] pop_fifoout_data;
 	wire [READY_POP_PS_ENTRIES-1:0] pop_out_new_valid;
 	wire [READY_POP_PS_WIDTH-1:0] pop_out_new_data;
@@ -170,7 +171,7 @@ module fifo_ordering_position #(
         .i_write_data        (push_fifo_data),
         .o_read_data         (pop_fifoout_data),
         .o_empty             (fifo_empty),
-        .o_full              ()
+        .o_full              (fifo_full)
     );
 
 	position_splitter #(
@@ -183,7 +184,10 @@ module fifo_ordering_position #(
 		.data_o				(pop_out_new_data)
 	);
 
+	assign push_available_o = ~fifo_full;
+
 	assign pop_valid_o = pop_out_new_valid;
+	assign pop_data_o = pop_out_new_data;
 
 endmodule
 
