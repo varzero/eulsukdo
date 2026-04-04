@@ -4,7 +4,7 @@ module ist_rf #( // Instruction State Table
     parameter NEW_INSTRUCTION = 4,
     parameter DONE_INSTRUCTION = 4,
 
-    parameter COMPLETE_EX = 7,
+    parameter COMPLETE_PHYREG = 7,
     
     parameter PC_WIDTH = 32,
 	parameter MICRO_OP_LENGHT = 5, // LSB 쪽으로 EX_SPECIFY_WIDTH 만큼은 EX 선택용
@@ -18,6 +18,7 @@ module ist_rf #( // Instruction State Table
     parameter IST_ENTRY_WIDTH = PC_WIDTH + MICRO_OP_LENGHT 
                                 + NUM_OF_PHY_REGS + NUM_OF_LOGICAL_REGS 
                                 + (NUM_OF_PHY_REGS * OPREANDS)
+	parameter RS_ENTRY_WIDTH = IST_ADDR_WIDTH + MICRO_OP_LENGHT + PHYREG_ADDR_WIDTH + (PHYREG_ADDR_WIDTH * OPREANDS)
 ) (
     input clk,
     input reset_n,
@@ -32,12 +33,12 @@ module ist_rf #( // Instruction State Table
     input [(NEW_INSTRUCTION * IST_ENTRY_WIDTH)-1:0] new_inst_field_i,
     input [(NEW_INSTRUCTION * OPREANDS)-1:0] new_inst_opr_ready_i,
 
-    input [COMPLETE_EX-1:0] ready_valid_i,
-    input [(COMPLETE_EX * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
-    input [(COMPLETE_EX * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
+    input [COMPLETE_PHYREG-1:0] ready_valid_i,
+    input [(COMPLETE_PHYREG * PHYREG_ADDR_WIDTH)-1:0] ready_phyreg_i,
+    input [(COMPLETE_PHYREG * IST_ADDR_WIDTH)-1:0] ready_ist_entrites_i,
 
-    output [(COMPLETE_EX + NEW_INSTRUCTION)-1:0] rs_send_valid_o,
-    output [((COMPLETE_EX + NEW_INSTRUCTION) * IST_ENTRY_WIDTH)-1:0] rs_send_ist_entries_o,
+    output [(COMPLETE_PHYREG + NEW_INSTRUCTION)-1:0] rs_send_valid_o,
+    output [((COMPLETE_PHYREG + NEW_INSTRUCTION) * RS_ENTRY_WIDTH)-1:0] rs_send_ist_entries_o,
     output active
 );
 
@@ -49,7 +50,7 @@ module ist_rf #( // Instruction State Table
     wire [NEW_INSTRUCTION-1:0] create_ist_entry_valid;
     assign create_ist_entry_valid       = allocate_ist_entry_i & allocate_ist_entry_valid;
 
-    wire [(COMPLETE_EX * IST_ENTRIES)-1:0] ist_entries;
+    wire [(COMPLETE_PHYREG * IST_ENTRIES)-1:0] ist_entries;
 
     allocator #(
     	.NUM_OF_ENTRIES (IST_ENTRIES),
@@ -68,7 +69,7 @@ module ist_rf #( // Instruction State Table
 
     // IST ENTRIES (This version is Register File)
     regfile #(
-        .READ_CHANNEL    (COMPLETE_EX),
+        .READ_CHANNEL    (COMPLETE_PHYREG),
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
         .ENTRIES         (IST_ENTRIES),
         .REG_WIDTH       (IST_ENTRY_WIDTH)
@@ -84,9 +85,9 @@ module ist_rf #( // Instruction State Table
 
     // Opreands
     reg [((NUM_OF_PHY_REGS * OPREANDS))-1:0] new_inst_opr_fields;
-    wire [(COMPLETE_EX * (NUM_OF_PHY_REGS * OPREANDS))-1:0] inst_opreands;
+    wire [(COMPLETE_PHYREG * (NUM_OF_PHY_REGS * OPREANDS))-1:0] inst_opreands;
     regfile #(
-        .READ_CHANNEL    (COMPLETE_EX),
+        .READ_CHANNEL    (COMPLETE_PHYREG),
         .WRITE_CHANNEL   (NEW_INSTRUCTION),
         .ENTRIES         (IST_ENTRIES),
         .REG_WIDTH       (NUM_OF_PHY_REGS * OPREANDS)
@@ -110,16 +111,16 @@ module ist_rf #( // Instruction State Table
     end
 
     // Readies
-    wire [COMPLETE_EX-1:0] opreands_ready_before[0:OPREANDS-1];
-    reg  [COMPLETE_EX-1:0] opreands_ready_after[0:OPREANDS-1];
+    wire [COMPLETE_PHYREG-1:0] opreands_ready_before[0:OPREANDS-1];
+    reg  [COMPLETE_PHYREG-1:0] opreands_ready_after[0:OPREANDS-1];
     reg  [NEW_INSTRUCTION-1:0] opreands_ready_new[0:OPREANDS-1];
 
     genvar target_opreand;
     generate
         for (target_opreand = 0; target_opreand < OPREANDS; target_opreand = target_opreand + 1) begin
             regfile #(
-                .READ_CHANNEL    (COMPLETE_EX),
-                .WRITE_CHANNEL   (COMPLETE_EX + NEW_INSTRUCTION),
+                .READ_CHANNEL    (COMPLETE_PHYREG),
+                .WRITE_CHANNEL   (COMPLETE_PHYREG + NEW_INSTRUCTION),
                 .ENTRIES         (IST_ENTRIES),
                 .REG_WIDTH       (1)
             ) U_READY_OPERAND (
@@ -136,12 +137,12 @@ module ist_rf #( // Instruction State Table
 
     integer ready_position_check, opreand_position;
     reg [OPREANDS-1:0] ready_vector;
-    reg [(COMPLETE_EX + NEW_INSTRUCTION)-1:0] ist_2_rs_valid;
+    reg [(COMPLETE_PHYREG + NEW_INSTRUCTION)-1:0] ist_2_rs_valid;
     always @(*) begin
         ready_vector = 0;
 
         // PRM에서 온 Ready 확인
-        for (ready_position_check = 0; ready_position_check < COMPLETE_EX; ready_position_check = ready_position_check + 1) begin
+        for (ready_position_check = 0; ready_position_check < COMPLETE_PHYREG; ready_position_check = ready_position_check + 1) begin
             opreands_ready_after[target_opreand] = opreands_ready_before[target_opreand];
             for (opreand_position = 0; opreand_position < OPREANDS; opreand_position = opreand_position + 1) begin
                 // 현재 IST의 Ready Vector 추출
@@ -170,12 +171,12 @@ module ist_rf #( // Instruction State Table
             end
 
             if (&ready_vector) begin
-                ist_2_rs_valid[COMPLETE_EX + ready_position_check] = 1'b1;
+                ist_2_rs_valid[COMPLETE_PHYREG + ready_position_check] = 1'b1;
             end
         end
     end
 
     assign rs_send_valid_o = ist_2_rs_valid;
-    assign rs_send_ist_entries_o = { new_inst_field_i, ist_entries };
+    assign rs_send_ist_entries_o = { new_inst_field_i, ist_entries }; // RS 포맷으로 바꿔야 됨
 
 endmodule
