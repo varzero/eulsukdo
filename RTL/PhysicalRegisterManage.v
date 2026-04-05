@@ -11,11 +11,11 @@ module prm #(
 	parameter BUF_ENTRIES_PER_PHYREG = 4,
 	parameter OPREANDS = 2,
 
-    parameter SRAM_ENTRIES_SIZE = 128,
-	parameter SRAM_ADDR_WIDTH = $clog2(SRAM_SIZE),
-	parameter BUF_ENTRIES_CNT_BITWIDTH = $clog2(BUF_ENTRIES_PER_PHYREG),
-	parameter IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
-	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS)
+    parameter FIFO_DEPTH = 10,
+
+	localparam BUF_ENTRIES_CNT_BITWIDTH = $clog2(BUF_ENTRIES_PER_PHYREG),
+	localparam IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
+	localparam PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS)
 ) (
     input clk,
     input reset_n,
@@ -49,6 +49,9 @@ module prm #(
 	localparam MAP_RF_ENTRY_WIDTH = ( IST_ADDR_WIDTH * BUF_ENTRIES_PER_PHYREG )+ BUF_ENTRIES_CNT_BITWIDTH;
 	localparam MAP_RF_CHANNEL_UPDATE_ENTRY_APPEND_WIDTH = NUM_OF_NEW_ENTRIES * OPREANDS;
 
+		// 엔트리는 [ IST INDEX | PHYREG ]
+	localparam OUT_WB_ENTRY_WIDTH = IST_ADDR_WIDTH + PHYREG_ADDR_WIDTH;
+
 	wire phyreg_allocate_reg_done, sram_allocate_reg_done;
 	wire [(MAP_RF_ENTRY_WIDTH * (NUM_OF_WB_ENTRIES + MAP_RF_CHANNEL_UPDATE_ENTRY_APPEND_WIDTH))-1:0] map_rf_read_out;
 	
@@ -56,6 +59,9 @@ module prm #(
 	reg [MAP_RF_ENTRY_WIDTH-1:0] map_rf_read_update_split[0:(MAP_RF_CHANNEL_UPDATE_ENTRY_APPEND_WIDTH)-1];
 	reg [MAP_RF_ENTRY_WIDTH-1:0] map_rf_read_wb_split[0:(NUM_OF_WB_ENTRIES)-1];
 	reg [(MAP_RF_ENTRY_WIDTH * (NUM_OF_WB_ENTRIES + MAP_RF_CHANNEL_UPDATE_ENTRY_APPEND_WIDTH))-1:0] map_rf_write_update_split;
+	
+	reg [OUT_WB_ENTRY_WIDTH] map_rf_2_ready_out[BUF_ENTRIES_PER_PHYREG];
+	reg [OUT_WB_ENTRY_WIDTH * BUF_ENTRIES_PER_PHYREG] map_rf_2_ready_out_fifo_push[OUT_WB_ENTRY_WIDTH];
 
 	reg [PHYREG_ADDR_WIDTH-1:0] current_phyreg;
 	reg [IST_ADDR_WIDTH-1:0] current_ist;
@@ -95,7 +101,7 @@ module prm #(
 			
 			for (now_buf_target = 0; now_buf_target < BUF_ENTRIES_PER_PHYREG; now_buf_target = now_buf_target + 1) begin
 				rf_buf[now_buf_target] // Counter 뒤족 부터
-					= map_rf_read_update_split[ (BUF_ENTRIES_CNT_BITWIDTH + (now_buf_target * IST_ADDR_WIDTH)) +: IST_ADDR_WIDTH];
+					= map_rf_read_update_split[now_rf_target][ (BUF_ENTRIES_CNT_BITWIDTH + (now_buf_target * IST_ADDR_WIDTH)) +: IST_ADDR_WIDTH];
 			end
 
 			if (current_rf_data_cnt == (BUF_ENTRIES_PER_PHYREG-1)) begin // 일단 새로 들어오는건 멈추게 하기
@@ -111,6 +117,22 @@ module prm #(
 			end
 
 			map_rf_read_update_split[now_rf_target] = {rf_buf_wide, new_rf_data_cnt};
+		end
+		for (now_rf_target = 0; now_rf_target < NUM_OF_WB_ENTRIES; now_rf_target = now_rf_target + 1) begin // WB 구역 FIFO 내보내는 부분
+			current_phyreg = target_phyregs_i[((now_rf_target + MAP_RF_CHANNEL_UPDATE_ENTRY_APPEND_WIDTH) * PHYREG_ADDR_WIDTH) +: PHYREG_ADDR_WIDTH];
+			
+			for (now_buf_target = 0; now_buf_target < BUF_ENTRIES_PER_PHYREG; now_buf_target = now_buf_target + 1) begin
+				rf_buf[now_buf_target] // Buffer 부분 추출
+					= map_rf_read_wb_split[now_rf_target][ (BUF_ENTRIES_CNT_BITWIDTH + (now_buf_target * IST_ADDR_WIDTH)) +: IST_ADDR_WIDTH];
+			end
+
+			for (now_buf_target = 0; now_buf_target < BUF_ENTRIES_PER_PHYREG; now_buf_target = now_buf_target + 1) begin
+				map_rf_2_ready_out[now_buf_target] = {rf_buf[now_buf_target], current_phyreg};
+			end
+			for (now_buf_target = 0; now_buf_target < BUF_ENTRIES_PER_PHYREG; now_buf_target = now_buf_target + 1) begin
+				map_rf_2_ready_out_fifo_push[now_rf_target][(now_buf_target * OUT_WB_ENTRY_WIDTH) +: OUT_WB_ENTRY_WIDTH]
+					= map_rf_2_ready_out[now_buf_target];
+			end
 		end
 
 		// RF쪽 업데이트 된거 묶기, WB쪽은 0으로 초기화 (이건 하는김에 Block도 끄기)
@@ -135,7 +157,7 @@ module prm #(
 	    .clk                 (clk),
 	    .reset_n             (reset_n),
 	    .i_read_addresses    ({wb_done_phyreg_i, target_phyregs_i}),
-	    .i_write_wes         (target_ist_valid_i),
+	    .i_write_wes         ({wb_done_valid_i, target_ist_valid_i}),
 	    .i_write_addresses   ({wb_done_phyreg_i, target_phyregs_i}),
 	    .i_write_data        (map_rf_write_update_split),
 	    .o_read_data		 (map_rf_read_out)
@@ -156,6 +178,35 @@ module prm #(
 		.init_done				(phyreg_allocate_reg_done)
 	);
 
-	assign active = phyreg_allocate_reg_done & (|max_buf);
+	// 출력된 ist 처리
+	wire [NUM_OF_WB_ENTRIES-1:0] push_available;
+	wire [OUT_WB_ENTRY_WIDTH-1:0] pop_fifo[NUM_OF_WB_ENTRIES]; 
+
+	genvar target_fifo;
+	generate
+		for (target_fifo = 0; target_fifo < NUM_OF_WB_ENTRIES; target_fifo = target_fifo + 1) begin
+			fifo_ordering_position_out_one #(
+				.PUSH_DATA		(BUF_ENTRIES_PER_PHYREG),
+				.ENTRY_WIDTH	(OUT_WB_ENTRY_WIDTH),
+				.FIFO_DEPTH		(FIFO_DEPTH)
+			) U_RS_EX_FIFO (
+				.clk				(clk),
+				.reset_n			(reset_n),
+				.push_valid_i		(wb_done_valid_i),
+				.push_data_i		(map_rf_2_ready_out_fifo_push[target_fifo]),
+				.pop_get_i			(wb_done_valid_i),
+				.pop_valid_o		(ready_valid_o[target_fifo]),
+				.pop_data_o			(pop_fifo[target_fifo]),
+				.push_available_o	(push_available[target_fifo])
+			);
+
+			assign ready_phyreg_o[(target_fifo * PHYREG_ADDR_WIDTH) +: PHYREG_ADDR_WIDTH] 
+				= pop_fifo[target_fifo][PHYREG_ADDR_WIDTH-1:0];
+			assign ready_ist_entrites_o[(target_fifo * IST_ADDR_WIDTH) +: IST_ADDR_WIDTH] 
+				= pop_fifo[target_fifo][OUT_WB_ENTRY_WIDTH-1:PHYREG_ADDR_WIDTH];
+		end
+	endgenerate
+
+	assign active = phyreg_allocate_reg_done & ( |max_buf ) & ( &push_available );
 
 endmodule
