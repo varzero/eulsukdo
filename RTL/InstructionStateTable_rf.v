@@ -12,13 +12,13 @@ module ist_rf #( // Instruction State Table
 	parameter NUM_OF_LOGICAL_REGS = 32,
 	parameter OPREANDS = 2,
 
-	parameter IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
-	parameter PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS),
-	parameter LOGREG_ADDR_WIDTH = $clog2(NUM_OF_LOGICAL_REGS),
-    parameter IST_ENTRY_WIDTH = PC_WIDTH + MICRO_OP_LENGHT 
+	localparam IST_ADDR_WIDTH = $clog2(IST_ENTRIES),
+	localparam PHYREG_ADDR_WIDTH = $clog2(NUM_OF_PHY_REGS),
+	localparam LOGREG_ADDR_WIDTH = $clog2(NUM_OF_LOGICAL_REGS),
+    localparam IST_ENTRY_WIDTH = PC_WIDTH + MICRO_OP_LENGHT 
                                 + NUM_OF_PHY_REGS + NUM_OF_LOGICAL_REGS 
                                 + (NUM_OF_PHY_REGS * OPREANDS)
-	parameter RS_ENTRY_WIDTH = IST_ADDR_WIDTH + MICRO_OP_LENGHT + PHYREG_ADDR_WIDTH + (PHYREG_ADDR_WIDTH * OPREANDS)
+	localparam RS_ENTRY_WIDTH = IST_ADDR_WIDTH + MICRO_OP_LENGHT + PHYREG_ADDR_WIDTH + (PHYREG_ADDR_WIDTH * OPREANDS)
 ) (
     input clk,
     input reset_n,
