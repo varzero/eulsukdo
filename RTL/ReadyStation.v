@@ -47,9 +47,8 @@ module rs #( // Ready Station
 				.data_o(data_ordering[ex_path])
 			);
 
-			fifo_ordering_position #(
+			fifo_ordering_position_out_one #(
 				.PUSH_DATA		(NUM_OF_EX),
-				.POP_DATA		(1),
 				.ENTRY_WIDTH	(IN_ENTRIES * RS_ENTRY_WIDTH),
 				.FIFO_DEPTH		((FIFO_ENTRIES / IN_ENTRIES) + (((FIFO_ENTRIES % IN_ENTRIES) == 0)? 0 : 1))
 			) U_RS_EX_FIFO (
