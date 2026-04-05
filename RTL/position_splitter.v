@@ -1,3 +1,73 @@
+module gather_position_rom #(
+	parameter VALID_WIDTH = 4,
+	localparam ONE_POSITION_WIDTH = 2 ** VALID_WIDTH,
+	localparam ROM_ADDR_WIDTH = 2 ** VALID_WIDTH,
+	localparam OUT_WIDTH = VALID_WIDTH * ONE_POSITION_WIDTH
+) (
+	input [VALID_WIDTH-1:0] full_valid_i,
+	output [OUT_WIDTH-1:0] gather_positions_o
+);
+
+	function [31:0] gather_position_digit(
+		input [31:0] full_valid,
+		integer valid_width,
+		integer target_position
+	);
+		integer now_position, valid_cnt, out_position;
+
+		// 현재 Position까지 몇개의 Valid가 있었는지..
+		valid_cnt = -1; out_position = 0;
+		for (now_position = 0; now_position < valid_width; now_position = now_position + 1) begin
+			if (full_valid[now_position]) begin
+				valid_cnt = valid_cnt + 1;
+				if (valid_cnt == target_position) begin
+					out_position = now_position;
+					now_position = valid_width;
+				end;
+			end
+		end
+
+		if (valid_cnt == -1) begin gather_position_digit = 32'b0; end
+		else begin gather_position_digit = {out_position[30:0], 1'b1} end
+	endfunction
+
+	reg [OUT_WIDTH-1:0] gather_position_rom[0:ROM_ADDR_WIDTH-1];
+	reg [31:0] gather_position_entry;
+	integer now_position, now_valid;
+
+	initial begin
+		for (now_position = 0; now_position < ROM_ADDR_WIDTH; now_position = now_position + 1) begin
+			gather_position_rom[now_position] = 0;
+		end
+
+		for (now_valid = 0; now_valid < ROM_ADDR_WIDTH; now_valid = now_valid + 1) begin
+			for (now_position = 0; now_position < VALID_WIDTH; now_position = now_position + 1) begin
+				gather_position_entry = gather_position_digit(now_valid, VALID_WIDTH, now_position);
+				gather_position_rom[now_valid][(now_position * ONE_POSITION_WIDTH) +: ONE_POSITION_WIDTH] 
+					= gather_position_entry[ONE_POSITION_WIDTH-1:0];
+			end
+		end
+	end
+
+	assign gather_positions_o = gather_position_rom[full_valid_i];
+endmodule
+
+module position_mux #(
+	parameter DATA_WIDTH = 32,
+	parameter DESTINATIONS = 4,
+	localparam DESTINATIONS_BIT_WIDTH = $clog2(DESTINATIONS),
+	localparam MUX_OUT_WIDTH = DATA_WIDTH * DESTINATIONS
+) (
+	input [DATA_WIDTH-1:0] data_in,
+	input [DESTINATIONS_BIT_WIDTH-1:0] dst_i,
+	output reg [MUX_OUT_WIDTH-1:0] data_out
+);
+	always @(*) begin
+		data_out = 0;
+		data_out[(DATA_WIDTH * dst_i) +: DATA_WIDTH] = data_in;
+	end
+endmodule
+
 module position_splitter #(
 	parameter INPUT_ENTRIES = 5,
 	parameter DATA_WIDTH = 32,
@@ -5,25 +75,42 @@ module position_splitter #(
 ) (
 	input [INPUT_ENTRIES-1:0] valid_position_i,
 	input [(INPUT_ENTRIES*DATA_WIDTH)-1:0] position_data_i,
-	output reg [INPUT_ENTRIES-1:0] out_position_o,
-	output reg [(INPUT_ENTRIES*DATA_WIDTH)-1:0] data_o
+	output [INPUT_ENTRIES-1:0] out_position_o,
+	output [(INPUT_ENTRIES*DATA_WIDTH)-1:0] data_o
 );
-	reg [BIT_WIDTH_INPUT_ENTRIES-1:0] out_position_last;
-	integer check_position_target;	
+	localparam SEL_ENTRY_WIDTH = (2 ** INPUT_ENTRIES);
+	localparam MUX_SEL_WIDTH = SEL_ENTRY_WIDTH * INPUT_ENTRIES;
+	localparam MUX_OUT_WIDTH = INPUT_ENTRIES * DATA_WIDTH;
 
-	always @(*) begin
-		out_position_o = 0; data_o = 0; 
-		
-		out_position_last = 0;
+	wire [MUX_SEL_WIDTH-1:0] mux_sel;
+	wire [MUX_OUT_WIDTH-1:0] mux_out[INPUT_ENTRIES];
 
-		for (check_position_target = 0; check_position_target < INPUT_ENTRIES; check_position_target = check_position_target + 1) begin
-			if (valid_position_i[check_position_target]) begin
-				data_o[(out_position_last*DATA_WIDTH) +: DATA_WIDTH] = position_data_i[(check_position_target*DATA_WIDTH) +: DATA_WIDTH];
-				out_position_o[out_position_last] = 1'b1;
-				out_position_last = out_position_last + 1;
-			end
+	gather_position_rom #(
+		.VALID_WIDTH 		(INPUT_ENTRIES)
+	) (
+		.full_valid_i		(valid_position_i),
+		.gather_positions_o	(mux_sel)
+	);
+
+	genvar mux_i;
+	generate
+		for(mux_i = 0; mux_i < INPUT_ENTRIES; mux_i = mux_i + 1) begin
+			position_mux #(
+				.DATA_WIDTH		(DATA_WIDTH),
+				.DESTINATIONS	(INPUT_ENTRIES)
+			) (
+				.data_in	(position_data_i[(mux_i * DATA_WIDTH) +: DATA_WIDTH]),
+				.dst_i		(mux_sel[(mux_i * SEL_ENTRY_WIDTH) +: SEL_ENTRY_WIDTH]),
+				.data_out	(mux_out[mux_i])
+			);
+
+			assign out_position_o[mux_i] 
+						= ( (|mux_sel) == 0)? 1'b0 : 1'b1;
+			
+			assign data_o[(mux_i * DATA_WIDTH) +: DATA_WIDTH]
+						= mux_out[mux_i][(mux_i * DATA_WIDTH) +: DATA_WIDTH];
 		end
-	end
+	endgenerate
 
 endmodule
 
