@@ -82,3 +82,10 @@ module nel #( // New Entry Logic
     );
 
 endmodule
+
+module nel_update_block #(
+    
+) ();
+// After Decoding.. IST Format input
+
+endmodule
