@@ -75,6 +75,10 @@ module new_entry_logic #(
     output wire [INST_PC_WIDTH-1:0]             o_program_counter, // Start Instruction Word output: Allow Word Addressing
     input  wire [INST_INPUT_BITWIDTH-1:0]       i_instructions,
 
+    // Block
+    input                                       i_ist_block,
+    input                                       i_prm_block,
+
     // Allocators
     output wire [DECODE_NEW_INST-1:0]           o_allocate_position,
         // -> Instruction State Table Allocator
