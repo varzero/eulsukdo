@@ -114,3 +114,23 @@ module new_entry_logic #(
 
 endmodule
 
+module decode_position #(
+    parameter CHECK_DUPLICATION_WIDTH                   = 2,
+    parameter CHECK_OPREANDS                            = 2,
+    parameter INST_NUM_OF_LOGICAL_REGISTER              = 32,
+
+    localparam BITWIDTH_DUPLICATION_LOGREG              = CHECK_DUPLICATION_WIDTH * BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER,
+    localparam BITWIDTH_OPREAND_LOGREG                  = CHECK_OPREANDS * CHECK_DUPLICATION_WIDTH * INST_NUM_OF_LOGICAL_REGISTER,
+
+    localparam BITWIDTH_OUT_TARGET                      = CHECK_OPREANDS * CHECK_DUPLICATION_WIDTH,
+
+    localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER)
+) (
+    input       [BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER-1:0]     i_target_logical_reg,
+    input       [BITWIDTH_DUPLICATION_LOGREG-1:0]               i_check_dup_logical_reg,
+    input       [BITWIDTH_OPREAND_LOGREG-1:0]                   i_check_opreand_use_logical_reg,
+    
+    output reg  [BITWIDTH_OUT_TARGET-1:0]                       o_use_opreand
+);
+    // 목적지가 동일한 필드까지의 Opreand 사용 여부만 확인
+endmodule
