@@ -218,7 +218,7 @@ module fifo_ordering_position #(
 				push_fifoready_new_data = {push_ordering_data, {READY_PUSH_PS_WIDTH{1'b0}} };
 			end
 		end
-        pop_out_valid = pop_out_valid & ( ~(pop_get_i & pop_out_valid) );
+        pop_out_valid = pop_out_valid & ( ~({{FIFO_IO_ENTRIES{1'b0}}, pop_get_i} & pop_out_valid) );
 	end
 
 	// Registers Modeling
@@ -273,7 +273,7 @@ module fifo_ordering_position #(
     );
 
 	position_splitter #(
-		.INPUT_ENTRIES(FIFO_IO_ENTRIES),
+		.INPUT_ENTRIES(READY_POP_PS_ENTRIES),
 		.DATA_WIDTH(ENTRY_WIDTH)
 	) U_PS_FIFO_2_OUT (
 		.valid_position_i	(pop_out_valid),
