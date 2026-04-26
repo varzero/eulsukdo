@@ -45,10 +45,14 @@ module gather_position_rom #(
 		end
 	end
 
+	reg [ONE_POSITION_WIDTH-1:0] cnt_valid;
     always @(*) begin
-        out_valid_o = 0;
+		cnt_valid = 0; out_valid_o = 0;
         for (integer i = 0; i < VALID_WIDTH; i = i+1) begin
-            if (full_valid_i[i]) out_valid_o = out_valid_o+1;
+            if (full_valid_i[i]) cnt_valid = cnt_valid+1;
+        end
+		for (integer i = 0; i < VALID_WIDTH; i = i+1) begin
+            if (cnt_valid > i) out_valid_o[i] = 1'b1;
         end
     end
 
@@ -92,7 +96,7 @@ module position_splitter #(
 
 	gather_position_rom #(
 		.VALID_WIDTH 		(INPUT_ENTRIES)
-	) (
+	) U_POSITION_ROM (
 		.full_valid_i		(valid_position_i),
         .out_valid_o        (out_valid),
 		.gather_positions_o	(mux_sel)
@@ -104,7 +108,7 @@ module position_splitter #(
 			position_demux #(
 				.DATA_WIDTH		(DATA_WIDTH),
 				.DESTINATIONS	(INPUT_ENTRIES)
-			) (
+			) U_POSITION_DEMUX (
 				.data_in	(position_data_i[(mux_i * DATA_WIDTH) +: DATA_WIDTH]),
 				.dst_i		(mux_sel[(mux_i * SEL_ENTRY_WIDTH) +: SEL_ENTRY_WIDTH]),
 				.data_out	(mux_out[mux_i])
@@ -114,8 +118,10 @@ module position_splitter #(
 	endgenerate
 
     always @(*) begin
+		mux_out_oring = 0;
         for (integer i = 0; i < INPUT_ENTRIES; i = i+1) begin
-            mux_out_oring = mux_out_oring | mux_out[i];
+            mux_out_oring = (valid_position_i[i])? 
+				(mux_out_oring | mux_out[i]) : mux_out_oring;
         end
     end
 
