@@ -45,7 +45,7 @@ module gather_position_rom #(
 		end
 	end
 
-	reg [ONE_POSITION_WIDTH-1:0] cnt_valid;
+	reg [VALID_WIDTH-1:0] cnt_valid;
     always @(*) begin
 		cnt_valid = 0; out_valid_o = 0;
         for (integer i = 0; i < VALID_WIDTH; i = i+1) begin
@@ -254,7 +254,7 @@ module fifo_ordering_position #(
 	);
 
 	position_splitter #(
-		.INPUT_ENTRIES(FIFO_IO_ENTRIES),
+		.INPUT_ENTRIES(READY_PUSH_PS_ENTRIES),
 		.DATA_WIDTH(ENTRY_WIDTH)
 	) U_PS_PUSH_2_FIFO (
 		.valid_position_i	(push_fifoready_new_valid),
