@@ -305,7 +305,7 @@ module fifo_ordering_position #(
 	assign pop_data_o = pop_out_data_reg[(POP_DATA*ENTRY_WIDTH)-1:0];
 
 endmodule
-/*
+
 // allocate value start 0
 `timescale 1ns / 1ps
 module allocator #(
@@ -324,10 +324,9 @@ module allocator #(
 	output init_done
 );
 	localparam ALLOCATING_FIFO_WIDTH_ENTRIES = (UNALLOCATES > ALLOCATES)? UNALLOCATES : ALLOCATES;
-	localparam ALLOCATING_FIFO_WIDTH = ALLOCATING_FIFO_WIDTH_ENTRIES * ENTRY_NUM_WIDTH;
 	localparam ALLOCATING_FIFO_DEPTH = (NUM_OF_ENTRIES / ALLOCATING_FIFO_WIDTH_ENTRIES) 
 										+ ( ((NUM_OF_ENTRIES % ALLOCATING_FIFO_WIDTH_ENTRIES) > 0)? 1 : 0 );
-	localparam ALLOCATING_FIFO_LAST_ENTRIES = NUM_OF_ENTRIES % ALLOCATING_FIFO_WIDTH_ENTRIES;
+	localparam UNALLOCATING_FIFO_LAST_ENTRIES = NUM_OF_ENTRIES % UNALLOCATES;
 
 	// Initializer FSM
 		// State
@@ -358,7 +357,7 @@ module allocator #(
 				else begin
 					state_next = INIT;
 				end
-				entry_cnt_next = entry_cnt + ALLOCATING_FIFO_WIDTH_ENTRIES;
+				entry_cnt_next = entry_cnt + UNALLOCATES;
 			end
 			ALLOCATING: begin state_next = ALLOCATING; entry_cnt_next = 0; end
 		endcase
@@ -367,19 +366,19 @@ module allocator #(
 		// State Output
 	integer position;
 	reg [UNALLOCATES-1:0] unallocate_valid_in_fifo;
-    reg [(ALLOCATING_FIFO_WIDTH_ENTRIES * ENTRY_NUM_WIDTH)-1:0] unallocate_entries_in_fifo;
+    reg [(UNALLOCATES * ENTRY_NUM_WIDTH)-1:0] unallocate_entries_in_fifo;
 	always @(*) begin
 		case (state)
 			INIT: begin
                 unallocate_entries_in_fifo = 0;
-				if (entry_cnt == (NUM_OF_ENTRIES - ALLOCATING_FIFO_LAST_ENTRIES - 1)) begin
-					unallocate_valid_in_fifo = { {(ALLOCATING_FIFO_WIDTH_ENTRIES-ALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
-												 {ALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
+				if (entry_cnt == (NUM_OF_ENTRIES - UNALLOCATES - 1)) begin
+					unallocate_valid_in_fifo = { {(UNALLOCATES-UNALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
+												 {UNALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
 				end
 				else begin
-					unallocate_valid_in_fifo = {ALLOCATING_FIFO_WIDTH_ENTRIES{1'b1}};
+					unallocate_valid_in_fifo = {UNALLOCATES{1'b1}};
 				end
-				for (position = 0; position < ALLOCATING_FIFO_WIDTH_ENTRIES; position = position + 1) begin
+				for (position = 0; position < UNALLOCATES; position = position + 1) begin
                     if ((entry_cnt + position) > (NUM_OF_ENTRIES-1)) begin
                         unallocate_entries_in_fifo[(ENTRY_NUM_WIDTH*position) +: ENTRY_NUM_WIDTH] = 0;
                     end
@@ -516,4 +515,3 @@ module allocator_start_one #(
     );
 
 endmodule
-*/
