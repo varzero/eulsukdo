@@ -335,7 +335,7 @@ module allocator #(
 
 		// State, Counter Register
 	reg state, state_next;
-	reg [ENTRY_NUM_WIDTH-1:0] entry_cnt, entry_cnt_next;
+	reg [ENTRY_NUM_WIDTH:0] entry_cnt, entry_cnt_next;
 	always @(posedge clk or negedge reset_n) begin
 		if (reset_n == 1'b0) begin
 			state <= 0;
