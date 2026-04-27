@@ -70,6 +70,7 @@ module tb_fifo_ordering_position_big_POP();
             end
             @(negedge clk);
         end
+        push_valid_i = {PUSH_DATA{1'b0}};
 
         repeat(3) @(negedge clk);
 
@@ -118,7 +119,7 @@ module tb_fifo_ordering_position_big_PUSH();
 
 	parameter PUSH_DATA = 7;
 	parameter POP_DATA = 4;
-	parameter ENTRY_WIDTH = 32;
+	parameter ENTRY_WIDTH = 16;
 	parameter FIFO_DEPTH = 128;
     
 	reg  clk;
@@ -185,6 +186,7 @@ module tb_fifo_ordering_position_big_PUSH();
             end
             @(negedge clk);
         end
+        push_valid_i = {PUSH_DATA{1'b0}};
 
         repeat(3) @(negedge clk);
 

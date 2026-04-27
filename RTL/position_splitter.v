@@ -153,8 +153,6 @@ module fifo_ordering_position #(
 	localparam READY_POP_PS_WIDTH = FIFO_WIDTH + (POP_DATA * ENTRY_WIDTH);
 	localparam READY_PUSH_EMPTY_ENTRIES_SPACE = FIFO_IO_ENTRIES - PUSH_DATA;
 	localparam READY_PUSH_EMPTY_WIDTH = READY_PUSH_EMPTY_ENTRIES_SPACE * ENTRY_WIDTH;
-	localparam READY_POP_EMPTY_ENTRIES_SPACE = FIFO_IO_ENTRIES - POP_DATA;
-	localparam READY_POP_EMPTY_WIDTH = READY_POP_EMPTY_ENTRIES_SPACE * ENTRY_WIDTH;
 
 	// Registers
 	reg  [READY_PUSH_PS_ENTRIES-1:0] push_fifoready_valid_reg;
@@ -204,7 +202,7 @@ module fifo_ordering_position #(
 		end
 
 		// POP SECTION
-		if ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:FIFO_IO_ENTRIES] ) begin
+		if ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:POP_DATA] ) begin
 			// 가져온것이 아직 남아있는 경우: 유지
 			fifo_get_position = 0;
 			pop_out_valid = pop_out_valid_reg;
@@ -214,21 +212,22 @@ module fifo_ordering_position #(
 			// 새로 보충해야 하는 경우
 			if (~fifo_empty) begin // FIFO의 데이터가 있는 경우
 				fifo_get_position = 1'b1;
-				pop_out_valid = {{FIFO_IO_ENTRIES{1'b1}}, pop_out_valid_reg[FIFO_IO_ENTRIES-1:0]};
-				pop_out_data = {pop_fifoout_data, pop_out_data_reg[FIFO_WIDTH-1:0]};
+				pop_out_valid = {{FIFO_IO_ENTRIES{1'b1}}, pop_out_valid_reg[POP_DATA-1:0]};
+				pop_out_data = {pop_fifoout_data, pop_out_data_reg[(POP_DATA * ENTRY_WIDTH)-1:0]};
 			end
 			else begin // FIFO에 데이터가 없는 경우
 				fifo_get_position = 0;
 				pop_out_valid = {push_fifoready_valid_reg[FIFO_IO_ENTRIES-1:0], 
-								 pop_out_valid_reg[FIFO_IO_ENTRIES-1:0]};
-				pop_out_data  = {push_fifo_data, 
-								 pop_out_data_reg[FIFO_WIDTH-1:0]};
+								 pop_out_valid_reg[POP_DATA-1:0]};
+				pop_out_data  = {push_fifo_data[FIFO_WIDTH-1:0], 
+								 pop_out_data_reg[(POP_DATA * ENTRY_WIDTH)-1:0]};
 
 				// PUSH 부분에서 FIFO 부분은 지우기, 단 Push Register에 있는 경우
 				if ( |push_fifoready_valid_reg ) begin
 					push_fifo_we = 0;
-					push_fifoready_new_valid = {push_ordering_valid, {FIFO_IO_ENTRIES{1'b0}}};
-					push_fifoready_new_data = {push_ordering_data, {FIFO_WIDTH{1'b0}}};
+
+					push_fifoready_new_valid = {push_ordering_valid, {POP_DATA{1'b0}}};
+					push_fifoready_new_data = {push_ordering_data, {(POP_DATA * ENTRY_WIDTH){1'b0}}};
 				end
 			end
 		end
