@@ -3,7 +3,7 @@ module tb_fifo_ordering_position_big_POP();
 
 	parameter PUSH_DATA = 4;
 	parameter POP_DATA = 7;
-	parameter ENTRY_WIDTH = 32;
+	parameter ENTRY_WIDTH = 16;
 	parameter FIFO_DEPTH = 128;
     
 	reg  clk;
