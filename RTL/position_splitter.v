@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module gather_position_rom #(
 	parameter VALID_WIDTH = 4,
 	localparam ONE_POSITION_WIDTH = $clog2(VALID_WIDTH),
@@ -59,6 +60,7 @@ module gather_position_rom #(
 	assign gather_positions_o = gather_position_rom[full_valid_i];
 endmodule
 
+`timescale 1ns / 1ps
 module position_demux #(
 	parameter DATA_WIDTH = 32,
 	parameter DESTINATIONS = 4,
@@ -75,6 +77,7 @@ module position_demux #(
 	end
 endmodule
 
+`timescale 1ns / 1ps
 module position_splitter #(
 	parameter INPUT_ENTRIES = 5,
 	parameter DATA_WIDTH = 32,
@@ -130,6 +133,7 @@ module position_splitter #(
 
 endmodule
 
+`timescale 1ns / 1ps
 module fifo_ordering_position #(
 	parameter PUSH_DATA = 4,
 	parameter POP_DATA = 7,
@@ -303,6 +307,7 @@ module fifo_ordering_position #(
 endmodule
 /*
 // allocate value start 0
+`timescale 1ns / 1ps
 module allocator #(
 	parameter NUM_OF_ENTRIES = 64,
     parameter UNALLOCATES = 4,
@@ -410,6 +415,7 @@ module allocator #(
 endmodule
 
 // allocate value start 1
+`timescale 1ns / 1ps
 module allocator_start_one #(
 	parameter NUM_OF_ENTRIES = 64,
     parameter UNALLOCATES = 4,

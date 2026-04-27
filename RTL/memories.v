@@ -83,6 +83,7 @@ module regfile #(
 endmodule
 
 // (FOR FIFO_RAM PIPELINING)=============================================================
+`timescale 1ns / 1ps
 module priority_decoder #(
     parameter       ENTRIES         = 7
 ) (
@@ -108,6 +109,7 @@ module priority_decoder #(
 
 endmodule
 
+`timescale 1ns / 1ps
 module on_chip_sync_dual_port_ram #(
     parameter       ENTRIES         = 16,
     parameter       ENTRY_WIDTH     = 32,
@@ -156,6 +158,7 @@ PARAMETERIZE SINGLE READ/WRITE CHANNELS FIFO, INTERNAL MEMORY IS SRAM/BRAM
     o_full              : [OUTPUT] FULL INDECATOR OF FIFO
 ##########################################################################################
 */
+`timescale 1ns / 1ps
 module fifo_sram #(
     parameter       ENTRIES         = 16,
     parameter       REG_WIDTH       = 32,
