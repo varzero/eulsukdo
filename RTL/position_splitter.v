@@ -206,8 +206,10 @@ module fifo_ordering_position #(
 		end
 
 		// POP SECTION
-		if ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:POP_DATA] ) begin
-			// 가져온것이 아직 남아있는 경우: 유지
+		if ( ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:POP_DATA] ) && 
+			 ( (FIFO_IO_ENTRIES == POP_DATA) && !(&(~pop_valid_o | pop_get_i)) ) ) begin
+
+			// 가져온것이 아직 남아있는 경우나 기존데이터가 다 나가지 않는 경우이거나 비어있지 않은 경우: 유지
 			fifo_get_position = 0;
 			pop_out_valid = pop_out_valid_reg;
 			pop_out_data = pop_out_data_reg;
