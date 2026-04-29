@@ -206,8 +206,7 @@ module fifo_ordering_position #(
 		end
 
 		// POP SECTION
-		if ( ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:POP_DATA] ) /* && 
-			 !( (FIFO_IO_ENTRIES == POP_DATA) && &( ~pop_valid_o | pop_get_i ) )*/ ) begin
+		if ( ( |pop_out_valid_reg[READY_POP_PS_ENTRIES-1:POP_DATA] ) ) begin
 
 			// 가져온것이 아직 남아있는 경우나 기존데이터가 다 나가지 않는 경우이거나 비어있지 않은 경우: 유지
 			fifo_get_position = 0;
@@ -373,7 +372,7 @@ module allocator #(
 		case (state)
 			INIT: begin
                 unallocate_entries_in_fifo = 0;
-				if (entry_cnt == (NUM_OF_ENTRIES - UNALLOCATES - 1)) begin
+				if (entry_cnt == (NUM_OF_ENTRIES - UNALLOCATES)) begin
 					unallocate_valid_in_fifo = { {(UNALLOCATES-UNALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
 												 {UNALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
 				end
@@ -433,10 +432,9 @@ module allocator_start_one #(
 	output init_done
 );
 	localparam ALLOCATING_FIFO_WIDTH_ENTRIES = (UNALLOCATES > ALLOCATES)? UNALLOCATES : ALLOCATES;
-	localparam ALLOCATING_FIFO_WIDTH = ALLOCATING_FIFO_WIDTH_ENTRIES * ENTRY_NUM_WIDTH;
 	localparam ALLOCATING_FIFO_DEPTH = (NUM_OF_ENTRIES / ALLOCATING_FIFO_WIDTH_ENTRIES) 
 										+ ( ((NUM_OF_ENTRIES % ALLOCATING_FIFO_WIDTH_ENTRIES) > 0)? 1 : 0 );
-	localparam ALLOCATING_FIFO_LAST_ENTRIES = NUM_OF_ENTRIES % ALLOCATING_FIFO_WIDTH_ENTRIES;
+	localparam UNALLOCATING_FIFO_LAST_ENTRIES = NUM_OF_ENTRIES % UNALLOCATES;
 
 	// Initializer FSM
 		// State
@@ -445,7 +443,7 @@ module allocator_start_one #(
 
 		// State, Counter Register
 	reg state, state_next;
-	reg [ENTRY_NUM_WIDTH-1:0] entry_cnt, entry_cnt_next;
+	reg [ENTRY_NUM_WIDTH:0] entry_cnt, entry_cnt_next;
 	always @(posedge clk or negedge reset_n) begin
 		if (reset_n == 1'b0) begin
 			state <= 0;
@@ -461,15 +459,15 @@ module allocator_start_one #(
 	always @(*) begin
 		case (state)
 			INIT: begin
-				if (entry_cnt >= (NUM_OF_ENTRIES)) begin
-					state_next = ALLOCATES;
+				if (entry_cnt >= (NUM_OF_ENTRIES-1)) begin
+					state_next = ALLOCATING;
 				end
 				else begin
 					state_next = INIT;
 				end
-				entry_cnt_next = entry_cnt + ALLOCATING_FIFO_WIDTH_ENTRIES;
+				entry_cnt_next = entry_cnt + UNALLOCATES;
 			end
-			ALLOCATES: begin state_next = ALLOCATES; entry_cnt_next = 0; end
+			ALLOCATING: begin state_next = ALLOCATING; entry_cnt_next = 0; end
 		endcase
 	end
 
@@ -480,19 +478,24 @@ module allocator_start_one #(
 	always @(*) begin
 		case (state)
 			INIT: begin
-				if (entry_cnt == (NUM_OF_ENTRIES - ALLOCATING_FIFO_LAST_ENTRIES)) begin
-					unallocate_valid_in_fifo = { {(ALLOCATING_FIFO_WIDTH_ENTRIES-ALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
-												 {ALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
+                unallocate_entries_in_fifo = 0;
+				if (entry_cnt == (NUM_OF_ENTRIES - UNALLOCATES + 1)) begin
+					unallocate_valid_in_fifo = { {(UNALLOCATES-UNALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
+												 {UNALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
 				end
 				else begin
-					unallocate_valid_in_fifo = {ALLOCATING_FIFO_WIDTH_ENTRIES{1'b1}};
+					unallocate_valid_in_fifo = {UNALLOCATES{1'b1}};
 				end
-				for (position = 0; position < ALLOCATING_FIFO_WIDTH_ENTRIES; position = position + 1) begin
-					unallocate_entries_in_fifo[(ALLOCATING_FIFO_WIDTH*position) 
-												+: ALLOCATING_FIFO_WIDTH] = entry_cnt + position;
+				for (position = 0; position < UNALLOCATES; position = position + 1) begin
+                    if ((entry_cnt + position) > (NUM_OF_ENTRIES-1)) begin
+                        unallocate_entries_in_fifo[(ENTRY_NUM_WIDTH*position) +: ENTRY_NUM_WIDTH] = 0;
+                    end
+                    else begin
+        				unallocate_entries_in_fifo[(ENTRY_NUM_WIDTH*position) +: ENTRY_NUM_WIDTH] = entry_cnt + position;
+                    end
 				end
 			end
-			ALLOCATES: begin 
+			ALLOCATING: begin 
 				unallocate_valid_in_fifo = unallocate_valid_i; 
 				unallocate_entries_in_fifo = unallocate_entries_i; 
 			end
