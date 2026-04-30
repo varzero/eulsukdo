@@ -93,7 +93,7 @@ module rv32i_decode_opcode #(
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11001;
             end
-            7'b0110111: begin // EX 2: JUMP IMM
+            7'b1101111: begin // EX 2: JAL
                 ready_o = 2'b11;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11010;
@@ -221,7 +221,7 @@ module new_entry_logic #(
     input  wire [WB_PHYREGS_BITWIDTH-1:0]       i_wb_done_phyregs
 );
 
-    // Blocking..
+    // Blocking..ㅍ
     wire block;
     assign block = ~i_inst_valid | ~i_ist_allocate_valid | ~i_prm_allocate_valid;
 
