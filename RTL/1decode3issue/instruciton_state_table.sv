@@ -32,8 +32,7 @@ module instruction_state_table #(
                         IMM | PC | Micro-OP | EX_PATH ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS,
-    localparam IST_BITWIDTH = INST_PC_WIDTH + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH
-                              + BITWIDTH_PHYREG_NUM + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER
+    localparam IST_BITWIDTH = INST_PC_WIDTH + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL,
 
     localparam IST_STARTPOINT_PHYREG            = INST_PC_WIDTH + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH,
@@ -72,22 +71,24 @@ module instruction_state_table #(
     input                                       clk,
     input                                       reset_n,
 
-    // Block out
-
-    // Allocators
-    input  wire [DECODE_NEW_INST-1:0]           i_allocate_position,
-        // -> Instruction State Table Allocator
-    output wire [DECODE_NEW_INST-1:0]           o_ist_allocate_valid,
-    output wire [IST_ALLOCATE_BITWIDTH-1:0]     o_ist_allocate_addr,
-
     // Create IST Field
         // <- Instruction State Table Update
     input  wire [DECODE_NEW_INST-1:0]           i_ist_field_valid,
     input  wire [IST_PACKET_BITWIDTH-1:0]       i_ist_field,
 
-    // -> Write Back PHYREGs (Ready Update)
-    input  wire [EX_PATH_NUM-1:0]               i_wb_done,
-    input  wire [WB_PHYREGS_BITWIDTH-1:0]       i_wb_done_phyregs
+        // -> Physical Register Manager Opreands Update
+    output wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0] o_prm_istindex_valid,
+    output wire [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] o_prm_istindex_phyreg,
+    output wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] o_prm_istindex_istidx,
+
+    // Update Ready Field
+        // <= Physical Register Manager Opreands POP
+    input  wire [(EX_PATH_NUM)-1:0] i_ready_update_valid,
+    input  wire [(BITWIDTH_PHYREG_NUM*EX_PATH_NUM)-1:0] i_ready_update_phyreg,
+    input  wire [(BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)-1:0] i_ready_update_istidx,
+
+
+    // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
     // 
 
@@ -101,9 +102,9 @@ module instruction_state_table #(
         .reset_n                (reset_n),
         .unallocate_valid_i     (),
         .unallocate_entries_i   (),
-        .allocating_i           (i_allocate_position),
-    	.allocate_valid_o       (o_ist_allocate_valid),
-        .allocate_entries_o     (o_ist_allocate_addr),
+        .allocating_i           (),
+    	.allocate_valid_o       (),
+        .allocate_entries_o     (),
     	.init_done              ()
     );
 
