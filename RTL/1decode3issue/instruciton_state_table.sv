@@ -5,6 +5,8 @@ module instruction_state_table #(
     parameter IST_ENTRY_NUM     = 128,
     parameter EX_PATH_NUM       = 3,
     parameter PRM_ENTRY_BUFFER  = 4,
+    parameter RS_ENTRY_NUM      = 16,
+    parameter RS_PUSH_WIDTH     = 3,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -65,6 +67,10 @@ module instruction_state_table #(
     // (Autogenerate) Width of Instructions
     localparam INST_INPUT_BITWIDTH          = INST_BITWIDTH * DECODE_NEW_INST,
 
+    // (Autogenerate) Ready Station Entry
+    localparam RS_ENTRY_BITWIDTH            = INST_PC_WIDTH + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH 
+                              + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
+
     // (Autogenerate) Write Back Field
     localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM
 ) (
@@ -82,11 +88,16 @@ module instruction_state_table #(
     output wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] o_prm_istindex_istidx,
 
     // Update Ready Field
-        // <= Physical Register Manager Opreands POP
+        // <- Physical Register Manager Opreands POP
     input  wire [(EX_PATH_NUM)-1:0] i_ready_update_valid,
     input  wire [(BITWIDTH_PHYREG_NUM*EX_PATH_NUM)-1:0] i_ready_update_phyreg,
     input  wire [(BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)-1:0] i_ready_update_istidx,
 
+    // Output Ready Station
+        // -> Ready Station Create Entry
+    input  wire i_push_rs_block,
+    output wire [(RS_PUSH_WIDTH)-1:0] i_push_rs_valid,
+    output wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0] i_push_rs_data
 
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
