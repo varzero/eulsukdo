@@ -5,6 +5,7 @@ module instruction_state_table #(
     parameter IST_ENTRY_NUM     = 128,
     parameter EX_PATH_NUM       = 3,
     parameter PRM_ENTRY_BUFFER  = 4,
+    parameter PRM_ENTRY_UPDATE  = 3,
     parameter RS_ENTRY_NUM      = 16,
     parameter RS_PUSH_WIDTH     = 3,
 
@@ -29,7 +30,6 @@ module instruction_state_table #(
     // (Autogenerate) Field of Entry in Instruction State Table
         /* Entry: MSB [ ( Opreand Reday_n, ... , Opreand Reday_1 ) | 
                         ( Opreand Rename Register_n, ... , Opreand Rename Register_1 ) | 
-                        Destination Logical Register | 
                         Destination Rename Register | 
                         IMM | PC | Micro-OP | EX_PATH ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
@@ -79,7 +79,9 @@ module instruction_state_table #(
 
     // Create IST Field
         // <- Instruction State Table Update
-    input  wire [DECODE_NEW_INST-1:0]           i_ist_field_valid,
+    output wire                                 o_ist_insert_available,
+    input  wire [DECODE_NEW_INST-1:0]           i_ist_field_get,
+    output wire [DECODE_NEW_INST-1:0]           i_ist_field_valid,
     input  wire [IST_PACKET_BITWIDTH-1:0]       i_ist_field,
 
         // -> Physical Register Manager Opreands Update
@@ -95,46 +97,83 @@ module instruction_state_table #(
 
     // Output Ready Station
         // -> Ready Station Create Entry
-    input  wire i_push_rs_block,
+    input  wire [(RS_PUSH_WIDTH)-1:0] i_push_rs_available,
     output wire [(RS_PUSH_WIDTH)-1:0] i_push_rs_valid,
     output wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0] i_push_rs_data
 
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
-    // 
+    wire [(DECODE_NEW_INST*2)-1:0] new_ist_valid;
+    wire [BITWIDTH_PHYREG_NUM-1:0] new_ist_num;
+    assign i_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
 
     // Allocate IST Entry
     allocator #(
     	.NUM_OF_ENTRIES (IST_ENTRY_NUM),
-        .UNALLOCATES    (),
-        .ALLOCATES      (DECODE_NEW_INST)
+        .UNALLOCATES    (RS_PUSH_WIDTH),
+        .ALLOCATES      (DECODE_NEW_INST*2)
     ) U_ALLOCATE_IST_ENTRY (
         .clk                    (clk),
         .reset_n                (reset_n),
         .unallocate_valid_i     (),
         .unallocate_entries_i   (),
-        .allocating_i           (),
-    	.allocate_valid_o       (),
-        .allocate_entries_o     (),
-    	.init_done              ()
+        .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_get }),
+    	.allocate_valid_o       (new_ist_valid),
+        .allocate_entries_o     (new_ist_num),
+    	.init_done              (o_ist_insert_available)
     );
-
-    /* Entry: MSB [ IMM | Destination Rename Register | 
-                    PC | Micro-OP | EX_PATH ] LSB */   
+ 
         // IST Entry 
     regfile #(
-        .READ_CHANNEL    (),
+        .READ_CHANNEL    (PRM_ENTRY_UPDATE),
         .WRITE_CHANNEL   (DECODE_NEW_INST),
-        .ENTRIES         (IST_ENTRY_NUM),
-        .REG_WIDTH       ()
-    ) U_ (
+        .ENTRIES         (RS_ENTRY_BITWIDTH),
+        .REG_WIDTH       (IST_ENTRY_NUM)
+    ) U_IST_ENTRIES (
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (),
         .i_write_wes         (),
-        .i_write_addresses   (),
+        .i_write_addresses   (new_ist_num),
         .i_write_data        (),
         .o_read_data         ()
     );
+    
+        // IST Opreands
+    regfile #(
+        .READ_CHANNEL    (PRM_ENTRY_UPDATE),
+        .WRITE_CHANNEL   (DECODE_NEW_INST),
+        .ENTRIES         (IST_BITWIDTH_OPREAND_PHYREG_FULL),
+        .REG_WIDTH       (IST_ENTRY_NUM)
+    ) U_IST_OPREANDS (
+        .clk                 (clk),
+        .reset_n             (reset_n),
+        .i_read_addresses    (),
+        .i_write_wes         (),
+        .i_write_addresses   (new_ist_num),
+        .i_write_data        (),
+        .o_read_data         ()
+    );
+
+    genvar target_ready;
+    generate
+        for (target_ready = 0; target_ready < INST_OPREANDS; target_ready = target_ready+1) begin
+                // IST Readys
+            regfile #(
+                .READ_CHANNEL    (PRM_ENTRY_UPDATE),
+                .WRITE_CHANNEL   (DECODE_NEW_INST+PRM_ENTRY_UPDATE),
+                .ENTRIES         (1),
+                .REG_WIDTH       (IST_ENTRY_NUM)
+            ) U_IST_READY (
+                .clk                 (clk),
+                .reset_n             (reset_n),
+                .i_read_addresses    (),
+                .i_write_wes         (),
+                .i_write_addresses   (),
+                .i_write_data        (),
+                .o_read_data         ()
+            );
+        end
+    endgenerate
 
 endmodule
