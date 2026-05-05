@@ -44,35 +44,9 @@ module instruction_state_table #(
 
     localparam IST_PACKET_BITWIDTH              = IST_BITWIDTH * DECODE_NEW_INST,
 
-    // (Autogenerate) Field of Allocator in Instruction State Table
-    localparam IST_ALLOCATE_BITWIDTH = BITWIDTH_IST_ENTRY_NUM * DECODE_NEW_INST,
-
-    // (Autogenerate) Packet of registing that Opreand Rename Register to Physical Register Manager
-    localparam PRM_UPDATE_PHYREG            = DECODE_NEW_INST * INST_OPREANDS,
-        /* Packet: MSB [ ( IST Address_n , Opreand Rename Register_n ), ... , ( IST Address_1 , Opreand Rename Register_1 ) ] LSB 
-            Frame: ( IST Address_m , Opreand Rename Register_m )
-            A Packet has DECODE_NEW_INST * INST_OPREANDS Frames */
-    localparam PRM_FRAME_BITWIDTH           = BITWIDTH_PHYREG_NUM + BITWIDTH_IST_ENTRY_NUM,
-
-    localparam PRM_FRAME_STARTPOINT_PHYREG  = 0,
-    localparam PRM_FRAME_STARTPOINT_IST     = PRM_FRAME_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM,
-
-    localparam PRM_INST_PACK_BITWIDTH       = PRM_FRAME_BITWIDTH * INST_OPREANDS,
-
-    localparam PRM_PACKET_BITWIDTH          = PRM_INST_PACK_BITWIDTH * DECODE_NEW_INST,
-
-    // (Autogenerate) Field of Allocator in Physical Register Manager
-    localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST,
-
-    // (Autogenerate) Width of Instructions
-    localparam INST_INPUT_BITWIDTH          = INST_BITWIDTH * DECODE_NEW_INST,
-
     // (Autogenerate) Ready Station Entry
     localparam RS_ENTRY_BITWIDTH            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH 
                                                 + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
-
-    // (Autogenerate) Write Back Field
-    localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM
 ) (
     input                                                                      clk,
     input                                                                      reset_n,
