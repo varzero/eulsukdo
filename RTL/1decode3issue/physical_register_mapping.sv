@@ -69,6 +69,8 @@ module physical_register_mapping #(
     assign o_prm_active = allocator_active & ;
 
     // Allocate PHYREG
+    wire [(BITWIDTH_PHYREG_BUFFER*EX_PATH_NUM)-1:0] pop_phyreg_buf_cnt;
+    wire [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
     allocator #(
     	.NUM_OF_ENTRIES (PHYREG_NUM),
         .UNALLOCATES    (UNALLOCATE_PHYREG),
@@ -93,11 +95,11 @@ module physical_register_mapping #(
     ) U_PHYREG_CNT_REG (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    (),
-        .i_write_wes         (),
-        .i_write_addresses   (),
+        .i_read_addresses    ({, i_prm_istindex_phyreg}),
+        .i_write_wes         (i_prm_istindex_valid),
+        .i_write_addresses   (i_prm_istindex_phyreg),
         .i_write_data        (),
-        .o_read_data         ()
+        .o_read_data         ({pop_phyreg_buf_cnt, update_phyreg_buf_cnt})
     );
 
     // PHYREG Mapping IST Entry
@@ -105,8 +107,8 @@ module physical_register_mapping #(
     generate
         for (phyreg_buf_idx = 0; phyreg_buf_idx < PRM_ENTRY_BUFFER; phyreg_buf_idx = phyreg_buf_idx+1) begin
             regfile #(
-                .READ_CHANNEL  (),
-                .WRITE_CHANNEL (),
+                .READ_CHANNEL  (1),
+                .WRITE_CHANNEL (1),
                 .ENTRIES       (PHYREG_NUM),
                 .REG_WIDTH     ()
             ) U_PHYREG_BUF (

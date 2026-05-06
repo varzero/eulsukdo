@@ -189,7 +189,7 @@ module instruction_state_table #(
     ) U_IST_ENTRIES (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    ({i_ready_update_istidx, }),
+        .i_read_addresses    (i_ready_update_istidx),
         .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST]),
         .i_write_addresses   (new_ist_num),
         .i_write_data        (ist_entries_spread),
