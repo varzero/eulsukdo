@@ -58,19 +58,19 @@ module instruction_state_table #(
     output wire [DECODE_NEW_INST-1:0]                                          i_ist_field_valid,
     input  wire [IST_PACKET_BITWIDTH-1:0]                                      i_ist_field,
 
-        // -> Physical Register Manager Opreands Update
+        // <- Physical Register Manager Opreands Update
     output reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          o_prm_istindex_valid,
     output reg  [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    o_prm_istindex_phyreg,
     output reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] o_prm_istindex_istidx,
 
     // Update Ready Field
-        // <- Physical Register Manager Opreands POP
+        // -> Physical Register Manager Opreands POP
     input  wire [(PRM_ENTRY_UPDATE)-1:0]                                       i_ready_update_valid,
     input  wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   i_ready_update_phyreg,
     input  wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                i_ready_update_istidx,
 
     // Output Ready Station
-        // -> Ready Station Create Entry
+        // <- Ready Station Create Entry
     input  wire [(RS_PUSH_WIDTH)-1:0]                                          i_push_rs_available,
     output reg  [(RS_PUSH_WIDTH)-1:0]                                          o_push_rs_valid,
     output wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0]                        o_push_rs_data
