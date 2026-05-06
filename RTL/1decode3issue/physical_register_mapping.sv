@@ -7,6 +7,7 @@ module physical_register_mapping #(
     parameter PRM_ENTRY_BUFFER  = 4,
     parameter PRM_ENTRY_UPDATE  = 3,
     parameter RS_ENTRY_NUM      = 16,
+    parameter UNALLOCATE_PHYREG = 4,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -30,6 +31,7 @@ module physical_register_mapping #(
 
     // (Autogenerate) Field of Allocator in Physical Register Manager
     localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST
+    localparam PRM_UNALLOCATE_BITWIDTH      = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG
 ) (
     input                                       clk,
     input                                       reset_n,
@@ -39,7 +41,9 @@ module physical_register_mapping #(
         // <- Physical Register Manager Allocator
     output wire [DECODE_NEW_INST-1:0]           o_prm_allocate_valid,
     output wire [PRM_ALLOCATE_BITWIDTH-1:0]     o_prm_allocate_phyreg,
-
+        // -> Physical Register Manager Unallocator
+    input  wire [UNALLOCATE_PHYREG-1:0]           i_prm_unallocate_valid,
+    input  wire [PRM_UNALLOCATE_BITWIDTH-1:0]     i_prm_unallocate_phyreg,
 
         // -> Physical Register Manager Opreands Update
     input  reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          i_prm_istindex_valid,
@@ -52,23 +56,24 @@ module physical_register_mapping #(
     output wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   o_ready_update_phyreg,
     output wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                o_ready_update_istidx,
 
-
+    // Block
+    output wire o_prm_active;
 );
 
     // Allocate PHYREG
     allocator #(
     	.NUM_OF_ENTRIES (IST_ENTRY_NUM),
-        .UNALLOCATES    (),
+        .UNALLOCATES    (UNALLOCATE_PHYREG),
         .ALLOCATES      (DECODE_NEW_INST)
     ) U_ALLOCATE_PHYREG (
         .clk                    (clk),
         .reset_n                (reset_n),
-        .unallocate_valid_i     (),
-        .unallocate_entries_i   (),
+        .unallocate_valid_i     (i_prm_unallocate_valid),
+        .unallocate_entries_i   (i_prm_unallocate_phyreg),
         .allocating_i           (i_allocate_position),
     	.allocate_valid_o       (o_ist_allocate_valid),
         .allocate_entries_o     (o_ist_allocate_addr),
-    	.init_done              ()
+    	.init_done              (o_prm_active)
     );
 
 
