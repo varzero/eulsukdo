@@ -109,8 +109,13 @@ module instruction_state_table #(
             if (&ist_readys_split[new_entry]) o_push_rs_valid[new_entry] = 1'b1;
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
-                o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)]
-                    = i_ist_field_get[((INST_OPREANDS*new_entry)+new_opr_sel)] & i_ist_field_valid[((INST_OPREANDS*new_entry)+new_opr_sel)];
+                if (&ist_readys_split[new_entry]) begin
+                    o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)] = 1'b0;
+                end
+                else begin
+                    o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)]
+                        = i_ist_field_get[((INST_OPREANDS*new_entry)+new_opr_sel)] & i_ist_field_valid[((INST_OPREANDS*new_entry)+new_opr_sel)];
+                end
                 o_prm_istindex_phyreg[( BITWIDTH_PHYREG_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_PHYREG_NUM]
                     = ist_opreands_split[new_entry][(BITWIDTH_PHYREG_NUM*new_opr_sel) +: BITWIDTH_PHYREG_NUM];
                 o_prm_istindex_istidx[( BITWIDTH_IST_ENTRY_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_IST_ENTRY_NUM]
