@@ -47,15 +47,19 @@ module physical_register_mapping #(
     output wire [DECODE_NEW_INST-1:0]           o_prm_allocate_valid,
     output wire [PRM_ALLOCATE_BITWIDTH-1:0]     o_prm_allocate_phyreg,
 
-    // Update PRM
-        // 새로 할당된 PHYREG는 할당 정보만 수집, 
-        // <- Physical Register Manager Mapper
-    input  wire [PRM_UPDATE_PHYREG-1:0]         i_prm_map_valid,
-    input  wire [PRM_PACKET_BITWIDTH-1:0]       i_prm_map_list,
 
-    // -> Write Back PHYREGs (Ready Update)
-    input  wire [EX_PATH_NUM-1:0]               i_wb_done,
-    input  wire [WB_PHYREGS_BITWIDTH-1:0]       i_wb_done_phyregs
+        // -> Physical Register Manager Opreands Update
+    output reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          o_prm_istindex_valid,
+    output reg  [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    o_prm_istindex_phyreg,
+    output reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] o_prm_istindex_istidx,
+    
+    // Update Ready Field
+        // <- Physical Register Manager Opreands POP
+    input  wire [(PRM_ENTRY_UPDATE)-1:0]                                       i_ready_update_valid,
+    input  wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   i_ready_update_phyreg,
+    input  wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                i_ready_update_istidx,
+
+
 );
 
     // Allocate PHYREG

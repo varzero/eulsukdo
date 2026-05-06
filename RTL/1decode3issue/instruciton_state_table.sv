@@ -109,7 +109,7 @@ module instruction_state_table #(
             if (&ist_readys_split[new_entry]) o_push_rs_valid[new_entry] = 1'b1;
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
-                if (&ist_readys_split[new_entry]) begin
+                if (ist_readys_split[new_entry][new_opr_sel]) begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)] = 1'b0;
                 end
                 else begin
