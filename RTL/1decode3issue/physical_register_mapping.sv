@@ -54,6 +54,7 @@ module physical_register_mapping #(
     // Update Ready Field
         // <- Physical Register Manager Opreands POP
     output wire [(PRM_ENTRY_UPDATE)-1:0]                                       o_ready_update_valid,
+    input  wire [(PRM_ENTRY_UPDATE)-1:0]                                       i_ready_update_get,
     output wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   o_ready_update_phyreg,
     output wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                o_ready_update_istidx,
 
@@ -119,6 +120,28 @@ module physical_register_mapping #(
                 .i_write_addresses   (),
                 .i_write_data        (),
                 .o_read_data         ()
+            );
+        end
+    endgenerate
+
+    // Output FIFO
+    genvar ready_update_fifo;
+    generate
+        for (ready_update_fifo = 0; ready_update_fifo < ; ready_update_fifo = ready_update_fifo+1) begin
+            fifo_ordering_position #(
+            	.PUSH_DATA  (2),
+            	.POP_DATA   (2),
+            	.ENTRY_WIDTH(),
+            	.FIFO_DEPTH ()
+            ) U_PRM_OUT_FIFO (
+            	.clk                (clk),
+            	.reset_n            (reset_n),
+            	.push_valid_i       (),
+            	.push_data_i        (),
+            	.pop_get_i          ({1'b0, i_ready_update_get[ready_update_fifo]}),
+            	.pop_valid_o        (o_ready_update_valid[ready_update_fifo]),
+            	.pop_data_o         (),
+            	.push_available_o   ()
             );
         end
     endgenerate

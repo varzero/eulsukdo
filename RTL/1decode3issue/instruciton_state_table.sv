@@ -66,17 +66,20 @@ module instruction_state_table #(
     // Update Ready Field
         // -> Physical Register Manager Opreands POP
     input  wire [(PRM_ENTRY_UPDATE)-1:0]                                       i_ready_update_valid,
+    output wire [(PRM_ENTRY_UPDATE)-1:0]                                       o_ready_update_get,
     input  wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   i_ready_update_phyreg,
     input  wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                i_ready_update_istidx,
 
     // Output Ready Station
         // <- Ready Station Create Entry
-    input  wire [(RS_PUSH_WIDTH)-1:0]                                          i_push_rs_available,
+    input  wire                                                                i_push_rs_available,
     output reg  [(RS_PUSH_WIDTH)-1:0]                                          o_push_rs_valid,
     output wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0]                        o_push_rs_data
 
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
+    assign o_ready_update_get = (i_push_rs_available)? {PRM_ENTRY_UPDATE{1'b1}} : {PRM_ENTRY_UPDATE{1'b0}};
+
     wire [(DECODE_NEW_INST*2)-1:0]             new_ist_valid;
     wire [(IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
     assign i_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
@@ -106,7 +109,7 @@ module instruction_state_table #(
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
             ist_readys_spread[(IST_BITWIDTH_OPREAND_READY_FULL*new_entry) +: IST_BITWIDTH_OPREAND_READY_FULL]
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
-            if (&ist_readys_split[new_entry]) o_push_rs_valid[new_entry] = 1'b1;
+            if (&ist_readys_split[new_entry] && i_push_rs_available) o_push_rs_valid[new_entry] = 1'b1;
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
                 if (ist_readys_split[new_entry][new_opr_sel]) begin
@@ -158,7 +161,7 @@ module instruction_state_table #(
             end
             done_readys_update[comp_opr] = done_readys_update[comp_opr] | done_readys[comp_opr];
 
-            if (&done_readys_update) begin
+            if (&done_readys_update && i_push_rs_available) begin
                 o_push_rs_valid[comp_opr+DECODE_NEW_INST] = 1'b1;
             end
         end
