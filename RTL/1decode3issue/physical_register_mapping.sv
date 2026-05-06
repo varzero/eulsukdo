@@ -24,6 +24,7 @@ module physical_register_mapping #(
     // (Autogenerate) Elements
     localparam BITWIDTH_EX_PATH_NUM                     = $clog2(EX_PATH_NUM),
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
+    localparam BITWIDTH_PHYREG_BUFFER                   = $clog2(PRM_ENTRY_BUFFER),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     
@@ -56,13 +57,20 @@ module physical_register_mapping #(
     output wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   o_ready_update_phyreg,
     output wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                o_ready_update_istidx,
 
+        // -> WB Physical Register Ready
+    input  wire [EX_PATH_NUM-1:0] i_wb_done,
+    input  wire [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0] i_wb_done_phyreg,
+
     // Block
-    output wire o_prm_active;
+    output wire o_prm_active
 );
+    wire allocator_active;
+
+    assign o_prm_active = allocator_active & ;
 
     // Allocate PHYREG
     allocator #(
-    	.NUM_OF_ENTRIES (IST_ENTRY_NUM),
+    	.NUM_OF_ENTRIES (PHYREG_NUM),
         .UNALLOCATES    (UNALLOCATE_PHYREG),
         .ALLOCATES      (DECODE_NEW_INST)
     ) U_ALLOCATE_PHYREG (
@@ -73,8 +81,44 @@ module physical_register_mapping #(
         .allocating_i           (i_allocate_position),
     	.allocate_valid_o       (o_ist_allocate_valid),
         .allocate_entries_o     (o_ist_allocate_addr),
-    	.init_done              (o_prm_active)
+    	.init_done              (allocator_active)
     );
 
+    // PHYREG Counter
+    regfile #(
+        .READ_CHANNEL  ( EX_PATH_NUM+(DECODE_NEW_INST*INST_OPREANDS) ),
+        .WRITE_CHANNEL ( (DECODE_NEW_INST*INST_OPREANDS) ),
+        .ENTRIES       (PHYREG_NUM),
+        .REG_WIDTH     (BITWIDTH_PHYREG_BUFFER)
+    ) U_PHYREG_CNT_REG (
+        .clk                 (clk),
+        .reset_n             (reset_n),
+        .i_read_addresses    (),
+        .i_write_wes         (),
+        .i_write_addresses   (),
+        .i_write_data        (),
+        .o_read_data         ()
+    );
+
+    // PHYREG Mapping IST Entry
+    genvar phyreg_buf_idx;
+    generate
+        for (phyreg_buf_idx = 0; phyreg_buf_idx < PRM_ENTRY_BUFFER; phyreg_buf_idx = phyreg_buf_idx+1) begin
+            regfile #(
+                .READ_CHANNEL  (),
+                .WRITE_CHANNEL (),
+                .ENTRIES       (PHYREG_NUM),
+                .REG_WIDTH     ()
+            ) U_PHYREG_BUF (
+                .clk                 (clk),
+                .reset_n             (reset_n),
+                .i_read_addresses    (),
+                .i_write_wes         (),
+                .i_write_addresses   (),
+                .i_write_data        (),
+                .o_read_data         ()
+            );
+        end
+    endgenerate
 
 endmodule
