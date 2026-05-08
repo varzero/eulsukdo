@@ -151,7 +151,7 @@ Instruction Memory
 
 Instruction State Table
 [보내는 정보]
- - 내부 처리용으로 변경되고 새로운 레지스터 체계로 바뀐 명령 -{ㄴ}->
+ - 내부 처리용으로 변경되고 새로운 레지스터 체계로 바뀐 명령 >-{ㄴ}-
 
 Physical Register Mapper
 [받는 정보]
@@ -163,12 +163,23 @@ Write Back Concatenation
 
 Flow Control Logic
 [보내는 정보]
- - Jump 명령어 여부 전달 -{ㅁ}->
- - 덮어 씌워지는 명령 레지스터가 할당되었던 기존 레지스터 번호 -{ㅂ}->
+ - Jump 명령어 여부 전달 >-{ㅁ}-
+ - 덮어 씌워지는 명령 레지스터가 할당되었던 기존 레지스터 번호 >-{ㅂ}-
 ```
 
 구조는 이렇게 생겼습니다.
 ```Plain-text
+      ┌──┐
+-{ㄱ}->   >-{ㄴ}-
+      │  │
+-{ㄷ}->   >-{ㅁ}-
+      │  │
+-{ㄹ}->   >-{ㅂ}-
+      └──┘
+
+   ┌──┬──┐
+   │  │  │
+   └──┴──┘
 ```
 
 #### Instruction State Table(IST)
