@@ -1,13 +1,14 @@
 module physical_register_mapping #(
     // Dynamic Schedular Description
-    parameter DECODE_NEW_INST   = 1,
-    parameter PHYREG_NUM        = 64,
-    parameter IST_ENTRY_NUM     = 128,
-    parameter EX_PATH_NUM       = 3,
-    parameter PRM_ENTRY_BUFFER  = 4,
-    parameter PRM_ENTRY_UPDATE  = 3,
-    parameter RS_ENTRY_NUM      = 16,
-    parameter UNALLOCATE_PHYREG = 4,
+    parameter DECODE_NEW_INST          = 1,
+    parameter PHYREG_NUM               = 64,
+    parameter IST_ENTRY_NUM            = 128,
+    parameter EX_PATH_NUM              = 3,
+    parameter PRM_ENTRY_BUFFER         = 4,
+    parameter PRM_ENTRY_UPDATE         = 3,
+    parameter PRM_READY_OUT_FIFO_DEPTH = 32,
+    parameter RS_ENTRY_NUM             = 16,
+    parameter UNALLOCATE_PHYREG        = 4,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -28,7 +29,9 @@ module physical_register_mapping #(
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     
-    localparam RS_PUSH_WIDTH     = PRM_ENTRY_UPDATE + DECODE_NEW_INST,
+    localparam RS_PUSH_WIDTH        = PRM_ENTRY_UPDATE + DECODE_NEW_INST,
+
+    localparam PRM_READY_OUT_WIDTH  = BITWIDTH_PHYREG_NUM + BITWIDTH_IST_ENTRY_NUM;
 
     // (Autogenerate) Field of Allocator in Physical Register Manager
     localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST
@@ -66,8 +69,6 @@ module physical_register_mapping #(
     output wire o_prm_active
 );
     wire allocator_active;
-
-    assign o_prm_active = allocator_active & ;
 
     // Allocate PHYREG
     wire [(BITWIDTH_PHYREG_BUFFER*EX_PATH_NUM)-1:0] pop_phyreg_buf_cnt;
@@ -125,14 +126,16 @@ module physical_register_mapping #(
     endgenerate
 
     // Output FIFO
+    wire [PRM_ENTRY_UPDATE-1:0]    fifo_available;
+    reg  [PRM_READY_OUT_WIDTH-1:0] ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
     genvar ready_update_fifo;
     generate
-        for (ready_update_fifo = 0; ready_update_fifo < ; ready_update_fifo = ready_update_fifo+1) begin
+        for (ready_update_fifo = 0; ready_update_fifo < PRM_ENTRY_UPDATE; ready_update_fifo = ready_update_fifo+1) begin
             fifo_ordering_position #(
-            	.PUSH_DATA  (2),
+            	.PUSH_DATA  (PRM_ENTRY_BUFFER),
             	.POP_DATA   (2),
-            	.ENTRY_WIDTH(),
-            	.FIFO_DEPTH ()
+            	.ENTRY_WIDTH(PRM_READY_OUT_WIDTH),
+            	.FIFO_DEPTH (PRM_READY_OUT_FIFO_DEPTH)
             ) U_PRM_OUT_FIFO (
             	.clk                (clk),
             	.reset_n            (reset_n),
@@ -140,10 +143,17 @@ module physical_register_mapping #(
             	.push_data_i        (),
             	.pop_get_i          ({1'b0, i_ready_update_get[ready_update_fifo]}),
             	.pop_valid_o        (o_ready_update_valid[ready_update_fifo]),
-            	.pop_data_o         (),
-            	.push_available_o   ()
+            	.pop_data_o         (ready_out_fifo_out[ready_update_fifo]),
+            	.push_available_o   (fifo_available[ready_update_fifo])
             );
+
+            o_ready_update_phyreg[(BITWIDTH_PHYREG_NUM*ready_update_fifo) +: BITWIDTH_PHYREG_NUM] 
+                = ready_out_fifo_out[ready_update_fifo][PRM_READY_OUT_WIDTH-1:BITWIDTH_IST_ENTRY_NUM];
+            i_prm_istindex_istidx[(BITWIDTH_IST_ENTRY_NUM*ready_update_fifo) +: BITWIDTH_IST_ENTRY_NUM] 
+                = ready_out_fifo_out[ready_update_fifo][BITWIDTH_IST_ENTRY_NUM-1:0];
         end
     endgenerate
+
+    assign o_prm_active = allocator_active & (&fifo_available) & ;
 
 endmodule
