@@ -1,7 +1,7 @@
 # 을숙도 아키텍쳐 - EULSUKDO Archtecture
 **슈퍼스칼라와 비순차 실행 처리를 위한 동적 스케줄링 구현체**
   
-[English](README_en.md)
+[English는 아직 없습니다..](README_en.md)
   
 ## 이건 뭐에요?
 이 프로젝트는 프로세서가 명령어를 처리하는 과정에서 
@@ -18,6 +18,8 @@
 특히 비순차 실행 처리를 구현하기 위한 유명한 알고리즘으로 **토마슬로 알고리즘**가 있습니다.  
 
 ### 프로세서를 만든다고요? 그게 뭔데요?
+프로세서는 **명령 단위로 나눠진 특정한 동작들을 처리하는 디지털 회로**입니다. 대표적으로 CPU와 GPU가 유명하죠.  
+
 프로세서는 명령을 처리할 때, 값을 특정한 공간에 넣어 처리합니다.  
 우리는 이를 **레지스터**라고 부르는데요,  
 이 레지스터들을 반복적으로 읽고, 쓰면서 원하는 동작을 만들어냅니다.  
@@ -64,7 +66,7 @@
 **순서와 상관없이 지금 바로 실행할 수 있는 명령을 즉시 처리**하는  
 구조가 적용된 프로세서를 구현하는 프로젝트입니다.  
 
-그래서, **토마슬로 알고리즘**이 추구하는 **레지스터 이름 변경**을 적용한  
+그래서, 토마슬로 알고리즘이 추구하는 **레지스터 이름 변경**을 적용한  
 **비순차 실행 처리를 진행하는 동적 스케줄링 구조**를 만들었습니다!  
 이때, 전력 소모를 줄이기 위해 CAM이라는 구조를 배제하여 구현해보았습니다.
 
@@ -75,7 +77,7 @@
 1. 새롭게 들어온 명령을 해석하고 새로운 레지스터 체계로 바꾸는 부분
 2. 현재 명령들의 상태를 기록해 두고, 실행할 준비가 된 명령을 연산/메모리접근 부분으로 넘겨주는 부분
 3. 바뀐 레지스터 체계를 기준으로, 해당 레지스터가 사용되는 명령을 저장하고, 상태를 변경하는 부분
-4. 현재 명령의 순서와 수행된 명령을 이용하여 지울수 있는 레지스터를 제거(할당 취소)하는 부분
+4. 현재 명령의 순서와 수행된 명령을 확인하여 지울수 있는 레지스터를 제거(할당 취소)하는 부분
 
 으로 나눌 수 있어요.
 
@@ -89,13 +91,148 @@
 
 자세히 설명해볼까요?
 
-#### New Entry Logic
+#### New Entry Logic(NEL)
 **새롭게 들어온 명령을 해석하고 새로운 레지스터 체계로 바꾸어 주는 모듈**입니다!  
 
-이 모듈은 **Instruction State Table**과 **Write Back Concatenation**, **Flow Control Logic**과 연결되어 있습니다.
+이 모듈은 *Instruction Memory*, **Instruction State Table**, **Physical Register Mapper**, **Write Back Concatenation**, **Flow Control Logic**과 연결되어 있습니다.
+```Plain-text
+Instruction Memory
+[받는 정보]
+ - 새로운 명령 -{ㄱ}->
 
-#### Instruction State Table
-**현재 명령들의 상태를 기록해 두고, 필요시 상태를 변경하며, 실행할 준비가 된 명령을 연산/메모리접근 부분으로 넘겨주는 부분**입니다!  
+Instruction State Table
+[보내는 정보]
+ - 내부 처리용으로 변경되고 새로운 레지스터 체계로 바뀐 명령 -{ㄴ}->
 
-이 모듈은 **New Entry Logic**과 **Physical Register Mapper**, **Ready Station**과 연결되어 있습니다.
+Physical Register Mapper
+[받는 정보]
+ - 새로운 레지스터 체계의 비어있는 레지스터 번호 -{ㄷ}->
 
+Write Back Concatenation
+[받는 정보]
+ - 처리가 완료된 레지스터 번호 -{ㄹ}->
+
+Flow Control Logic
+[보내는 정보]
+ - Jump 명령어 여부 전달 -{ㅁ}->
+```
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```
+
+#### Instruction State Table(IST)
+**현재 명령들의 상태를 기록해 두고, 필요시 상태를 변경하며, 실행할 준비가 된 명령을 알리는 모듈**입니다!  
+
+이 모듈은 **New Entry Logic**, **Physical Register Mapper**, **Ready Station**과 연결되어 있습니다.
+```Plain-text
+New Entry Logic
+[받는 정보]
+ - 내부 처리용으로 변경되고 새로운 레지스터 체계로 바뀐 명령 -{ㄱ}->
+
+Physical Register Mapper
+[보내는 정보]
+ - 새로운 레지스터 체계로 바뀐 명령에서 필요한 레지스터 번호와 IST 번호 -{ㄴ}->
+[받는 정보]
+ - 상태가 변경되는 IST 번호와 변경시킨 레지스터 번호 -{ㄷ}->
+
+Ready Station
+[보내는 정보]
+ - 준비가 완료된 명령 -{ㄹ}->
+```
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```
+
+#### Physical Register Mapper(PRM)
+**바뀐 레지스터 체계를 기준으로, 해당 레지스터가 사용되는 명령을 저장하는 모듈**입니다!  
+
+이 모듈은 **New Entry Logic**, **Instruction State Table**, **Write Back Concatenation**, **Flow Control Logic**과 연결되어 있습니다.
+```Plain-text
+New Entry Logic
+[보내는 정보]
+ - 새로운 레지스터 체계의 비어있는 레지스터 번호 -{ㄱ}->
+
+Instruction State Table
+[받는 정보]
+ - 새로운 레지스터 체계로 바뀐 명령에서 필요한 레지스터 번호와 IST 번호 -{ㄴ}->
+[보내는 정보]
+ - 상태가 변경되는 IST 번호와 변경시킨 레지스터 번호 -{ㄷ}->
+
+Write Back Concatenation
+[받는 정보]
+ - 처리가 완료된 레지스터 번호 -{ㄹ}->
+
+Flow Control Logic
+[받는 정보]
+ - 이후에 사용되지 않을 레지스터 번호 -{ㅁ}->
+```
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```
+
+#### Ready Station(RS)
+**실행할 준비가 된 명령을 연산/메모리접근 부분으로 넘겨주는 모듈**입니다!  
+
+이 모듈은 **Instruction State Table**, *Execution Unit으로 통칭되는 연산/메모리 접근/명령순서 제어부*와 연결되어 있습니다.
+```Plain-text
+Ready Station
+[받는 정보]
+ - 준비가 완료된 명령 -{ㄱ}->
+
+Execution Unit으로 통칭되는 연산/메모리 접근/명령순서 제어부
+[보내는 정보]
+ - 준비가 완료되어 처리를 기다리는 명령 -{ㄴ}->
+```
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```
+
+#### Write Back Concatenation(WBC)
+**처리가 완료된 명령의 정보를 전달하는 모듈**입니다!  
+
+이 모듈은 *Execution Unit으로 통칭되는 연산/메모리 접근/명령순서 제어부*, **Physical Register Mapper**, **New Entry Logic**과 연결되어 있습니다.
+```Plain-text
+Execution Unit으로 통칭되는 연산/메모리 접근/명령순서 제어부
+[받는 정보]
+ - 처리가 완료된 레지스터 번호와 결과의 일부
+   (Branch의 경우 새롭게 가져올 명령어의 주소:PC) -{ㄱ}->
+ 
+Physical Register Mapper
+[보내는 정보]
+ - 처리가 완료된 레지스터 번호 -{ㄴ}->
+
+New Entry Logic
+[보내는 정보]
+ - 처리가 완료된 레지스터 번호 -{ㄷ}->
+```
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```
+
+#### Flow Control Logic(FCL)
+**현재 명령의 순서와 수행된 명령을 확인하여 지울수 있는 레지스터를 제거(할당 취소)하는 모듈**입니다!  
+
+이 모듈은 **New Entry Logic**, **Physical Register Mapper**, *Instruction Memory*와 연결되어 있습니다.
+```Plain-text
+New Entry Logic
+[받는 정보]
+ - Jump 명령어 여부 전달 -{ㄱ}->
+ 
+Physical Register Mapper
+[보내는 정보]
+ - 이후에 사용되지 않을 레지스터 번호 -{ㄴ}->
+
+Instruction Memory
+[보내는 정보]
+ - 새롭게 가져올 명령어의 주소:PC -{ㄷ}->
+```
+
+
+구조는 이렇게 생겼습니다.
+```Plain-text
+```

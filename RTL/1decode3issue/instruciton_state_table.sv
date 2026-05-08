@@ -193,7 +193,7 @@ module instruction_state_table #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (i_ready_update_istidx),
-        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST]),
+        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST-1:0]),
         .i_write_addresses   (new_ist_num),
         .i_write_data        (ist_entries_spread),
         .o_read_data         (o_push_rs_data[(DECODE_NEW_INST*RS_ENTRY_BITWIDTH) +: (PRM_ENTRY_UPDATE*RS_ENTRY_BITWIDTH)])
@@ -209,7 +209,7 @@ module instruction_state_table #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (i_ready_update_istidx),
-        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST]),
+        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST-1:0]),
         .i_write_addresses   (new_ist_num),
         .i_write_data        (ist_opreands_spread),
         .o_read_data         (done_opreands)
