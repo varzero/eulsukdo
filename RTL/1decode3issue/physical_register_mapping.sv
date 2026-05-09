@@ -94,6 +94,8 @@ module physical_register_mapping #(
     reg  [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     target_phyreg_cnt;
     reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
+    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            map_table_write_valid;
+    reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]   map_table_write_ist;
     integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx;
     always @(*) begin
         update_prm_istindex_valid = 0;
@@ -119,6 +121,9 @@ module physical_register_mapping #(
                 = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER];
             update_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER] 
                 = target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1;
+
+            map_table_write_valid
+            map_table_write_ist
         end
     end
     regfile #(
@@ -137,18 +142,12 @@ module physical_register_mapping #(
     );
 
     // PHYREG Mapping IST Entry
-    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          map_table_write_valid;
-    reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] map_table_write_ist;
     wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_BUFFER*EX_PATH_NUM)-1:0]    out_wb_istentries;
     reg  [(PRM_READY_OUT_WIDTH*PRM_ENTRY_BUFFER*EX_PATH_NUM)-1:0]       out_istentries_fifo_push;
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                      out_istentries_fifo_push_PRM;
     reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                   out_istentries_fifo_push_IST;
     integer ist_entrybuf_idx, ist_expath_idx;
     always @(*) begin
-        // 
-        map_table_write_valid
-        map_table_write_ist
-
         // to out FIFO
         for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
             for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
