@@ -71,8 +71,6 @@ module physical_register_mapping #(
     wire allocator_active;
 
     // Allocate PHYREG
-    wire [(BITWIDTH_PHYREG_BUFFER*EX_PATH_NUM)-1:0] pop_phyreg_buf_cnt;
-    wire [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
     allocator #(
     	.NUM_OF_ENTRIES (PHYREG_NUM),
         .UNALLOCATES    (UNALLOCATE_PHYREG),
@@ -89,38 +87,96 @@ module physical_register_mapping #(
     );
 
     // PHYREG Counter
+    reg  [PHYREG_NUM-1:0]                                                 cnt_blocking;
+    wire [(BITWIDTH_PHYREG_BUFFER*EX_PATH_NUM)-1:0]                       pop_phyreg_buf_cnt;
+    wire [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] opreands_phyreg_buf_cnt;
+    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            update_prm_istindex_valid;
+    reg  [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     target_phyreg_cnt;
+    reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
+    integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx;
+    always @(*) begin
+        update_prm_istindex_valid = 0;
+        
+        for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
+            overlap_phyreg[init_idx] = 0;
+        end
+
+        for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
+            for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
+                target_phyreg_cnt 
+                    = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*( (INST_OPREANDS*split_inst_cnt)+split_opreand_cnt ) ) +: BITWIDTH_PHYREG_BUFFER];
+
+                if (|overlap_phyreg[target_phyreg_cnt] == 1'b0) 
+                    update_prm_istindex_valid[ ( split_inst_cnt*INST_OPREANDS )+split_opreand_cnt ] = 1'b1;
+                
+                overlap_phyreg[target_phyreg_cnt][split_opreand_cnt] = 1'b1;
+            end
+        end
+
+        for (split_cnt = 0; split_cnt < (DECODE_NEW_INST*INST_OPREANDS); split_cnt = split_cnt+1) begin
+            target_phyreg_cnt 
+                = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER];
+            update_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER] 
+                = target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1;
+        end
+    end
     regfile #(
         .READ_CHANNEL  ( EX_PATH_NUM+(DECODE_NEW_INST*INST_OPREANDS) ),
-        .WRITE_CHANNEL ( (DECODE_NEW_INST*INST_OPREANDS) ),
+        .WRITE_CHANNEL ( EX_PATH_NUM+(DECODE_NEW_INST*INST_OPREANDS) ),
         .ENTRIES       (PHYREG_NUM),
         .REG_WIDTH     (BITWIDTH_PHYREG_BUFFER)
     ) U_PHYREG_CNT_REG (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    ({, i_prm_istindex_phyreg}),
-        .i_write_wes         (i_prm_istindex_valid),
-        .i_write_addresses   (i_prm_istindex_phyreg),
-        .i_write_data        (),
-        .o_read_data         ({pop_phyreg_buf_cnt, update_phyreg_buf_cnt})
+        .i_read_addresses    ({i_wb_done_phyreg, i_prm_istindex_phyreg}),
+        .i_write_wes         ({i_wb_done, update_prm_istindex_valid}),
+        .i_write_addresses   ({i_wb_done_phyreg, i_prm_istindex_phyreg}),
+        .i_write_data        ({ {(EX_PATH_NUM*BITWIDTH_PHYREG_BUFFER){1'b0}}, update_phyreg_buf_cnt}),
+        .o_read_data         ({pop_phyreg_buf_cnt, opreands_phyreg_buf_cnt})
     );
 
     // PHYREG Mapping IST Entry
+    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          map_table_write_valid;
+    reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] map_table_write_ist;
+    wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_BUFFER*EX_PATH_NUM)-1:0]    out_wb_istentries;
+    reg  [(PRM_READY_OUT_WIDTH*PRM_ENTRY_BUFFER*EX_PATH_NUM)-1:0]       out_istentries_fifo_push;
+    reg  [BITWIDTH_PHYREG_NUM-1:0]                                      out_istentries_fifo_push_PRM;
+    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                   out_istentries_fifo_push_IST;
+    integer ist_entrybuf_idx, ist_expath_idx;
+    always @(*) begin
+        // 
+        map_table_write_valid
+        map_table_write_ist
+
+        // to out FIFO
+        for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
+            for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
+                out_istentries_fifo_push_IST
+                    = out_wb_istentries[( BITWIDTH_IST_ENTRY_NUM * ((EX_PATH_NUM*ist_entrybuf_idx)+ist_expath_idx) ) +: BITWIDTH_IST_ENTRY_NUM];
+                out_istentries_fifo_push_PRM = i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM*ist_expath_idx) +: BITWIDTH_PHYREG_NUM];
+
+                out_istentries_fifo_push[( PRM_READY_OUT_WIDTH * ((PRM_ENTRY_BUFFER*ist_expath_idx)+ist_entrybuf_idx) ) +: PRM_READY_OUT_WIDTH]
+                    = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
+            end
+        end
+    end
     genvar phyreg_buf_idx;
     generate
         for (phyreg_buf_idx = 0; phyreg_buf_idx < PRM_ENTRY_BUFFER; phyreg_buf_idx = phyreg_buf_idx+1) begin
             regfile #(
-                .READ_CHANNEL  (1),
-                .WRITE_CHANNEL (1),
+                .READ_CHANNEL  (EX_PATH_NUM),
+                .WRITE_CHANNEL ((DECODE_NEW_INST*INST_OPREANDS)),
                 .ENTRIES       (PHYREG_NUM),
-                .REG_WIDTH     ()
+                .REG_WIDTH     (BITWIDTH_IST_ENTRY_NUM)
             ) U_PHYREG_BUF (
                 .clk                 (clk),
                 .reset_n             (reset_n),
-                .i_read_addresses    (),
-                .i_write_wes         (),
-                .i_write_addresses   (),
-                .i_write_data        (),
-                .o_read_data         ()
+                .i_read_addresses    (i_wb_done_phyreg),
+                .i_write_wes         (map_table_write_valid),
+                .i_write_addresses   (i_prm_istindex_phyreg),
+                .i_write_data        (map_table_write_ist),
+                .o_read_data         (out_wb_istentries[((BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)*phyreg_buf_idx) +: (BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)])
             );
         end
     endgenerate
@@ -128,6 +184,10 @@ module physical_register_mapping #(
     // Output FIFO
     wire [PRM_ENTRY_UPDATE-1:0]    fifo_available;
     reg  [PRM_READY_OUT_WIDTH-1:0] ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
+    reg  [PRM_ENTRY_BUFFER-1:0]    push_valid_position[0:PRM_ENTRY_UPDATE-1];
+    always @(*) begin
+        push_valid_position
+    end
     genvar ready_update_fifo;
     generate
         for (ready_update_fifo = 0; ready_update_fifo < PRM_ENTRY_UPDATE; ready_update_fifo = ready_update_fifo+1) begin
@@ -139,8 +199,8 @@ module physical_register_mapping #(
             ) U_PRM_OUT_FIFO (
             	.clk                (clk),
             	.reset_n            (reset_n),
-            	.push_valid_i       (),
-            	.push_data_i        (),
+            	.push_valid_i       (push_valid_position),
+            	.push_data_i        (out_istentries_fifo_push),
             	.pop_get_i          ({1'b0, i_ready_update_get[ready_update_fifo]}),
             	.pop_valid_o        (o_ready_update_valid[ready_update_fifo]),
             	.pop_data_o         (ready_out_fifo_out[ready_update_fifo]),
