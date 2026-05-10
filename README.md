@@ -10,6 +10,35 @@
 구조가 적용된 프로세서를 구현하는 프로젝트입니다.   
 
 <u>**근데 아직 완성이 안됐어요..**</u>
+```Plain-txt
+v 완료 (검증까지)
+? 검증되지 않음
+- 내용 작성중
+x 시작되지 않음
+
+[현재 작업 현황]
+README
+  v 배경 설명부분
+  - 전체 다이어그램: 현재 다이어그램은 FCL, WBC가 반영되지 않은 버전
+  v 각 모듈별 설명
+  x 타 아키텍쳐와 비교 분석
+CODE-Memory and Position Splitter or FIFO Element
+  v Memory
+  v Position Splitter
+  v FIFO
+  v Multi_data i/o FIFO
+  v Allocator
+  v Allocator, Value Start 1
+CODE-Architecture
+  v Rv32I Decoder and IMM
+  x NEL
+  ? IST
+  ? PRM
+  ? RS
+  ? WBC
+  x FCL
+  x Top Module
+```
 
 ### 프로세서를 만든다고요? 그게 뭔데요?
 프로세서는 **명령 단위로 나눠진 특정한 동작들을 처리하는 디지털 회로**입니다. 대표적으로 CPU와 GPU가 유명하죠.  
