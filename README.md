@@ -1,7 +1,7 @@
 # 을숙도 아키텍쳐 - EULSUKDO Archtecture
 **슈퍼스칼라와 비순차 실행 처리를 위한 동적 스케줄링 구현체**
   
-[English는 아직 없습니다..](README_en.md)
+[English(use LLM translation)](README_en.md)
   
 ## 이건 뭐에요?
 이 프로젝트는 프로세서가 명령어를 처리하는 과정에서 
