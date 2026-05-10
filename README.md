@@ -37,7 +37,7 @@ CODE-Architecture
   ? PRM
   ? RS
   ? WBC
-  x FCL
+  - FCL
   x Top Module
 ```
 
@@ -199,7 +199,7 @@ Write Back Concatenation
 
 Flow Control Logic
 [보내는 정보]
- - Jump 명령어 여부 전달
+ - Jump, 분기 명령어 여부 전달
  - 덮어 씌워지는 명령 레지스터가 할당되었던 기존 레지스터 번호
 ```
 
@@ -301,7 +301,7 @@ Flow Control Logic
 ```Plain-text
 New Entry Logic
 [받는 정보]
- - Jump 명령어 여부 전달
+ - Jump, 분기 명령어 여부 전달
  - 덮어 씌워지는 명령 레지스터가 할당되었던 기존 레지스터 번호
  
 Physical Register Mapper
