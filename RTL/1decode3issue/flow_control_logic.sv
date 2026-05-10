@@ -84,6 +84,7 @@ module flow_detect_unit #(
         // <- Entry Valid input
     input  wire                                               i_entry_force_deactive,
         // -> Entry Valid output
+    output wire                                               o_pc_entry_max,
     output wire                                               o_entry_active,
     output reg                                                o_entry_free,
         // <- PC Input
