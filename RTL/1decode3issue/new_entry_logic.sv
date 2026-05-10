@@ -1,3 +1,7 @@
+`timescale 1ns / 1ps
+
+`include "../memories.v"
+
 // NEW ENTRY LOGIC
 
 module rv32i_decode_opcode #(

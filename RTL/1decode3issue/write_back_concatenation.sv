@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module write_back_concatenation #(
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1,

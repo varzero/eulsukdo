@@ -1,4 +1,7 @@
 `timescale 1ns / 1ps
+
+`include "memories.v"
+
 module gather_position_rom #(
 	parameter VALID_WIDTH = 4,
 	localparam ONE_POSITION_WIDTH = $clog2(VALID_WIDTH),

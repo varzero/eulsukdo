@@ -1,3 +1,8 @@
+`timescale 1ns / 1ps
+
+`include "../memories.v"
+`include "../position_splitter.v"
+
 module physical_register_mapping #(
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST          = 1,

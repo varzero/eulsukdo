@@ -1,3 +1,8 @@
+`timescale 1ns / 1ps
+
+`include "../memories.v"
+`include "../position_splitter.v"
+
 module instruction_state_table #(
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1,
