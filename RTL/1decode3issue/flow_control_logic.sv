@@ -90,6 +90,8 @@ module flow_detect_unit #(
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
     input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
     output reg  [DECODE_NEW_INST-1:0]                         o_this_range,
+    input  wire                                               i_set_start_pc_valid,
+    input  wire [INST_PC_WIDTH-1:0]                           i_set_start_pc,
     input  wire                                               i_set_last_pc_valid,
     input  wire [INST_PC_WIDTH-1:0]                           i_set_last_pc,
         // <- Allocate Registers input
