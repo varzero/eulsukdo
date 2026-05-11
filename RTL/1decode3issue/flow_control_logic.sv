@@ -40,8 +40,8 @@ module flow_control_logic #(
     // New Entry Logic
         // <- Jump Instruction Input
     input  wire                                               i_nel_jump_inst,
-    input  wire [INST_PC_WIDTH-1:0]                           i_nel_jump_pc,
     input  wire                                               i_nel_branch_inst,
+    input  wire [INST_PC_WIDTH-1:0]                           i_nel_jump_branch_pc,
         // <- Allocate Registers input
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
     input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
@@ -88,38 +88,68 @@ module flow_detect_unit #(
     output wire                                               o_entry_active,
     output reg                                                o_entry_free,
         // <- PC Input
-    input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
-    input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
-    output reg  [DECODE_NEW_INST-1:0]                         o_this_range,
     input  wire                                               i_set_start_pc_valid,
     input  wire [INST_PC_WIDTH-1:0]                           i_set_start_pc,
     input  wire                                               i_set_last_pc_valid,
     input  wire [INST_PC_WIDTH-1:0]                           i_set_last_pc,
         // <- Allocate Registers input
+    input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
+    input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newreg_valid,
     input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_newreg,
+
+    // Write Back Concatenation
+        // <- PC Input
+    input  wire [EX_PATH_NUM-1:0]                             i_wbc2fcl_done,
+    input  wire [(EX_PATH_NUM*INST_PC_WIDTH)-1:0]             i_wbc2fcl_pc,
     
     // Physical Register Mapper
         // -> Unallocate Registers Output
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
     output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg,
 );
-    reg                          active,    active_next;
+    reg  [EX_PATH_NUM-1:0] entry_range_catch;
+    reg  [INST_PC_WIDTH-1:0] split_wb_pc;
+    wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate_valid;
+    wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate;
+    wire [INST_PC_WIDTH-1:0]                           new_range_sub_pc;
+    integer target_pc;
+    assign new_range_sub_pc = i_set_last_pc-pc_start;
+
+    // Register Variables
+    reg [1:0]                    state,     state_next;
     reg [INST_PC_WIDTH-1:0]      pc_start,  pc_start_next;
     reg [INST_PC_WIDTH-1:0]      pc_last,   pc_last_next;
     reg [BITWIDTH_PC_RANGE-1:0]  range_cnt, range_cnt_next;
     reg [BITWIDTH_PC_RANGE-1:0]  range,     range_next;
+    
+    always @(*) begin
+        for (target_pc = 0; target_pc < EX_PATH_NUM; target_pc = target_pc+1) begin
+            split_wb_pc = i_wbc2fcl_pc[(INST_PC_WIDTH*target_pc) +: INST_PC_WIDTH];
+            if (i_wbc2fcl_done[target_pc]) begin
+                entry_range_catch[target_pc] 
+                    = ( (split_wb_pc >= pc_start) && (split_wb_pc <= pc_last) )? 1'b1 : 1'b0;
+            end
+            else entry_range_catch[target_pc] = 1'b0;
+        end
+    end
 
+    // FSM
+    localparam UNACTIVE = 2'b00;
+    localparam ACTIVE   = 2'b01;
+    localparam FREE     = 2'b10;
+
+    // Registers
     always @(posedge clk or negedge reset_n) begin
         if (reset_n == 1'b0) begin
-            active    <= 1'b0;
+            state     <= UNACTIVE;
             pc_start  <= 0;
             pc_last   <= 0;
             range_cnt <= 0;
             range     <= 0;
         end
         else begin
-            active    <= active_next;
+            state     <= state_next;
             pc_start  <= pc_start_next;
             pc_last   <= pc_last_next;
             range_cnt <= range_cnt_next;
@@ -127,20 +157,88 @@ module flow_detect_unit #(
         end
     end
 
+    // State Transition
+    always @(*) begin
+        case(state)
+            UNACTIVE: begin
+                if (i_set_start_pc_valid) state_next = ACTIVE;
+                else                      state_next = UNACTIVE;
+            end
+            ACTIVE  : begin
+                if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = FREE;
+                else                         state_next = ACTIVE;
+            end
+            FREE    : begin
+                if (!(|phyreg_unallocate_valid)) state_next = UNACTIVE;
+                else                             state_next = FREE;
+            end
+            default : begin
+                state_next = UNACTIVE;
+            end
+        endcase
+    end
+
+    // State Operations
+    integer target_catch;
+    reg [DECODE_NEW_INST-1:0] push_valid;
+    always @(*) begin
+        case(state)
+            UNACTIVE: begin
+                push_valid = 0;
+                if (i_set_start_pc_valid) begin
+                    pc_start_next   = i_set_start_pc;
+                    pc_last_next    = i_set_start_pc+(MAX_PC_RANGE << 2);
+                    range_cnt_next  = 0;
+                    range_next      = MAX_PC_RANGE;
+                end
+                else begin
+                    pc_start_next   = 0;
+                    pc_last_next    = 0;
+                    range_cnt_next  = 0;
+                    range_next      = 0;
+                end
+            end
+            ACTIVE  : begin
+                push_valid = ;
+                pc_start_next   = pc_start;
+                pc_last_next    = (i_set_last_pc_valid)? i_set_last_pc : pc_last;
+                range_cnt_next = range_cnt;
+                for (target_catch = 0; target_catch < INST_PC_WIDTH; target_catch = target_catch+1) begin
+                    range_cnt_next = range_cnt_next + ( ( entry_range_catch[target_catch] )? 1 : 0 );
+                end
+                range_next      = (i_set_last_pc_valid)? new_range_sub_pc[BITWIDTH_PC_RANGE+1:2] : range;
+            end
+            FREE    : begin
+                push_valid = 0;
+                pc_start_next   = 0;
+                pc_last_next    = 0;
+                range_cnt_next  = 0;
+                range_next      = 0;
+            end
+            default : begin
+                push_valid = 0;
+                pc_start_next   = 0;
+                pc_last_next    = 0;
+                range_cnt_next  = 0;
+                range_next      = 0;
+            end
+        endcase
+    end
+
     fifo_ordering_position #(
-    	parameter PUSH_DATA = 4,
-    	parameter POP_DATA = 7,
-    	parameter ENTRY_WIDTH = 32,
-    	parameter FIFO_DEPTH = 128
-    ) (
-    	input clk,
-    	input reset_n,
-    	input [PUSH_DATA-1:0] push_valid_i,
-    	input [(PUSH_DATA * ENTRY_WIDTH)-1:0] push_data_i,
-    	input [POP_DATA-1:0] pop_get_i,
-    	output [POP_DATA-1:0] pop_valid_o,
-    	output [(POP_DATA * ENTRY_WIDTH)-1:0] pop_data_o,
-    	output push_available_o
+        .PUSH_DATA      (DECODE_NEW_INST),
+        .POP_DATA       (UNALLOCATE_PHYREG*2),
+        .ENTRY_WIDTH    (BITWIDTH_PHYREG_NUM),
+        .FIFO_DEPTH     ( (PHYREG_NUM/ (UNALLOCATE_PHYREG*2) )+1 )
+    ) U_END_PHYREG_STORE (
+    	.clk                (clk),
+    	.reset_n            (reset_n),
+    	.push_valid_i       (),
+    	.push_data_i        (i_nel_newreg),
+    	.pop_get_i          (),
+    	.pop_valid_o        (phyreg_unallocate_valid),
+    	.pop_data_o         (phyreg_unallocate),
+    	.push_available_o   ()
     );
 
 endmodule
