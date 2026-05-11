@@ -15,6 +15,8 @@ module rv32i_decode_opcode #(
     input  wire [31:0]              inst_i,
     output reg                      exception_o,
     output reg                      newreg_alloc_o,
+    output reg                      jump_o,
+    output reg                      branch_o,
     output reg  [INST_OPREANDS-1:0] ready_o,
     output reg  [MICROOP_WIDTH-1:0] microop_o
 );
@@ -221,153 +223,7 @@ module new_entry_logic #(
     input                                       clk,
     input                                       reset_n,
 
-    // <-> Instruction Memory
-    input  wire [DECODE_NEW_INST-1:0]           i_inst_valid,
-    input  wire [INST_INPUT_BITWIDTH-1:0]       i_inst,
-    input  wire [INST_PC_WIDTH-1:0]             i_pc,
 
-    // Allocators
-    output wire [DECODE_NEW_INST-1:0]           o_allocate_position,
-        // -> Instruction State Table Allocator
-    input  wire [DECODE_NEW_INST-1:0]           i_ist_allocate_valid,
-    input  wire [IST_ALLOCATE_BITWIDTH-1:0]     i_ist_allocate_addr,
-
-    // Create IST Field
-        // <- Instruction State Table Update
-    output wire [DECODE_NEW_INST-1:0]           o_ist_field_valid,
-    output wire [IST_PACKET_BITWIDTH-1:0]       o_ist_field,
-
-        // -> Physical Register Manager Allocator
-    input  wire [DECODE_NEW_INST-1:0]           i_prm_allocate_valid,
-    input  wire [PRM_ALLOCATE_BITWIDTH-1:0]     i_prm_allocate_phyreg,
-    output wire                                 o_prm_allocate_get,
-
-    // -> Write Back PHYREGs (Ready Update)
-    input  wire [EX_PATH_NUM-1:0]               i_wb_done,
-    input  wire [WB_PHYREGS_BITWIDTH-1:0]       i_wb_done_phyregs
 );
-
-    // Blocking..ㅍ
-    wire block;
-    assign block = ~i_inst_valid | ~i_ist_allocate_valid | ~i_prm_allocate_valid;
-
-    // ISA Decoder, IMM
-    localparam MICROOP_WIDTH_INTERNAL = MICROOP_WIDTH * DECODE_NEW_INST;
-    localparam IMM_WIDTH_INTERNAL     = INST_IMM_WIDTH * DECODE_NEW_INST;
-    
-    wire [MICROOP_WIDTH_INTERNAL-1:0] microop_entries_w;
-    wire [INST_OPREANDS-1:0]          opcode_ready_w;
-    wire [IMM_WIDTH_INTERNAL-1:0]     imm_entries_w;
-        
-        // Decoder Section START
-
-    rv32i_decode_opcode #(
-        .EX_PATH_NUM  (EX_PATH_NUM),
-        .MICROOP_WIDTH(MICROOP_WIDTH)
-    ) U_RV32I_MICROOP_DECODER (
-        .inst_i   (i_inst),
-        .ready_o  (opcode_ready_w),
-        .microop_o(microop_entries_w)
-    );
-    
-    imm_extender U_IMM_EXTENDER (
-	    .inst_i(i_inst),
-	    .imm_o (imm_entries_w)
-    );
-    
-        // Decoder Section END
-
-    // Registers
-        // Pipelining Register STAGE1: (LSB) [ PC | MicroOP | RD | P_src1 | P_src2 | IMM | Ready1 | Ready2 ] (MSB)
-    localparam PIPE_STAGE1_BITWIDTH = INST_PC_WIDTH + MICROOP_WIDTH 
-                                      + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER
-                                      + (BITWIDTH_PHYREG_NUM * INST_OPREANDS)
-                                      + INST_IMM_WIDTH + INST_OPREANDS;
-    reg [PIPE_STAGE1_BITWIDTH-1:0] stage1_reg, stage1_next;
-    reg [(BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER*DECODE_NEW_INST)-1:0] stage1_phyreg_reg, stage1_phyreg_next;
-        // Output Register: IST OUT
-    reg [IST_PACKET_BITWIDTH-1:0] ist_out_reg, ist_out_next;
-    assign o_ist_field = ist_out_reg;
-        // Registers Modeling
-    always @(posedge clk or negedge reset_n) begin
-        if (reset_n == 1'b0) begin
-            stage1_reg  <= 0;
-            stage1_phyreg_reg <= 0;
-            ist_out_reg <= 0;
-        end
-        else begin
-            stage1_reg  <= stage1_next;
-            stage1_phyreg_reg <= stage1_phyreg_next;
-            ist_out_reg <= ist_out_next;
-        end
-    end
-
-    // Logical Reg <-> Physical Reg Mapping Table
-        // Destination Logical Register Input
-    wire [(BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER*DECODE_NEW_INST)-1:0] dest_regnum_w;
-    localparam INST_STARTPOINT_RD_LOGICALREG = INST_OPCODE_WIDTH;
-    assign dest_regnum_w = i_inst[INST_STARTPOINT_RD_LOGICALREG +: BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER];
-        // Opreands Logical Registers Input
-    wire [(BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER*INST_OPREANDS)-1:0] opreands_regnum_w;
-    localparam INST_STARTPOINT_OPREANDS_LOGICREG = INST_OPCODE_WIDTH + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER + 3; // RV32I Instruction
-    assign opreands_regnum_w = i_inst[INST_STARTPOINT_OPREANDS_LOGICREG +: (BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER*INST_OPREANDS)];
-        // Opreands Physical Registers Output
-    wire [(BITWIDTH_PHYREG_NUM*INST_OPREANDS)-1:0] opreands_phyreg_w;
-        // Opreands Physical Register Ready Output
-    wire [INST_OPREANDS-1:0] opreands_ready_w;
-
-    // Entry: Logical_Reg = [Physical Reg, Ready]
-        // PHYREG Mapping update before stage1
-    regfile #(
-        .READ_CHANNEL    (INST_OPREANDS),
-        .WRITE_CHANNEL   (DECODE_NEW_INST),
-        .ENTRIES         (INST_NUM_OF_LOGICAL_REGISTER),
-        .REG_WIDTH       (BITWIDTH_PHYREG_NUM)
-    ) U_PHYREG_MAPPING (
-        .clk                 (clk),
-        .reset_n             (reset_n),
-        .i_read_addresses    (opreands_regnum_w),
-        .i_write_wes         ( ~block ),
-        .i_write_addresses   (dest_regnum_w),
-        .i_write_data        (i_prm_allocate_phyreg),
-        .o_read_data         (opreands_phyreg_w)
-    );
-
-        // NEW PHYREG Ready update before stage1
-    regfile #(
-        .READ_CHANNEL    (INST_OPREANDS),
-        .WRITE_CHANNEL   (DECODE_NEW_INST*2),
-        .ENTRIES         (INST_NUM_OF_LOGICAL_REGISTER),
-        .REG_WIDTH       (1)
-    ) U_PHYREG_READY (
-        .clk                 (clk),
-        .reset_n             (reset_n),
-        .i_read_addresses    (opreands_regnum_w),
-        .i_write_wes         ( {i_wb_done, ~block} ),
-        .i_write_addresses   ( {i_wb_done_phyregs, dest_regnum_w} ),
-        .i_write_data        ( {1'b1, 1'b0} ),
-        .o_read_data         (opreands_ready_w)
-    );
-
-        // Stage1 Position
-    localparam PIPE_STAGE1_PC_MICROOP_BITWIDTH = INST_PC_WIDTH + MICROOP_WIDTH;
-    localparam PIPE_STAGE1_STARTPOINT_OPREANDS_IMM = INST_PC_WIDTH + MICROOP_WIDTH;
-
-    always @(*) begin
-        // Stage 1
-        stage1_next        = (~block)? { (opcode_ready_w & opreands_ready_w), 
-                                         imm_entries_w, opreands_phyreg_w,
-                                         dest_regnum_w, microop_entries_w, i_pc }
-                                       : stage1_reg;
-        stage1_phyreg_next = (~block)? i_prm_allocate_phyreg : stage1_phyreg_reg;
-        ist_out_next       = (~block)? { (opcode_ready_w & opreands_ready_w), 
-                                         imm_entries_w, opreands_phyreg_w,
-                                         i_prm_allocate_phyreg, microop_entries_w, i_pc } 
-                                        : ist_out_reg;
-    end
-
-    assign o_allocate_position = ~block;
-    assign o_ist_field_valid   = ~block;
-    assign o_prm_allocate_get  = ~block;
 
 endmodule

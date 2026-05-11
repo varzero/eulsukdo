@@ -32,7 +32,9 @@ module flow_control_logic #(
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_OGICAL_REGISTER     = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
-    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM)
+    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
+
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH
 ) (
     input  wire                  clk,
     input  wire                  reset_n,
@@ -44,7 +46,7 @@ module flow_control_logic #(
     input  wire [INST_PC_WIDTH-1:0]                           i_nel_jump_branch_pc,
         // <- Allocate Registers input
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
-    input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
+    input  wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] i_nel_newpc,
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newreg_valid,
     input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_newreg,
 
@@ -56,7 +58,7 @@ module flow_control_logic #(
     // Write Back Concatenation
         // <- PC Input
     input  wire [EX_PATH_NUM-1:0]                             i_wbc2fcl_done,
-    input  wire [(EX_PATH_NUM*INST_PC_WIDTH)-1:0]             i_wbc2fcl_pc,
+    input  wire [(EX_PATH_NUM*BITWIDTH_FCL_PC_WIDTH)-1:0]     i_wbc2fcl_pc,
     input  wire [INST_PC_WIDTH-1:0]                           i_wbc2fcl_branch_pc,
 
     // Instruction Memory
@@ -64,6 +66,68 @@ module flow_control_logic #(
     output wire                                               o_im_re, // read enable
     output wire [INST_PC_WIDTH-1:0]                           o_im_pc
 );
+    reg [BITWIDTH_FCL_RB_NUM-1:0]             split_fcpath; 
+    reg [DECODE_NEW_INST-1:0]                 nel_newpc_valid_FCPATH[0:FCL_RB_NUM-1];
+    reg [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0] nel_newpc_split_FCPATH;
+    reg [EX_PATH_NUM-1:0]                     wbc2fcl_pc_valid_FCPATH[0:FCL_RB_NUM-1];
+    reg [(EX_PATH_NUM*INST_PC_WIDTH)-1:0]     wbc2fcl_pc_split_FCPATH;
+    integer rcpath_split_idx, nel_newpc_idx, wbc2fcl_pc_idx;
+    always @(*) begin
+        for (nel_newpc_idx = 0; nel_newpc_idx < DECODE_NEW_INST; nel_newpc_idx = nel_newpc_idx+1) begin
+            nel_newpc_split_FCPATH[(INST_PC_WIDTH*nel_newpc_idx) +: INST_PC_WIDTH] 
+                = i_nel_newpc[ (BITWIDTH_FCL_PC_WIDTH*nel_newpc_idx) +: INST_PC_WIDTH];
+        end
+        for (wbc2fcl_pc_idx = 0; wbc2fcl_pc_idx < EX_PATH_NUM; wbc2fcl_pc_idx = wbc2fcl_pc_idx+1) begin
+            wbc2fcl_pc_split_FCPATH[(INST_PC_WIDTH*wbc2fcl_pc_idx) +: INST_PC_WIDTH] 
+                = i_wbc2fcl_pc[(BITWIDTH_FCL_PC_WIDTH*wbc2fcl_pc_idx) +: INST_PC_WIDTH];
+        end
+        for (rcpath_split_idx = 0; rcpath_split_idx < FCL_RB_NUM; rcpath_split_idx = rcpath_split_idx+1) begin
+            nel_newpc_valid_FCPATH[rcpath_split_idx] = 0;
+            for (nel_newpc_idx = 0; nel_newpc_idx < DECODE_NEW_INST; nel_newpc_idx = nel_newpc_idx+1) begin
+                split_fcpath 
+                    = i_nel_newpc[( (BITWIDTH_FCL_PC_WIDTH*nel_newpc_idx) + INST_PC_WIDTH ) +: BITWIDTH_FCL_RB_NUM];
+                if (split_fcpath == rcpath_split_idx)
+                    nel_newpc_valid_FCPATH[rcpath_split_idx][nel_newpc_idx] = 1'b1;
+            end
+
+            wbc2fcl_pc_valid_FCPATH[rcpath_split_idx] = 0;
+            for (wbc2fcl_pc_idx = 0; wbc2fcl_pc_idx < EX_PATH_NUM; wbc2fcl_pc_idx = wbc2fcl_pc_idx+1) begin
+                split_fcpath 
+                    = i_wbc2fcl_pc[( (BITWIDTH_FCL_PC_WIDTH*wbc2fcl_pc_idx) + INST_PC_WIDTH ) +: BITWIDTH_FCL_RB_NUM];
+                if (split_fcpath == rcpath_split_idx)
+                    wbc2fcl_pc_valid_FCPATH[rcpath_split_idx][wbc2fcl_pc_idx] = 1'b1;
+            end
+        end
+    end
+
+    genvar fdu_fcpath_idx;
+    generate
+        for (fdu_fcpath_idx = 0; fdu_fcpath_idx < FCL_RB_NUM; fdu_fcpath_idx = fdu_fcpath_idx+1) begin
+            flow_detect_unit #(
+                .DECODE_NEW_INST   (DECODE_NEW_INST),
+                .PHYREG_NUM        (PHYREG_NUM),
+                .UNALLOCATE_PHYREG (UNALLOCATE_PHYREG),
+                .INST_PC_WIDTH     (INST_PC_WIDTH)
+            ) U_FLOW_DETECT_UNIT (
+                .clk                    (clk),
+                .reset_n                (reset_n),
+                .o_entry_active         (),
+                .o_entry_free           (),
+                .i_set_start_pc_valid   (),
+                .i_set_start_pc         (),
+                .i_set_last_pc_valid    (),
+                .i_set_last_pc          (),
+                .i_nel_newpc_valid      (),
+                .i_nel_newpc            (nel_newpc_split_FCPATH),
+                .i_nel_newreg_valid     (i_nel_newreg_valid),
+                .i_nel_newreg           (i_nel_newreg),
+                .i_wbc2fcl_done         (i_wbc2fcl_done),
+                .i_wbc2fcl_pc           (wbc2fcl_pc_split_FCPATH),
+                .o_prm_unallocate_valid (o_prm_unallocate_valid),
+                .o_prm_unallocate_phyreg(o_prm_unallocate_phyreg),
+            );
+        end
+    endgenerate
 
 endmodule
 
@@ -82,10 +146,9 @@ module flow_detect_unit #(
 
     // Flow Control Logic
         // <- Entry Valid input
-    input  wire                                               i_entry_force_deactive,
+    // input  wire                                               i_entry_force_deactive,
         // -> Entry Valid output
-    output wire                                               o_pc_entry_max,
-    output wire                                               o_entry_active,
+    output reg                                                o_entry_active,
     output reg                                                o_entry_free,
         // <- PC Input
     input  wire                                               i_set_start_pc_valid,
@@ -108,7 +171,7 @@ module flow_detect_unit #(
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
     output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg,
 );
-    reg  [EX_PATH_NUM-1:0] entry_range_catch;
+    reg  [EX_PATH_NUM-1:0] entry_done_range_catch;
     reg  [INST_PC_WIDTH-1:0] split_wb_pc;
     wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate_valid;
     wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate;
@@ -127,10 +190,10 @@ module flow_detect_unit #(
         for (target_pc = 0; target_pc < EX_PATH_NUM; target_pc = target_pc+1) begin
             split_wb_pc = i_wbc2fcl_pc[(INST_PC_WIDTH*target_pc) +: INST_PC_WIDTH];
             if (i_wbc2fcl_done[target_pc]) begin
-                entry_range_catch[target_pc] 
+                entry_done_range_catch[target_pc] 
                     = ( (split_wb_pc >= pc_start) && (split_wb_pc <= pc_last) )? 1'b1 : 1'b0;
             end
-            else entry_range_catch[target_pc] = 1'b0;
+            else entry_done_range_catch[target_pc] = 1'b0;
         end
     end
 
@@ -179,12 +242,14 @@ module flow_detect_unit #(
     end
 
     // State Operations
-    integer target_catch;
-    reg [DECODE_NEW_INST-1:0] push_valid;
+    integer target_push_catch, target_done_catch;
+    reg [DECODE_NEW_INST-1:0]   push_valid;
+    reg [UNALLOCATE_PHYREG-1:0] pop_get;
     always @(*) begin
         case(state)
             UNACTIVE: begin
                 push_valid = 0;
+                pop_get    = 0;
                 if (i_set_start_pc_valid) begin
                     pc_start_next   = i_set_start_pc;
                     pc_last_next    = i_set_start_pc+(MAX_PC_RANGE << 2);
@@ -199,17 +264,23 @@ module flow_detect_unit #(
                 end
             end
             ACTIVE  : begin
-                push_valid = ;
+                for (target_push_catch = 0; target_push_catch < DECODE_NEW_INST; target_push_catch = target_push_catch+1) begin
+                    push_valid[target_push_catch] 
+                        = ( (i_nel_newpc[(INST_PC_WIDTH*target_push_catch) +: INST_PC_WIDTH] >= pc_start) && (i_nel_newpc <= pc_last) )? 
+                            i_nel_newpc_valid & i_nel_newreg_valid : 1'b0;
+                end
+                pop_get         = 0;
                 pc_start_next   = pc_start;
                 pc_last_next    = (i_set_last_pc_valid)? i_set_last_pc : pc_last;
-                range_cnt_next = range_cnt;
-                for (target_catch = 0; target_catch < INST_PC_WIDTH; target_catch = target_catch+1) begin
-                    range_cnt_next = range_cnt_next + ( ( entry_range_catch[target_catch] )? 1 : 0 );
+                range_cnt_next  = range_cnt;
+                for (target_done_catch = 0; target_done_catch < INST_PC_WIDTH; target_done_catch = target_done_catch+1) begin
+                    range_cnt_next = range_cnt_next + ( ( entry_done_range_catch[target_done_catch] )? 1 : 0 );
                 end
                 range_next      = (i_set_last_pc_valid)? new_range_sub_pc[BITWIDTH_PC_RANGE+1:2] : range;
             end
             FREE    : begin
-                push_valid = 0;
+                push_valid      = 0;
+                pop_get         = {UNALLOCATE_PHYREG{1'b1}};
                 pc_start_next   = 0;
                 pc_last_next    = 0;
                 range_cnt_next  = 0;
@@ -218,9 +289,32 @@ module flow_detect_unit #(
             default : begin
                 push_valid = 0;
                 pc_start_next   = 0;
+                pop_get         = 0;
                 pc_last_next    = 0;
                 range_cnt_next  = 0;
                 range_next      = 0;
+            end
+        endcase
+    end
+
+    // State Output
+    always @(*) begin
+        case(state)
+            UNACTIVE: begin
+                o_entry_active  = 1'b0;
+                o_entry_free    = 1'b0;
+            end
+            ACTIVE  : begin
+                o_entry_active  = 1'b1;
+                o_entry_free    = 1'b0;
+            end
+            FREE    : begin
+                o_entry_active  = 1'b1;
+                o_entry_free    = 1'b1;
+            end
+            default : begin
+                o_entry_active  = 1'b0;
+                o_entry_free    = 1'b0;
             end
         endcase
     end
@@ -233,9 +327,9 @@ module flow_detect_unit #(
     ) U_END_PHYREG_STORE (
     	.clk                (clk),
     	.reset_n            (reset_n),
-    	.push_valid_i       (),
+    	.push_valid_i       (push_valid),
     	.push_data_i        (i_nel_newreg),
-    	.pop_get_i          (),
+    	.pop_get_i          (pop_get),
     	.pop_valid_o        (phyreg_unallocate_valid),
     	.pop_data_o         (phyreg_unallocate),
     	.push_available_o   ()
