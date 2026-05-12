@@ -16,6 +16,7 @@ module rv32i_decode_opcode #(
     output reg                      exception_o,
     output reg                      newreg_alloc_o,
     output reg                      jump_o,
+    output reg                      jump_reg_o,
     output reg                      branch_o,
     output reg  [INST_OPREANDS-1:0] ready_o,
     output reg  [MICROOP_WIDTH-1:0] microop_o
@@ -72,6 +73,9 @@ module rv32i_decode_opcode #(
             7'b1100011: begin // EX 1: Branch
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b0;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b1;
                 ready_o = 2'b00;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b00;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b00, inst_i[14:12]};
@@ -79,6 +83,9 @@ module rv32i_decode_opcode #(
             7'b1100111: begin // EX 1: Jump Reg
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b1;
+                branch_o = 1'b0;
                 ready_o = 2'b10;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b00;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b01000;
@@ -87,6 +94,9 @@ module rv32i_decode_opcode #(
             7'b0110011: begin // EX 2: ALU Reg
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b00;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {1'b0, inst_i[30], inst_i[14:12]};
@@ -94,6 +104,9 @@ module rv32i_decode_opcode #(
             7'b0010011: begin // EX 2: ALU IMM
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b10;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 
@@ -102,6 +115,9 @@ module rv32i_decode_opcode #(
             7'b0110111: begin // EX 2: LUI
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b11;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11000;
@@ -109,6 +125,9 @@ module rv32i_decode_opcode #(
             7'b0010111: begin // EX 2: AUIPC
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b11;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11001;
@@ -116,6 +135,9 @@ module rv32i_decode_opcode #(
             7'b1101111: begin // EX 2: JAL
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b1;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b11;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11010;
@@ -124,6 +146,9 @@ module rv32i_decode_opcode #(
             7'b0000011: begin // EX 3: Memory Access Load
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b10;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b10;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b00, inst_i[14:12]};
@@ -131,6 +156,9 @@ module rv32i_decode_opcode #(
             7'b0100011: begin // EX 3: Memory Access Store
                 exception_o = 1'b0;
                 newreg_alloc_o = 1'b0;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b00;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b10;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b10, inst_i[14:12]};
@@ -139,6 +167,9 @@ module rv32i_decode_opcode #(
             default: begin
                 exception_o = 1'b1;
                 newreg_alloc_o = 1'b1;
+                jump_o = 1'b0;
+                jump_reg_o = 1'b0;
+                branch_o = 1'b0;
                 ready_o = 2'b11;
                 microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b11;
                 microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b00000;

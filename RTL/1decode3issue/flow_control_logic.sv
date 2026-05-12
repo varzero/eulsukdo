@@ -13,6 +13,7 @@ module flow_control_logic #(
     parameter RS_ENTRY_NUM      = 16,
     parameter RS_PUSH_WIDTH     = 3,
     parameter FCL_RB_NUM        = 8,
+    parameter FCL_PC_GAP        = 4,
     parameter UNALLOCATE_PHYREG = 4,
 
     // Instruction Field Description
@@ -34,15 +35,19 @@ module flow_control_logic #(
     localparam BITWIDTH_INST_NUM_OF_OGICAL_REGISTER     = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
 
-    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH,
+    
+    localparam FCL_RB_PC_GAP_MAX                        = (PHYREG_NUM/2)*FCL_PC_GAP
 ) (
     input  wire                  clk,
     input  wire                  reset_n,
 
     // New Entry Logic
+        // <- Block
+    input  wire                                               i_nel_block,
         // <- Jump Instruction Input
     input  wire                                               i_nel_jump_inst,
-    input  wire                                               i_nel_branch_inst,
+    input  wire                                               i_nel_jreg_branch_inst,
     input  wire [INST_PC_WIDTH-1:0]                           i_nel_jump_branch_pc,
         // <- Allocate Registers input
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
@@ -59,13 +64,129 @@ module flow_control_logic #(
         // <- PC Input
     input  wire [EX_PATH_NUM-1:0]                             i_wbc2fcl_done,
     input  wire [(EX_PATH_NUM*BITWIDTH_FCL_PC_WIDTH)-1:0]     i_wbc2fcl_pc,
+    input  wire                                               i_wbc2fcl_branch,
     input  wire [INST_PC_WIDTH-1:0]                           i_wbc2fcl_branch_pc,
 
     // Instruction Memory
         // -> New PC Output
-    output wire                                               o_im_re, // read enable
-    output wire [INST_PC_WIDTH-1:0]                           o_im_pc
+    output reg                                                o_im_re, // read enable
+    output wire [BITWIDTH_FCL_PC_WIDTH-1:0]                   o_im_pc
 );
+    wire [BITWIDTH_FCL_RB_NUM-1:0] available_fcpath;
+    wire [FCL_RB_NUM-1:0]          fc_path_active, fc_path_available;
+
+    reg  [1:0]                     state,      state_next;
+    reg  [BITWIDTH_FCL_RB_NUM-1:0] pc_fcpath,  pc_fcpath_next;
+    reg  [INST_PC_WIDTH-1:0]       pc_im_req,  pc_im_req_next;
+    reg  [INST_PC_WIDTH-1:0]       pc_rb_last, pc_rb_last_next;
+
+    localparam RESET               = 2'b00;
+    localparam RUN                 = 2'b01;
+    localparam BLOCK_ALLFCPATH_USE = 2'b10;
+    localparam BLOCK_BRANCH        = 2'b11;
+
+    assign o_im_pc = {pc_fcpath, pc_im_req};
+
+    always @(posedge clk or negedge reset_n) begin // Registers
+        if (reset_n == 1'b0) begin
+            state          <= RESET;
+            pc_fcpath      <= 0;
+            pc_im_req      <= 0;
+            pc_rb_last     <= 0;
+        end
+        else begin
+            state          <= state_next;
+            pc_fcpath      <= pc_fcpath_next;
+            pc_im_req      <= pc_im_req_next;
+            pc_rb_last     <= pc_rb_last_next;
+        end
+    end
+
+    reg                     update_pc_start;
+    reg [INST_PC_WIDTH-1:0] update_pc_start_addr;
+    reg                     update_pc_last;
+    reg [INST_PC_WIDTH-1:0] update_pc_last_addr;
+    always @(*) begin
+        pc_fcpath_next  = pc_fcpath;
+        pc_im_req_next  = pc_im_req;
+        pc_rb_last_next = pc_rb_last;
+
+        update_pc_start      = 1'b0;
+        update_pc_start_addr = 0;
+        update_pc_last       = 1'b0;
+        update_pc_last_addr  = 0;
+
+        case(state)
+            RESET: begin 
+                state_next = RUN; o_im_re = 1'b0; 
+                update_pc_start = 1'b1; update_pc_start_addr = 0;
+                update_pc_last  = 1'b1; update_pc_last_addr  = FCL_RB_PC_GAP_MAX;
+            end
+            RUN  : begin
+                state_next = RUN;
+                o_im_re = 1'b1;
+                if (!i_nel_block) begin
+                    if ( |fc_path_available ) begin
+                        if (i_nel_jump_inst) begin
+                            pc_fcpath_next      = available_fcpath;
+                            pc_im_req_next      = i_nel_jump_branch_pc;
+                            pc_rb_last_next     = i_nel_jump_branch_pc + FCL_RB_PC_GAP_MAX;
+
+                            update_pc_start = 1'b1; 
+                            update_pc_start_addr = pc_im_req_next;
+                            update_pc_last  = 1'b1; 
+                            update_pc_last_addr  = pc_rb_last_next;
+                        end
+                        else begin
+                            pc_im_req_next      = pc_im_req + FCL_PC_GAP;
+                            if ( pc_im_req == pc_rb_last ) begin
+                                pc_fcpath_next  = available_fcpath;
+                                pc_rb_last_next = pc_im_req + (FCL_PC_GAP + FCL_RB_PC_GAP_MAX);
+
+                                update_pc_start = 1'b1; 
+                                update_pc_start_addr = pc_im_req_next;
+                                update_pc_last  = 1'b1; 
+                                update_pc_last_addr  = pc_rb_last_next;
+                            end
+                        end
+                    end
+                    else begin
+                        state_next = BLOCK_ALLFCPATH_USE;
+                        o_im_re = 1'b0;
+                    end
+
+                    // Wait Branch Result (Yes.. It doesn't have branch prediction)
+                    if (i_nel_jreg_branch_inst) begin
+                        state_next = BLOCK_BRANCH;
+                        o_im_re = 1'b0;
+                    end
+                end
+                else begin
+                    o_im_re = 1'b0;
+                end
+            end
+            BLOCK_ALLFCPATH_USE: begin
+                state_next = BLOCK_ALLFCPATH_USE;
+                o_im_re = 1'b0;
+                if ( |fc_path_available ) begin
+                    state_next      = RUN;
+                    o_im_re         = 1'b1;
+                end
+            end
+            BLOCK_BRANCH: begin
+                state_next = BLOCK_BRANCH;
+                o_im_re = 1'b0;
+                if (i_wbc2fcl_branch) begin
+                    state_next      = RUN;
+                    o_im_re         = 1'b1;
+                    pc_fcpath_next  = available_fcpath;
+                    pc_im_req_next  = i_wbc2fcl_branch_pc;
+                    pc_rb_last_next = i_wbc2fcl_branch_pc + FCL_RB_PC_GAP_MAX;
+                end
+            end
+        endcase
+    end
+
     reg [BITWIDTH_FCL_RB_NUM-1:0]             split_fcpath; 
     reg [DECODE_NEW_INST-1:0]                 nel_newpc_valid_FCPATH[0:FCL_RB_NUM-1];
     reg [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0] nel_newpc_split_FCPATH;
@@ -100,6 +221,23 @@ module flow_control_logic #(
         end
     end
 
+    reg  [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0] fc_path_pos_data;
+    integer path_pos_idx;
+    always @(*) begin
+        for (path_pos_idx = 0; path_pos_idx < FCL_RB_NUM; path_pos_idx = path_pos_idx+1) begin
+            fc_path_pos_data[(BITWIDTH_FCL_RB_NUM*path_pos_idx) +: BITWIDTH_FCL_RB_NUM] = path_pos_idx;
+        end
+    end
+    position_splitter #(
+        .INPUT_ENTRIES(FCL_RB_NUM),
+        .DATA_WIDTH   (BITWIDTH_FCL_RB_NUM)
+    ) U_FC_PATH_VALID (
+    	.valid_position_i(~fc_path_active),
+    	.position_data_i (fc_path_pos_data),
+    	.out_position_o  (fc_path_available),
+    	.data_o          (available_fcpath)
+    );
+
     genvar fdu_fcpath_idx;
     generate
         for (fdu_fcpath_idx = 0; fdu_fcpath_idx < FCL_RB_NUM; fdu_fcpath_idx = fdu_fcpath_idx+1) begin
@@ -111,20 +249,20 @@ module flow_control_logic #(
             ) U_FLOW_DETECT_UNIT (
                 .clk                    (clk),
                 .reset_n                (reset_n),
-                .o_entry_active         (),
+                .o_entry_active         (fc_path_active[fdu_fcpath_idx]),
                 .o_entry_free           (),
-                .i_set_start_pc_valid   (),
-                .i_set_start_pc         (),
-                .i_set_last_pc_valid    (),
-                .i_set_last_pc          (),
-                .i_nel_newpc_valid      (),
+                .i_set_start_pc_valid   ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_start      : 1'b0 ),
+                .i_set_start_pc         ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_start_addr :    0 ),
+                .i_set_last_pc_valid    ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_last       : 1'b0 ),
+                .i_set_last_pc          ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_last_addr  :    0 ),
+                .i_nel_newpc_valid      (nel_newpc_valid_FCPATH[fdu_fcpath_idx]),
                 .i_nel_newpc            (nel_newpc_split_FCPATH),
                 .i_nel_newreg_valid     (i_nel_newreg_valid),
                 .i_nel_newreg           (i_nel_newreg),
-                .i_wbc2fcl_done         (i_wbc2fcl_done),
+                .i_wbc2fcl_done         (wbc2fcl_pc_valid_FCPATH[fdu_fcpath_idx]),
                 .i_wbc2fcl_pc           (wbc2fcl_pc_split_FCPATH),
-                .o_prm_unallocate_valid (o_prm_unallocate_valid),
-                .o_prm_unallocate_phyreg(o_prm_unallocate_phyreg),
+                .o_prm_unallocate_valid (이부분 수정(특정 FDU가 점유 할수 있도록) o_prm_unallocate_valid),
+                .o_prm_unallocate_phyreg(이부분 수정(특정 FDU가 점유 할수 있도록) o_prm_unallocate_phyreg),
             );
         end
     endgenerate
@@ -168,6 +306,7 @@ module flow_detect_unit #(
     
     // Physical Register Mapper
         // -> Unallocate Registers Output
+    input  wire                                               i_(다른곳 사용중 여부),
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
     output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg,
 );
@@ -198,9 +337,10 @@ module flow_detect_unit #(
     end
 
     // FSM
-    localparam UNACTIVE = 2'b00;
-    localparam ACTIVE   = 2'b01;
-    localparam FREE     = 2'b10;
+    localparam UNACTIVE  = 2'b00;
+    localparam ACTIVE    = 2'b01;
+    localparam WAIT_FREE = 2'b10;
+    localparam FREE      = 2'b11;
 
     // Registers
     always @(posedge clk or negedge reset_n) begin
@@ -230,6 +370,8 @@ module flow_detect_unit #(
             ACTIVE  : begin
                 if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = FREE;
                 else                         state_next = ACTIVE;
+            end
+            WAIT_FREE : begin
             end
             FREE    : begin
                 if (!(|phyreg_unallocate_valid)) state_next = UNACTIVE;

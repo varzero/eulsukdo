@@ -35,6 +35,7 @@ module write_back_concatenation #(
         // <- Execute Units Result Input
     input wire  [EX_PATH_NUM-1:0]                       i_ex_done,
     input wire  [(EX_PATH_NUM*INST_PC_WIDTH)-1:0]       i_ex_done_pc,
+    input wire                                          i_ex_done_branch,
     input wire  [INST_PC_WIDTH-1:0]                     i_ex_done_branch_pc,
     input wire  [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0] i_ex_done_phyreg,
 
@@ -52,6 +53,7 @@ module write_back_concatenation #(
         // -> Ready instruction PC and Branch Result PC
     output wire [EX_PATH_NUM-1:0]                       o_wbc2fcl_done,
     output wire [(EX_PATH_NUM*INST_PC_WIDTH)-1:0]       o_wbc2fcl_pc,
+    output wire                                         o_wbc2fcl_branch,
     output wire [INST_PC_WIDTH-1:0]                     o_wbc2fcl_branch_pc
 );
     // Branch unit is always Ex_0
@@ -65,6 +67,7 @@ module write_back_concatenation #(
 
     assign o_wbc2fcl_pc = i_ex_done_pc;
 
+    assign o_wbc2fcl_branch    = i_ex_done_branch;
     assign o_wbc2fcl_branch_pc = i_ex_done_branch_pc;
 
 endmodule
