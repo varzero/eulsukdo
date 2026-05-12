@@ -420,6 +420,14 @@ module flow_detect_unit #(
                 end
                 range_next      = (i_set_last_pc_valid)? new_range_sub_pc[BITWIDTH_PC_RANGE+1:2] : range;
             end
+            WAIT_FREE: begin
+                push_valid      = 0;
+                pc_start_next   = 0;
+                pop_get         = 0;
+                pc_last_next    = 0;
+                range_cnt_next  = 0;
+                range_next      = 0;
+            end
             FREE    : begin
                 push_valid      = 0;
                 pop_get         = {UNALLOCATE_PHYREG{1'b1}};
