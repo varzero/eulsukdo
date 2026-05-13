@@ -238,6 +238,57 @@ module flow_control_logic #(
     	.data_o          (available_fcpath)
     );
 
+    wire [FCL_RB_NUM-1:0]                              fc_path_free, fc_path_free_ordering_valid;
+    wire [FCL_RB_NUM-1:0]                              fc_path_free_ordering;
+    wire [UNALLOCATE_PHYREG-1:0]                       unallocate_valid [0:FCL_RB_NUM-1];
+    wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] unallocate_phyreg[0:FCL_RB_NUM-1];
+    wire [BITWIDTH_FCL_RB_NUM-1:0]                     new_free_target_fcpath;
+
+    position_splitter #(
+        .INPUT_ENTRIES(FCL_RB_NUM),
+        .DATA_WIDTH   (BITWIDTH_FCL_RB_NUM)
+    ) U_FC_PATH_FREE (
+    	.valid_position_i(fc_path_free),
+    	.position_data_i (fc_path_pos_data),
+    	.out_position_o  (fc_path_free_ordering_valid),
+    	.data_o          (new_free_target_fcpath)
+    );
+
+    reg                           free_active, free_active_next;
+    reg [BITWIDTH_FCL_RB_NUM-1:0] free_target_fcpath, free_target_fcpath_next;
+    always @(posedge clk or negedge reset_n) begin
+        if (reset_n) begin
+            free_active        <= 1'b0;
+            free_target_fcpath <= 0;
+        end
+        else begin
+            free_active        <= free_active_next;
+            free_target_fcpath <= free_target_fcpath_next;
+        end
+    end
+    always @(*) begin
+        if (free_active == 1'b0) begin
+            if (|fc_path_free) begin
+                free_active_next = 1'b1;
+                free_target_fcpath_next = new_free_target_fcpath;
+            end
+            else begin
+                free_active_next = 1'b0;
+                free_target_fcpath_next = free_target_fcpath;
+            end
+        end
+        else begin // free_active == 1'b1
+            free_target_fcpath_next = free_target_fcpath;
+
+            if (!fc_path_free[free_target_fcpath]) begin
+                free_active_next = 1'b0;
+            end
+            else begin
+                free_active_next = 1'b1;
+            end
+        end
+    end
+
     genvar fdu_fcpath_idx;
     generate
         for (fdu_fcpath_idx = 0; fdu_fcpath_idx < FCL_RB_NUM; fdu_fcpath_idx = fdu_fcpath_idx+1) begin
@@ -250,7 +301,7 @@ module flow_control_logic #(
                 .clk                    (clk),
                 .reset_n                (reset_n),
                 .o_entry_active         (fc_path_active[fdu_fcpath_idx]),
-                .o_entry_free           (),
+                .o_entry_free           (fc_path_free[fdu_fcpath_idx]),
                 .i_set_start_pc_valid   ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_start      : 1'b0 ),
                 .i_set_start_pc         ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_start_addr :    0 ),
                 .i_set_last_pc_valid    ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_last       : 1'b0 ),
@@ -261,8 +312,9 @@ module flow_control_logic #(
                 .i_nel_newreg           (i_nel_newreg),
                 .i_wbc2fcl_done         (wbc2fcl_pc_valid_FCPATH[fdu_fcpath_idx]),
                 .i_wbc2fcl_pc           (wbc2fcl_pc_split_FCPATH),
-                .o_prm_unallocate_valid (이부분 수정(특정 FDU가 점유 할수 있도록) o_prm_unallocate_valid),
-                .o_prm_unallocate_phyreg(이부분 수정(특정 FDU가 점유 할수 있도록) o_prm_unallocate_phyreg),
+                .i_unallocate_use       ( (free_active && (free_target_fcpath == fdu_fcpath_idx))? 1'b1 : 1'b0 ),
+                .o_prm_unallocate_valid (unallocate_valid[fdu_fcpath_idx]),
+                .o_prm_unallocate_phyreg(unallocate_phyreg[fdu_fcpath_idx]),
             );
         end
     endgenerate
@@ -306,7 +358,7 @@ module flow_detect_unit #(
     
     // Physical Register Mapper
         // -> Unallocate Registers Output
-    input  wire                                               i_(다른곳 사용중 여부),
+    input  wire                                               i_unallocate_use,
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
     output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg,
 );
@@ -363,21 +415,23 @@ module flow_detect_unit #(
     // State Transition
     always @(*) begin
         case(state)
-            UNACTIVE: begin
+            UNACTIVE : begin
                 if (i_set_start_pc_valid) state_next = ACTIVE;
                 else                      state_next = UNACTIVE;
             end
-            ACTIVE  : begin
+            ACTIVE   : begin
                 if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = FREE;
                 else                         state_next = ACTIVE;
             end
-            WAIT_FREE : begin
+            WAIT_FREE: begin
+                if (!i_unallocate_use) state_next = FREE;
+                else                   state_next = WAIT_FREE;
             end
-            FREE    : begin
+            FREE     : begin
                 if (!(|phyreg_unallocate_valid)) state_next = UNACTIVE;
                 else                             state_next = FREE;
             end
-            default : begin
+            default  : begin
                 state_next = UNACTIVE;
             end
         endcase
@@ -450,15 +504,19 @@ module flow_detect_unit #(
     // State Output
     always @(*) begin
         case(state)
-            UNACTIVE: begin
+            UNACTIVE : begin
                 o_entry_active  = 1'b0;
                 o_entry_free    = 1'b0;
             end
-            ACTIVE  : begin
+            ACTIVE   : begin
                 o_entry_active  = 1'b1;
                 o_entry_free    = 1'b0;
             end
-            FREE    : begin
+            WAIT_FREE: begin
+                o_entry_active  = 1'b1;
+                o_entry_free    = 1'b1;
+            end
+            FREE     : begin
                 o_entry_active  = 1'b1;
                 o_entry_free    = 1'b1;
             end
