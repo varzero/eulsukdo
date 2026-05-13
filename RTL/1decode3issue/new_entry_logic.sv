@@ -203,6 +203,12 @@ module new_entry_logic #(
     parameter PHYREG_NUM        = 64,
     parameter IST_ENTRY_NUM     = 128,
     parameter EX_PATH_NUM       = 3,
+    parameter PRM_ENTRY_BUFFER  = 4,
+    parameter RS_ENTRY_NUM      = 16,
+    parameter RS_PUSH_WIDTH     = 3,
+    parameter FCL_RB_NUM        = 8,
+    parameter FCL_PC_GAP        = 4,
+    parameter UNALLOCATE_PHYREG = 4,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -221,6 +227,7 @@ module new_entry_logic #(
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
+    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
 
     // (Autogenerate) Field of Entry in Instruction State Table
         /* Entry: MSB [ ( Opreand Reday_n, ... , Opreand Reday_1 ) | 
@@ -249,12 +256,113 @@ module new_entry_logic #(
     localparam INST_INPUT_BITWIDTH          = INST_BITWIDTH * DECODE_NEW_INST,
 
     // (Autogenerate) Write Back Field
-    localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM
+    localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM,
+
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH
 ) (
     input                                       clk,
     input                                       reset_n,
 
+    // Instruction Memory
+        // <- New Inst Input
+    input [DECODE_NEW_INST-1:0] i_im_inst_valid,
+    input [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0] i_im_inst_pc,
+    input [(DECODE_NEW_INST*INST_BITWIDTH)-1:0] i_im_inst,
 
+    // Create IST Field
+        // -> Instruction State Table Update
+    input  wire                                         i_ist_insert_available,
+    output wire [DECODE_NEW_INST-1:0]                   o_ist_field_insert,
+    input  wire [DECODE_NEW_INST-1:0]                   i_ist_field_valid,
+    output wire [IST_PACKET_BITWIDTH-1:0]               o_ist_field,
+
+    // PRM
+    output wire [DECODE_NEW_INST-1:0]                   o_allocate_position,
+        // <- Physical Register Manager Allocator
+    input  wire [DECODE_NEW_INST-1:0]                   i_prm_allocate_valid,
+    input  wire [PRM_ALLOCATE_BITWIDTH-1:0]             i_prm_allocate_phyreg,
+    
+    // WBC
+        // <- Ready Register number
+    input  wire [EX_PATH_NUM-1:0]                       i_wbc2nel_done,
+    input  wire [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0] i_wbc2nel_done_phyreg,
+
+    // New Entry Logic
+        // <- Block
+    output wire                                               o_nel_block,
+        // <- Jump Instruction Input
+    output wire                                               o_nel_jump_inst,
+    output wire                                               o_nel_jreg_branch_inst,
+    output wire [INST_PC_WIDTH-1:0]                           o_nel_jump_branch_pc,
+        // <- Allocate Registers input
+    output wire [DECODE_NEW_INST-1:0]                         o_nel_newpc_valid,
+    output wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] o_nel_newpc,
+    output wire [DECODE_NEW_INST-1:0]                         o_nel_newreg_valid,
+    output wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_newreg
 );
+
+    wire                     exception   [0:DECODE_NEW_INST-1];
+    wire                     newreg_alloc[0:DECODE_NEW_INST-1];
+    wire                     jump        [0:DECODE_NEW_INST-1];
+    wire                     jump_reg    [0:DECODE_NEW_INST-1];
+    wire                     branch      [0:DECODE_NEW_INST-1];
+    wire [INST_OPREANDS-1:0] ready       [0:DECODE_NEW_INST-1];
+    wire [MICROOP_WIDTH-1:0] microop     [0:DECODE_NEW_INST-1];
+    wire [31:0]              imm         [0:DECODE_NEW_INST-1];
+
+    genvar decoder_idx;
+    generate
+        for (decoder_idx = 0; decoder_idx < DECODE_NEW_INST; decoder_idx = decoder_idx+1) begin
+            rv32i_decode_opcode #(
+                .EX_PATH_NUM  (EX_PATH_NUM),
+                .INST_OPREANDS(INST_OPREANDS),
+                .MICROOP_WIDTH(MICROOP_WIDTH)
+            ) U_DECODER (
+                .inst_i         (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+                .exception_o    (exception[decoder_idx]), 
+                .newreg_alloc_o (newreg_alloc[decoder_idx]),
+                .jump_o         (jump[decoder_idx]),
+                .jump_reg_o     (jump_reg[decoder_idx]),
+                .branch_o       (branch[decoder_idx]),
+                .ready_o        (ready[decoder_idx]),
+                .microop_o      (microop[decoder_idx])
+            );
+
+            imm_extender U_IMM_EXT (
+        	    .inst_i         (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+        	    .imm_o          (imm[decoder_idx])
+            );
+        end
+    endgenerate
+
+    regfile #(
+        .READ_CHANNEL  (DECODE_NEW_INST),
+        .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
+        .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
+        .REG_WIDTH     ()
+    ) U_LOGICREG_PHYREG_MAP (
+        .clk                 (clk),
+        .reset_n             (reset_n),
+        .i_read_addresses    (),
+        .i_write_wes         (),
+        .i_write_addresses   (),
+        .i_write_data        (),
+        .o_read_data         ()
+    );
+
+    regfile #(
+        .READ_CHANNEL  (DECODE_NEW_INST),
+        .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
+        .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
+        .REG_WIDTH     (1)
+    ) U_LOGICREG_READY (
+        .clk                 (clk),
+        .reset_n             (reset_n),
+        .i_read_addresses    (),
+        .i_write_wes         (),
+        .i_write_addresses   (),
+        .i_write_data        (),
+        .o_read_data         ()
+    );
 
 endmodule

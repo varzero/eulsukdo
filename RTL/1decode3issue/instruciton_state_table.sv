@@ -59,8 +59,8 @@ module instruction_state_table #(
     // Create IST Field
         // <- Instruction State Table Update
     output wire                                                                o_ist_insert_available,
-    input  wire [DECODE_NEW_INST-1:0]                                          i_ist_field_get,
-    output wire [DECODE_NEW_INST-1:0]                                          i_ist_field_valid,
+    input  wire [DECODE_NEW_INST-1:0]                                          i_ist_field_insert,
+    output wire [DECODE_NEW_INST-1:0]                                          o_ist_field_valid,
     input  wire [IST_PACKET_BITWIDTH-1:0]                                      i_ist_field,
 
         // <- Physical Register Manager Opreands Update
@@ -87,7 +87,7 @@ module instruction_state_table #(
 
     wire [(DECODE_NEW_INST*2)-1:0]             new_ist_valid;
     wire [(IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
-    assign i_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
+    assign o_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
 
     // Internal wires
     reg [RS_ENTRY_BITWIDTH-1:0]                                  ist_entries_split [0:DECODE_NEW_INST-1];
@@ -122,7 +122,7 @@ module instruction_state_table #(
                 end
                 else begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)]
-                        = i_ist_field_get[((INST_OPREANDS*new_entry)+new_opr_sel)] & i_ist_field_valid[((INST_OPREANDS*new_entry)+new_opr_sel)];
+                        = i_ist_field_insert[((INST_OPREANDS*new_entry)+new_opr_sel)] & o_ist_field_valid[((INST_OPREANDS*new_entry)+new_opr_sel)];
                 end
                 o_prm_istindex_phyreg[( BITWIDTH_PHYREG_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_PHYREG_NUM]
                     = ist_opreands_split[new_entry][(BITWIDTH_PHYREG_NUM*new_opr_sel) +: BITWIDTH_PHYREG_NUM];
@@ -182,7 +182,7 @@ module instruction_state_table #(
         .reset_n                (reset_n),
         .unallocate_valid_i     (o_push_rs_valid),
         .unallocate_entries_i   (i_ready_update_istidx),
-        .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_get }),
+        .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert }),
     	.allocate_valid_o       (new_ist_valid),
         .allocate_entries_o     (new_ist_num),
     	.init_done              (o_ist_insert_available)
@@ -198,7 +198,7 @@ module instruction_state_table #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (i_ready_update_istidx),
-        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST-1:0]),
+        .i_write_wes         (i_ist_field_insert & new_ist_valid[DECODE_NEW_INST-1:0]),
         .i_write_addresses   (new_ist_num),
         .i_write_data        (ist_entries_spread),
         .o_read_data         (o_push_rs_data[(DECODE_NEW_INST*RS_ENTRY_BITWIDTH) +: (PRM_ENTRY_UPDATE*RS_ENTRY_BITWIDTH)])
@@ -214,7 +214,7 @@ module instruction_state_table #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (i_ready_update_istidx),
-        .i_write_wes         (i_ist_field_get & new_ist_valid[DECODE_NEW_INST-1:0]),
+        .i_write_wes         (i_ist_field_insert & new_ist_valid[DECODE_NEW_INST-1:0]),
         .i_write_addresses   (new_ist_num),
         .i_write_data        (ist_opreands_spread),
         .o_read_data         (done_opreands)
@@ -233,7 +233,7 @@ module instruction_state_table #(
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_addresses    (i_ready_update_istidx),
-                .i_write_wes         ({ {PRM_ENTRY_UPDATE{1'b1}} , i_ist_field_get & new_ist_valid[target_ready]}),
+                .i_write_wes         ({ {PRM_ENTRY_UPDATE{1'b1}} , i_ist_field_insert & new_ist_valid[target_ready]}),
                 .i_write_addresses   ({i_ready_update_istidx, new_ist_num}),
                 .i_write_data        ({done_readys_update[target_ready], ist_readys_spread}),
                 .o_read_data         (done_readys[target_ready])
