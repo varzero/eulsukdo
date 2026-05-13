@@ -197,6 +197,17 @@ module imm_extender (
 
 endmodule
 
+module rv32i_get_registers (
+	input  wire [31:0] inst_i,
+	output wire [4:0]  rd_o,
+	output wire [4:0]  rs1_o,
+	output wire [4:0]  rs2_o
+);
+    assign rd_o  = inst_i[11:7];
+    assign rs1_o = inst_i[19:15];
+    assign rs2_o = inst_i[24:20];
+endmodule
+
 module new_entry_logic #(
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1,
@@ -300,7 +311,9 @@ module new_entry_logic #(
     output wire [DECODE_NEW_INST-1:0]                         o_nel_newreg_valid,
     output wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_newreg
 );
-
+    wire                     rd          [0:DECODE_NEW_INST-1];
+    wire                     rs1         [0:DECODE_NEW_INST-1];
+    wire                     rs2         [0:DECODE_NEW_INST-1];
     wire                     exception   [0:DECODE_NEW_INST-1];
     wire                     newreg_alloc[0:DECODE_NEW_INST-1];
     wire                     jump        [0:DECODE_NEW_INST-1];
@@ -309,6 +322,8 @@ module new_entry_logic #(
     wire [INST_OPREANDS-1:0] ready       [0:DECODE_NEW_INST-1];
     wire [MICROOP_WIDTH-1:0] microop     [0:DECODE_NEW_INST-1];
     wire [31:0]              imm         [0:DECODE_NEW_INST-1];
+
+    
 
     genvar decoder_idx;
     generate
@@ -327,6 +342,13 @@ module new_entry_logic #(
                 .ready_o        (ready[decoder_idx]),
                 .microop_o      (microop[decoder_idx])
             );
+            
+            rv32i_get_registers U_REGISTER_GET (
+            	.inst_i (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+            	.rd_o   (rd[decoder_idx]),
+            	.rs1_o  (rs1[decoder_idx]),
+            	.rs2_o  (rs2[decoder_idx])
+            );
 
             imm_extender U_IMM_EXT (
         	    .inst_i         (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
@@ -339,7 +361,7 @@ module new_entry_logic #(
         .READ_CHANNEL  (DECODE_NEW_INST),
         .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
         .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
-        .REG_WIDTH     ()
+        .REG_WIDTH     (BITWIDTH_PHYREG_NUM)
     ) U_LOGICREG_PHYREG_MAP (
         .clk                 (clk),
         .reset_n             (reset_n),
