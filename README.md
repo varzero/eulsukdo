@@ -23,6 +23,7 @@ README
   - 전체 다이어그램: 현재 다이어그램은 FCL, WBC가 반영되지 않은 버전
   v 각 모듈별 설명
   x 타 아키텍쳐와 비교 분석
+  x 진지하게 다시 쓰기
 CODE-Memory and Position Splitter or FIFO Element
   v Memory
   v Position Splitter
@@ -37,7 +38,7 @@ CODE-Architecture
   ? PRM
   ? RS
   ? WBC
-  - FCL
+  ? FCL
   x Top Module
 ```
 
