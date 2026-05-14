@@ -1,7 +1,7 @@
 # 을숙도 아키텍쳐 - EULSUKDO Archtecture
 **슈퍼스칼라와 비순차 실행 처리를 위한 동적 스케줄링 구현체**
   
-[중학생도 읽을만한 쉬운 대화형? 버전)](README_en.md)
+[중학생도 읽을만한 쉬운 대화형? 버전)](README_ez.md)
 [English(use LLM translation)](README_en.md)
   
 ## 을숙도 아키텍처 프로젝트란?
@@ -34,7 +34,7 @@ CODE-Memory and Position Splitter or FIFO Element
   v Allocator, Value Start 1
 CODE-Architecture
   v Rv32I Decoder and IMM
-  x NEL
+  ? NEL
   ? IST
   ? PRM
   ? RS

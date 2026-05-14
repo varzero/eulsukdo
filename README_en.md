@@ -38,12 +38,12 @@ CODE-Memory and Position Splitter or FIFO Element
   v Allocator, Value Start 1
 CODE-Architecture
   v Rv32I Decoder and IMM
-  x NEL
+  ? NEL
   ? IST
   ? PRM
   ? RS
   ? WBC
-  - FCL
+  ? FCL
   x Top Module
 ```
 

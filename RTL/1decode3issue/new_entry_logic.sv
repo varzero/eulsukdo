@@ -240,17 +240,19 @@ module new_entry_logic #(
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
 
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH,
+
     // (Autogenerate) Field of Entry in Instruction State Table
         /* Entry: MSB [ ( Opreand Reday_n, ... , Opreand Reday_1 ) | 
                         ( Opreand Rename Register_n, ... , Opreand Rename Register_1 ) | 
                         Destination Rename Register | 
-                        IMM | PC | Micro-OP | EX_PATH ] LSB */    
+                        IMM | Micro-OP | EX_PATH | PC ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS,
-    localparam IST_BITWIDTH = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
+    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL,
 
-    localparam IST_STARTPOINT_PHYREG            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_PC_WIDTH + INST_IMM_WIDTH,
+    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH,
     localparam IST_STARTPOINT_LOGREG            = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM,
     localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_LOGREG + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER,
     localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL,
@@ -267,25 +269,25 @@ module new_entry_logic #(
     localparam INST_INPUT_BITWIDTH          = INST_BITWIDTH * DECODE_NEW_INST,
 
     // (Autogenerate) Write Back Field
-    localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM,
+    localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM
 
-    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH
 ) (
     input                                       clk,
     input                                       reset_n,
 
     // Instruction Memory
         // <- New Inst Input
-    input [DECODE_NEW_INST-1:0] i_im_inst_valid,
-    input [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0] i_im_inst_pc,
-    input [(DECODE_NEW_INST*INST_BITWIDTH)-1:0] i_im_inst,
+    input  wire [DECODE_NEW_INST-1:0]                         i_im_inst_valid,
+    input  wire [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0] i_im_inst_pc,
+    input  wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0]         i_im_inst,
+    output reg  [DECODE_NEW_INST-1:0]                         o_im_inst_get,
 
     // Create IST Field
         // -> Instruction State Table Update
     input  wire                                         i_ist_insert_available,
-    output wire [DECODE_NEW_INST-1:0]                   o_ist_field_insert,
+    output reg  [DECODE_NEW_INST-1:0]                   o_ist_field_insert,
     input  wire [DECODE_NEW_INST-1:0]                   i_ist_field_valid,
-    output wire [IST_PACKET_BITWIDTH-1:0]               o_ist_field,
+    output reg  [IST_PACKET_BITWIDTH-1:0]               o_ist_field,
 
     // PRM
     output wire [DECODE_NEW_INST-1:0]                   o_allocate_position,
@@ -302,32 +304,159 @@ module new_entry_logic #(
         // <- Block
     output wire                                               o_nel_block,
         // <- Jump Instruction Input
-    output wire                                               o_nel_jump_inst,
-    output wire                                               o_nel_jreg_branch_inst,
-    output wire [INST_PC_WIDTH-1:0]                           o_nel_jump_branch_pc,
+    output reg                                                o_nel_jump_inst,
+    output reg                                                o_nel_jreg_branch_inst,
+    output reg  [INST_PC_WIDTH-1:0]                           o_nel_jump_branch_pc,
         // <- Allocate Registers input
     output wire [DECODE_NEW_INST-1:0]                         o_nel_newpc_valid,
     output wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] o_nel_newpc,
     output wire [DECODE_NEW_INST-1:0]                         o_nel_newreg_valid,
     output wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_newreg
 );
-    wire                     rd          [0:DECODE_NEW_INST-1];
-    wire                     rs1         [0:DECODE_NEW_INST-1];
-    wire                     rs2         [0:DECODE_NEW_INST-1];
-    wire                     exception   [0:DECODE_NEW_INST-1];
-    wire                     newreg_alloc[0:DECODE_NEW_INST-1];
-    wire                     jump        [0:DECODE_NEW_INST-1];
-    wire                     jump_reg    [0:DECODE_NEW_INST-1];
-    wire                     branch      [0:DECODE_NEW_INST-1];
-    wire [INST_OPREANDS-1:0] ready       [0:DECODE_NEW_INST-1];
-    wire [MICROOP_WIDTH-1:0] microop     [0:DECODE_NEW_INST-1];
-    wire [31:0]              imm         [0:DECODE_NEW_INST-1];
 
-    
+    // Stage1: Decoding Section
+    wire [INST_NUM_OF_LOGICAL_REGISTER-1:0] rd          [0:DECODE_NEW_INST-1];
+    wire [INST_NUM_OF_LOGICAL_REGISTER-1:0] rs          [0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
+    wire                                    exception   [0:DECODE_NEW_INST-1];
+    wire                                    newreg_alloc[0:DECODE_NEW_INST-1];
+    wire                                    jump        [0:DECODE_NEW_INST-1];
+    wire                                    jump_reg    [0:DECODE_NEW_INST-1];
+    wire                                    branch      [0:DECODE_NEW_INST-1];
+    wire [INST_OPREANDS-1:0]                ready       [0:DECODE_NEW_INST-1];
+    wire [MICROOP_WIDTH-1:0]                microop     [0:DECODE_NEW_INST-1];
+    wire [31:0]                             imm         [0:DECODE_NEW_INST-1];
+
+    wire [(DECODE_NEW_INST*BITWIDTH_PHYREG_NUM)-1:0]               past_log_phy_reg;
+    wire [(DECODE_NEW_INST*INST_OPREANDS*BITWIDTH_PHYREG_NUM)-1:0] opreands_log_phy;
+
+    reg  [(DECODE_NEW_INST*INST_NUM_OF_LOGICAL_REGISTER)-1:0]               rd_spread;
+    reg  [(DECODE_NEW_INST*INST_OPREANDS*INST_NUM_OF_LOGICAL_REGISTER)-1:0] rs_spread;
+    reg  [DECODE_NEW_INST-1:0]                                              newreg_alloc_spread;
+    reg  [DECODE_NEW_INST-1:0]                                              im_inst_get;
+
+    // Register Variables
+    reg                                           active                [0:DECODE_NEW_INST-1];
+    reg                                           active_next           [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_FCL_PC_WIDTH-1:0]               pc_reg                [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_FCL_PC_WIDTH-1:0]               pc_new                [0:DECODE_NEW_INST-1];
+    reg [MICROOP_WIDTH-1:0]                       microop_reg           [0:DECODE_NEW_INST-1];
+    reg [MICROOP_WIDTH-1:0]                       microop_new           [0:DECODE_NEW_INST-1];
+    reg [INST_IMM_WIDTH-1:0]                      imm_reg               [0:DECODE_NEW_INST-1];
+    reg [INST_IMM_WIDTH-1:0]                      imm_new               [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_PHYREG_NUM-1:0]                 new_log_phy_reg       [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_PHYREG_NUM-1:0]                 new_log_phy_next      [0:DECODE_NEW_INST-1];
+    reg [(INST_OPREANDS*BITWIDTH_PHYREG_NUM)-1:0] opreands_log_phy_reg  [0:DECODE_NEW_INST-1];
+    reg [(INST_OPREANDS*BITWIDTH_PHYREG_NUM)-1:0] opreands_log_phy_next [0:DECODE_NEW_INST-1];
+    reg [INST_OPREANDS-1:0]                       opreands_ready_reg    [0:DECODE_NEW_INST-1];
+    reg [INST_OPREANDS-1:0]                       opreands_ready_next   [0:DECODE_NEW_INST-1];
+
+    integer reg_new_entry_idx, new_entry_idx, opreand_idx;
+    always @(posedge clk or negedge reset_n) begin
+        for(reg_new_entry_idx = 0; reg_new_entry_idx < DECODE_NEW_INST; reg_new_entry_idx = reg_new_entry_idx+1) begin
+            if (!reset_n) begin
+                active <= 1'b0; 
+                pc_reg <= 0;
+                microop_reg <= 0;
+                imm_reg <= 0;
+                new_log_phy_reg <= 0; 
+                opreands_log_phy_reg <= 0;
+                opreands_ready_reg <= 0;
+            end
+            else begin
+                active               <= active_next; 
+                pc_reg               <= pc_new;
+                microop_reg          <= microop_new;
+                imm_reg              <= imm_new;
+                new_log_phy_reg      <= new_log_phy_next;
+                opreands_log_phy_reg <= opreands_log_phy_next;
+                opreands_ready_reg   <= opreands_ready_next;
+            end
+        end
+    end
+    always @(*) begin
+        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+            rd_spread[(INST_NUM_OF_LOGICAL_REGISTER*new_entry_idx) +: INST_NUM_OF_LOGICAL_REGISTER]
+                = (newreg_alloc)? rd[new_entry_idx] : 0;
+
+            for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
+                rs_spread[( INST_NUM_OF_LOGICAL_REGISTER * ((new_entry_idx*INST_OPREANDS) + opreand_idx) ) 
+                            +: INST_NUM_OF_LOGICAL_REGISTER] = rs[new_entry_idx][opreand_idx];
+            end
+
+            if (past_log_phy_reg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM] != 0)
+                newreg_alloc_spread[new_entry_idx] = newreg_alloc[new_entry_idx];
+            else
+                newreg_alloc_spread[new_entry_idx] = 0;
+        end
+
+        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+            o_nel_jump_inst        = jump[new_entry_idx];
+            o_nel_jreg_branch_inst = jump_reg[new_entry_idx] | branch[new_entry_idx];
+            o_nel_jump_branch_pc   
+                = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: INST_PC_WIDTH]+imm[new_entry_idx];
+
+            if (jump[new_entry_idx] || jump_reg[new_entry_idx] || branch[new_entry_idx]) break;
+        end
+
+        im_inst_get = i_prm_allocate_valid & newreg_alloc_spread;
+        im_inst_get |= ~newreg_alloc_spread;
+        o_im_inst_get = 0;
+        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+            o_im_inst_get[new_entry_idx] = im_inst_get[new_entry_idx];
+            if (!im_inst_get[new_entry_idx]) break;
+        end
+
+        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+            active_next[new_entry_idx] = o_im_inst_get[new_entry_idx];
+            pc_new[new_entry_idx]      = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: BITWIDTH_FCL_PC_WIDTH];
+            microop_new[new_entry_idx] = microop[new_entry_idx];
+            imm_new[new_entry_idx]     = imm[new_entry_idx];
+            new_log_phy_next[new_entry_idx] 
+                = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
+            opreands_log_phy_next[new_entry_idx] 
+                = opreands_log_phy[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*new_entry_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)];
+            opreands_ready_next[new_entry_idx] = ready[new_entry_idx];
+        end
+    end
+    assign o_nel_newpc_valid   = i_im_inst_valid;
+    assign o_nel_newpc         = i_im_inst_pc;
+    assign o_nel_newreg_valid  = o_im_inst_get & newreg_alloc_spread;
+    assign o_nel_newreg        = past_log_phy_reg;
+    assign o_allocate_position = o_im_inst_get & newreg_alloc_spread;
+    assign o_nel_block         = ~i_ist_insert_available | ~(&i_ist_field_valid) | ~(&i_prm_allocate_valid);
+        // 이번 버전은 모든 필드가 열린 상태에서만..
+
+    // Stage2: Output Section
+    wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0] opreands_phy_ready;
+    reg  [INST_OPREANDS-1:0]                   opreands_ready_final, opreands_ready_now;
+    integer ist_field_insert_idx, done_idx, opreands_ready_idx;
+    always @(*) begin
+        for (ist_field_insert_idx = 0; ist_field_insert_idx < DECODE_NEW_INST; ist_field_insert_idx = ist_field_insert_idx+1) begin
+            i_im_inst_valid[ist_field_insert_idx] = active[ist_field_insert_idx];
+
+            opreands_ready_now = 0;
+            for (done_idx = 0; done_idx < EX_PATH_NUM; done_idx = done_idx+1) begin
+                for (opreands_ready_idx = 0; opreands_ready_idx < INST_OPREANDS; opreands_ready_idx = opreands_ready_idx+1) begin
+                    if ( opreands_log_phy_reg[ist_field_insert_idx][(BITWIDTH_PHYREG_NUM*opreands_ready_idx) +: BITWIDTH_PHYREG_NUM] 
+                         == i_wbc2nel_done_phyreg[(BITWIDTH_PHYREG_NUM *((INST_OPREANDS*done_idx)+opreands_ready_idx)) +: BITWIDTH_PHYREG_NUM] ) begin
+                            opreands_ready_now[opreands_ready_idx] = 1'b1;
+                         end
+                end
+            end
+
+            opreands_ready_final = opreands_ready_reg | opreands_phy_ready | opreands_ready_now;
+
+            o_ist_field[(IST_BITWIDTH*ist_field_insert_idx) +: IST_BITWIDTH]
+                = { opreands_ready_final,                  opreands_log_phy_reg[ist_field_insert_idx],
+                    new_log_phy_reg[ist_field_insert_idx], imm_reg[ist_field_insert_idx],
+                    microop_reg[ist_field_insert_idx],     pc_reg[ist_field_insert_idx] };
+        end
+    end
 
     genvar decoder_idx;
     generate
         for (decoder_idx = 0; decoder_idx < DECODE_NEW_INST; decoder_idx = decoder_idx+1) begin
+            // instance decoder, register catcher, imm extender HERE
             rv32i_decode_opcode #(
                 .EX_PATH_NUM  (EX_PATH_NUM),
                 .INST_OPREANDS(INST_OPREANDS),
@@ -346,8 +475,8 @@ module new_entry_logic #(
             rv32i_get_registers U_REGISTER_GET (
             	.inst_i (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
             	.rd_o   (rd[decoder_idx]),
-            	.rs1_o  (rs1[decoder_idx]),
-            	.rs2_o  (rs2[decoder_idx])
+            	.rs1_o  (rs[decoder_idx][0]),
+            	.rs2_o  (rs[decoder_idx][1])
             );
 
             imm_extender U_IMM_EXT (
@@ -358,33 +487,33 @@ module new_entry_logic #(
     endgenerate
 
     regfile #(
-        .READ_CHANNEL  (DECODE_NEW_INST),
-        .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
+        .READ_CHANNEL  (DECODE_NEW_INST+(DECODE_NEW_INST*INST_OPREANDS)),
+        .WRITE_CHANNEL (DECODE_NEW_INST),
         .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
         .REG_WIDTH     (BITWIDTH_PHYREG_NUM)
     ) U_LOGICREG_PHYREG_MAP (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    (),
-        .i_write_wes         (),
-        .i_write_addresses   (),
-        .i_write_data        (),
-        .o_read_data         ()
+        .i_read_addresses    ({rd_spread, rs_spread}),
+        .i_write_wes         (o_im_inst_get),
+        .i_write_addresses   (rd_spread),
+        .i_write_data        (i_prm_allocate_phyreg),
+        .o_read_data         ({past_log_phy_reg, opreands_log_phy})
     );
 
     regfile #(
-        .READ_CHANNEL  (DECODE_NEW_INST),
+        .READ_CHANNEL  (DECODE_NEW_INST*INST_OPREANDS),
         .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
         .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
         .REG_WIDTH     (1)
-    ) U_LOGICREG_READY (
+    ) U_PHYREG_READY (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    (),
-        .i_write_wes         (),
-        .i_write_addresses   (),
-        .i_write_data        (),
-        .o_read_data         ()
+        .i_read_addresses    (opreands_log_phy_reg),
+        .i_write_wes         ({i_wbc2nel_done, o_im_inst_get}),
+        .i_write_addresses   ({i_wbc2nel_done_phyreg, i_prm_allocate_phyreg}),
+        .i_write_data        ({{EX_PATH_NUM{1'b1}}, {DECODE_NEW_INST{1'b0}}}),
+        .o_read_data         (opreands_phy_ready)
     );
 
 endmodule
