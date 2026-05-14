@@ -12,6 +12,9 @@ module ready_station #(
     parameter PRM_ENTRY_BUFFER  = 4,
     parameter RS_ENTRY_NUM      = 16,
     parameter RS_PUSH_WIDTH     = 3,
+    parameter FCL_RB_NUM        = 8,
+    parameter FCL_PC_GAP        = 4,
+    parameter UNALLOCATE_PHYREG = 4,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -30,23 +33,26 @@ module ready_station #(
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
+    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
+    
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH,
 
     // (Autogenerate) Field of Entry in Instruction State Table
         /* Entry: MSB [ ( Opreand Reday_n, ... , Opreand Reday_1 ) | 
                         ( Opreand Rename Register_n, ... , Opreand Rename Register_1 ) | 
                         Destination Logical Register | 
                         Destination Rename Register | 
-                        IMM | PC | Micro-OP | EX_PATH ] LSB */    
+                        IMM | Micro-OP | EX_PATH | PC ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
 
     
     // (Autogenerate) Ready Station Entry
-    localparam RS_ENTRY_BITWIDTH            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_PC_WIDTH 
+    localparam RS_ENTRY_BITWIDTH            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH,
     + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
     localparam RS_PACKET_BITWIDTH           = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH,
     localparam EX_PACKET_BITWIDTH           = RS_ENTRY_BITWIDTH * EX_PATH_NUM,
     
-    localparam RS_STARTPOINT_EX_PATH        = INST_PC_WIDTH,
+    localparam RS_STARTPOINT_EX_PATH        = BITWIDTH_FCL_PC_WIDTH,
 
     // (Autogenerate) Write Back Field
     localparam WB_PHYREGS_BITWIDTH          = BITWIDTH_PHYREG_NUM * EX_PATH_NUM
