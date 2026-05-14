@@ -71,6 +71,9 @@ module ready_station();
     int                          expect_fifo_cnt[0:RS_PUSH_WIDTH-1]; 
     reg  [RS_ENTRY_BITWIDTH-1:0] expect_fifo_data[0:RS_PUSH_WIDTH-1][$:RS_ENTRY_NUM]; 
 
+    reg  [RS_ENTRY_BITWIDTH-1:0] check_data;
+    reg  [RS_ENTRY_BITWIDTH-1:0] pop_data;
+
     ready_station #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
         .PHYREG_NUM                    (PHYREG_NUM),
@@ -104,7 +107,24 @@ module ready_station();
     always #5 clk = ~clk;
 
     task out_data();
-        
+        for (int expath_idx = 0; expath_idx < EX_PATH_NUM; expath_idx++) begin
+            if (o_ex_entry_valid[expath_idx]) begin
+                if (expect_fifo_cnt[expath_idx] === 0) begin
+                    $display("FAIL: [%t] empty!!!");
+                end
+                else begin
+                    check_data = o_ex_entry[(RS_ENTRY_BITWIDTH*expath_idx) +: RS_ENTRY_BITWIDTH];
+                    pop_data   = expect_fifo_data[expath_idx].pop_front();
+
+                    if (check_data === pop_data) begin
+                        $display("PASS: [%t] %x %x", check_data, pop_data);
+                    end
+                    else begin
+                        $display("FAIL: [%t] %x %x is not same..", check_data, pop_data);
+                    end
+                end
+            end
+        end
     endtask
 
     task in_data();
@@ -146,6 +166,9 @@ module ready_station();
         i_ist_ready_entry_valid = 0;
         i_ist_ready_entry       = 0;
         i_ex_entry_get          = 0;
+        for (int expath_idx = 0; expath_idx < expath; expath_idx++) begin
+            expect_fifo_cnt[expath_idx] = 0;
+        end
 
         @(negedge clk);
         @(negedge clk);
