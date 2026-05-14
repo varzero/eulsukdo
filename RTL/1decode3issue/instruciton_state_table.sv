@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-`include "../memories.v"
-`include "../position_splitter.v"
+`include "../memories.sv"
+`include "../position_splitter.sv"
 
 module instruction_state_table #(
     // Dynamic Schedular Description

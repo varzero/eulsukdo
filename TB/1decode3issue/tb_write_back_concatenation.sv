@@ -1,4 +1,4 @@
-module write_back_concatenation ();
+module tb_write_back_concatenation ();
 
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1;
@@ -61,7 +61,7 @@ module write_back_concatenation ();
     wire                                            o_wbc2fcl_branch;
     wire [INST_PC_WIDTH-1:0]                        o_wbc2fcl_branch_pc;
 
-    reg [] pass_condition;
+    reg [2:0] pass_condition;
         // done, 
 
     write_back_concatenation #(
@@ -101,7 +101,6 @@ module write_back_concatenation ();
     always #5 clk = ~clk;
 
     task random_done();
-        @(negedge clk);
         
         i_ex_done = $urandom % (2**EX_PATH_NUM);
         for (int i = 0; i < EX_PATH_NUM; i++) begin
@@ -122,17 +121,22 @@ module write_back_concatenation ();
         if (&pass_condition) $display("PASS: [%t] done", $time);
         else                 $display("FAIL: [%t] done - %b", $time, pass_condition);
         for (int i = 0; i < EX_PATH_NUM; i++) begin
+            pass_condition = 0;
             if (i_ex_done[i]) begin
-                pass_condition[0] = (i_ex_done_phyreg[(BITWIDTH_PHYREG_NUM*i_ex_done) +: BITWIDTH_PHYREG_NUM] == o_wbc2prm_done_phyreg);
-                pass_condition[1] = (i_ex_done_phyreg[(BITWIDTH_PHYREG_NUM*i_ex_done) +: BITWIDTH_PHYREG_NUM] == o_wbc2nel_done_phyreg);
-                pass_condition[2] = (i_ex_done_pc[(BITWIDTH_FCL_PC_WIDTH*i_ex_done) +: BITWIDTH_FCL_PC_WIDTH] == o_wbc2fcl_pc);
+                pass_condition[0] = (i_ex_done_phyreg[(BITWIDTH_PHYREG_NUM*i) +: BITWIDTH_PHYREG_NUM] 
+                                        == o_wbc2prm_done_phyreg[(BITWIDTH_PHYREG_NUM*i) +: BITWIDTH_PHYREG_NUM]);
+                pass_condition[1] = (i_ex_done_phyreg[(BITWIDTH_PHYREG_NUM*i) +: BITWIDTH_PHYREG_NUM] 
+                                        == o_wbc2nel_done_phyreg[(BITWIDTH_PHYREG_NUM*i) +: BITWIDTH_PHYREG_NUM]);
+                pass_condition[2] = (i_ex_done_pc[(BITWIDTH_FCL_PC_WIDTH*i) +: BITWIDTH_FCL_PC_WIDTH] 
+                                        == o_wbc2fcl_pc[(BITWIDTH_FCL_PC_WIDTH*i) +: BITWIDTH_FCL_PC_WIDTH]);
                 if (&pass_condition) $display("PASS: [%t] data", $time);
                 else                 $display("FAIL: [%t] data - %b", $time, pass_condition);
             end
         end
-        if (i_ex_done_branch) pass_condition[0] = (i_ex_done_branch_pc == o_wbc2fcl_branch_pc);
-        if (pass_condition[0]) $display("PASS: [%t] branch", $time);
-        else                   $display("FAIL: [%t] branch - %b", $time, pass_condition);
+        if (i_ex_done_branch) begin pass_condition[0] = (i_ex_done_branch_pc == o_wbc2fcl_branch_pc);
+            if (pass_condition[0]) $display("PASS: [%t] branch", $time);
+            else                   $display("FAIL: [%t] branch - %b", $time, pass_condition);
+        end
     endtask
 
     initial begin

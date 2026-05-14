@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-`include "../memories.v"
-`include "../position_splitter.v"
+`include "../memories.sv"
+`include "../position_splitter.sv"
 
 module ready_station #(
     // Dynamic Schedular Description
@@ -47,8 +47,8 @@ module ready_station #(
 
     
     // (Autogenerate) Ready Station Entry
-    localparam RS_ENTRY_BITWIDTH            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH,
-    + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
+    localparam RS_ENTRY_BITWIDTH            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH
+                                              + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
     localparam RS_PACKET_BITWIDTH           = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH,
     localparam EX_PACKET_BITWIDTH           = RS_ENTRY_BITWIDTH * EX_PATH_NUM,
     
@@ -80,13 +80,12 @@ module ready_station #(
         for (integer target_ex; target_ex < EX_PATH_NUM; target_ex = target_ex+1) begin
             for (integer target_entry = 0; target_entry < RS_PUSH_WIDTH; target_entry = target_entry+1) begin
                 if (i_ist_ready_entry
-                    [(RS_ENTRY_BITWIDTH*target_entry)+RS_STARTPOINT_EX_PATH+BITWIDTH_EX_PATH_NUM-1
-                    :(RS_ENTRY_BITWIDTH*target_entry)+RS_STARTPOINT_EX_PATH] 
+                    [((RS_ENTRY_BITWIDTH*target_entry)+RS_STARTPOINT_EX_PATH) +: BITWIDTH_EX_PATH_NUM] 
                     == target_ex ) begin
 
                     ex_fifo_target_same_ex[target_ex][target_entry] = 1'b1;
                 end
-                else 1'b0;
+                else ex_fifo_target_same_ex[target_ex][target_entry] = 1'b0;
             end
         end
     end

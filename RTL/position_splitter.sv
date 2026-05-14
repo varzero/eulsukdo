@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`include "memories.v"
+`include "memories.sv"
 
 module gather_position_rom #(
 	parameter VALID_WIDTH = 4,
