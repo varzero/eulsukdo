@@ -1,5 +1,8 @@
 `timescale 1ns/1ps
 
+`ifndef MEMORIES
+`define MEMORIES
+
 /*
 [regfile]
 ##########################################################################################
@@ -255,3 +258,5 @@ module fifo_sram #(
     end
 
 endmodule
+
+`endif

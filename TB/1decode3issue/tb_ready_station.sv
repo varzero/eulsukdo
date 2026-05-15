@@ -1,4 +1,4 @@
-module ready_station();
+module tb_ready_station();
 
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1;
@@ -107,20 +107,22 @@ module ready_station();
     always #5 clk = ~clk;
 
     task out_data();
+        i_ex_entry_get = 0;
         for (int expath_idx = 0; expath_idx < EX_PATH_NUM; expath_idx++) begin
             if (o_ex_entry_valid[expath_idx]) begin
+                i_ex_entry_get[expath_idx] = 1'b1;
                 if (expect_fifo_cnt[expath_idx] === 0) begin
-                    $display("FAIL: [%t] empty!!!");
+                    $display("FAIL: [%t] empty!!!", $time);
                 end
                 else begin
                     check_data = o_ex_entry[(RS_ENTRY_BITWIDTH*expath_idx) +: RS_ENTRY_BITWIDTH];
                     pop_data   = expect_fifo_data[expath_idx].pop_front();
 
                     if (check_data === pop_data) begin
-                        $display("PASS: [%t] %x %x", check_data, pop_data);
+                        $display("PASS: [%t] %x %x %d", $time, check_data, pop_data, expath_idx);
                     end
                     else begin
-                        $display("FAIL: [%t] %x %x is not same..", check_data, pop_data);
+                        $display("FAIL: [%t] %x %x is not same.. %d", $time, check_data, pop_data, expath_idx);
                     end
                 end
             end
@@ -136,10 +138,11 @@ module ready_station();
         bit [INST_IMM_WIDTH-1:0]                   imm;
         bit [BITWIDTH_PHYREG_NUM-1:0]              rd;
         bit [IST_BITWIDTH_OPREAND_PHYREG_FULL-1:0] rs;
+        int expath_idx;
 
-        push_valid = $urandom % RS_PUSH_WIDTH;
-        i_ist_ready_entry_valid = push_valid & o_ist_ready_entry_get;
-        for (int expath_idx = 0; expath_idx < expath; expath_idx++) begin
+        push_valid = $urandom % (RS_PUSH_WIDTH+1);
+        i_ist_ready_entry_valid = (o_ist_ready_entry_get)? push_valid : 0;
+        for (int rs_push_idx = 0; rs_push_idx < RS_PUSH_WIDTH; rs_push_idx++) begin
             pc = $urandom;
             fclpath = $urandom;
             expath = $urandom % EX_PATH_NUM;
@@ -148,14 +151,16 @@ module ready_station();
             rd = $urandom;
             rs = $urandom;
             
-            i_ist_ready_entry[(RS_ENTRY_BITWIDTH*expath_idx) +: RS_ENTRY_BITWIDTH] 
+            i_ist_ready_entry[(RS_ENTRY_BITWIDTH*rs_push_idx) +: RS_ENTRY_BITWIDTH] 
                 = {rs, rd, imm, microop, expath, fclpath, pc};
         end
 
-        for (int expath_idx = 0; expath_idx < expath; expath_idx++) begin
-            if (i_ist_ready_entry_valid[expath_idx]) begin
+        for (int rs_push_idx = 0; rs_push_idx < RS_PUSH_WIDTH; rs_push_idx++) begin
+            if (i_ist_ready_entry_valid[rs_push_idx]) begin
+                expath_idx = i_ist_ready_entry[((RS_ENTRY_BITWIDTH*rs_push_idx)+RS_STARTPOINT_EX_PATH) +: BITWIDTH_EX_PATH_NUM];
                 expect_fifo_cnt[expath_idx]++;
-                expect_fifo_data[expath_idx].push_back(i_ist_ready_entry[(RS_ENTRY_BITWIDTH*expath_idx) +: RS_ENTRY_BITWIDTH]);
+                expect_fifo_data[expath_idx].push_back(i_ist_ready_entry[(RS_ENTRY_BITWIDTH*rs_push_idx) +: RS_ENTRY_BITWIDTH]);
+                $display("PUSH: [%t] %d %x ", $time, expath_idx, i_ist_ready_entry[(RS_ENTRY_BITWIDTH*rs_push_idx) +: RS_ENTRY_BITWIDTH]);
             end
         end
     endtask
@@ -166,7 +171,7 @@ module ready_station();
         i_ist_ready_entry_valid = 0;
         i_ist_ready_entry       = 0;
         i_ex_entry_get          = 0;
-        for (int expath_idx = 0; expath_idx < expath; expath_idx++) begin
+        for (int expath_idx = 0; expath_idx < EX_PATH_NUM; expath_idx++) begin
             expect_fifo_cnt[expath_idx] = 0;
         end
 
@@ -175,7 +180,13 @@ module ready_station();
         reset_n = 1'b1;
         @(negedge clk);
 
-
+        repeat(100) begin
+            in_data();
+            @(negedge clk);
+            out_data();
+        end
+        
+        $finish;
     end
 
 endmodule

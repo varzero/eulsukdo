@@ -37,8 +37,8 @@ CODE-Architecture
   ? NEL
   ? IST
   ? PRM
-  ? RS
-  ? WBC
+  v RS
+  v WBC
   ? FCL
   x Top Module
 ```

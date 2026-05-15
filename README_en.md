@@ -42,8 +42,8 @@ CODE-Architecture
   ? IST
   ? PRM
   ? RS
-  ? WBC
-  ? FCL
+  v WBC
+  v FCL
   x Top Module
 ```
 

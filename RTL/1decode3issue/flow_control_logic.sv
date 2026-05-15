@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
-
-`include "../memories.sv"
-`include "../position_splitter.sv"
+//
+//`include "../memories.sv"
+//`include "../position_splitter.sv"
 
 module flow_control_logic #(
     // Dynamic Schedular Description
@@ -314,7 +314,7 @@ module flow_control_logic #(
                 .i_wbc2fcl_pc           (wbc2fcl_pc_split_FCPATH),
                 .i_unallocate_use       ( (free_active && (free_target_fcpath == fdu_fcpath_idx))? 1'b1 : 1'b0 ),
                 .o_prm_unallocate_valid (unallocate_valid[fdu_fcpath_idx]),
-                .o_prm_unallocate_phyreg(unallocate_phyreg[fdu_fcpath_idx]),
+                .o_prm_unallocate_phyreg(unallocate_phyreg[fdu_fcpath_idx])
             );
         end
     endgenerate
@@ -326,9 +326,10 @@ module flow_detect_unit #(
     parameter PHYREG_NUM                    = 64,
     parameter UNALLOCATE_PHYREG             = 4,
     parameter INST_PC_WIDTH                 = 32,
+    parameter EX_PATH_NUM                   = 3,
 
     localparam MAX_PC_RANGE                 = PHYREG_NUM/2,
-    localparam BITWIDTH_PC_RANGE            = $clog2(MAX_PC_RANGE)
+    localparam BITWIDTH_PC_RANGE            = $clog2(MAX_PC_RANGE),
     localparam BITWIDTH_PHYREG_NUM          = $clog2(PHYREG_NUM)
 ) (
     input  wire                  clk,
@@ -360,7 +361,7 @@ module flow_detect_unit #(
         // -> Unallocate Registers Output
     input  wire                                               i_unallocate_use,
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
-    output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg,
+    output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg
 );
     reg  [EX_PATH_NUM-1:0] entry_done_range_catch;
     reg  [INST_PC_WIDTH-1:0] split_wb_pc;
@@ -368,7 +369,6 @@ module flow_detect_unit #(
     wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate;
     wire [INST_PC_WIDTH-1:0]                           new_range_sub_pc;
     integer target_pc;
-    assign new_range_sub_pc = i_set_last_pc-pc_start;
 
     // Register Variables
     reg [1:0]                    state,     state_next;
@@ -526,6 +526,8 @@ module flow_detect_unit #(
             end
         endcase
     end
+
+    assign new_range_sub_pc = i_set_last_pc-pc_start;
 
     fifo_ordering_position #(
         .PUSH_DATA      (DECODE_NEW_INST),

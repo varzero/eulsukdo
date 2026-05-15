@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
-
-`include "../memories.sv"
-`include "../position_splitter.sv"
+//
+//`include "../memories.sv"
+//`include "../position_splitter.sv"
 
 module instruction_state_table #(
     // Dynamic Schedular Description
@@ -51,7 +51,7 @@ module instruction_state_table #(
 
     // (Autogenerate) Ready Station Entry
     localparam RS_ENTRY_BITWIDTH            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH 
-                                                + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL,
+                                                + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL
 ) (
     input                                                                      clk,
     input                                                                      reset_n,
@@ -166,7 +166,7 @@ module instruction_state_table #(
             end
             done_readys_update[comp_opr] = done_readys_update[comp_opr] | done_readys[comp_opr];
 
-            if (&done_readys_update && i_push_rs_available) begin
+            if ((&done_readys_update[comp_opr]) && i_push_rs_available) begin
                 o_push_rs_valid[comp_opr+DECODE_NEW_INST] = 1'b1;
             end
         end

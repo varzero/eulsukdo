@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-`include "memories.sv"
+`ifndef POSITION_SPLITER
+`define POSITION_SPLITER
+
+//`include "memories.sv"
 
 module gather_position_rom #(
 	parameter VALID_WIDTH = 4,
@@ -523,3 +526,5 @@ module allocator_start_one #(
     );
 
 endmodule
+
+`endif

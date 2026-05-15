@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
-
-`include "../memories.sv"
-`include "../position_splitter.sv"
+//
+//`include "../memories.sv"
+//`include "../position_splitter.sv"
 
 module physical_register_mapping #(
     // Dynamic Schedular Description
@@ -36,10 +36,10 @@ module physical_register_mapping #(
     
     localparam RS_PUSH_WIDTH        = PRM_ENTRY_UPDATE + DECODE_NEW_INST,
 
-    localparam PRM_READY_OUT_WIDTH  = BITWIDTH_PHYREG_NUM + BITWIDTH_IST_ENTRY_NUM;
+    localparam PRM_READY_OUT_WIDTH  = BITWIDTH_PHYREG_NUM + BITWIDTH_IST_ENTRY_NUM,
 
     // (Autogenerate) Field of Allocator in Physical Register Manager
-    localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST
+    localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST,
     localparam PRM_UNALLOCATE_BITWIDTH      = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG
 ) (
     input                                       clk,
@@ -244,9 +244,9 @@ module physical_register_mapping #(
             	.push_available_o   (fifo_available[ready_update_fifo])
             );
 
-            o_ready_update_phyreg[(BITWIDTH_PHYREG_NUM*ready_update_fifo) +: BITWIDTH_PHYREG_NUM] 
+            assign o_ready_update_phyreg[(BITWIDTH_PHYREG_NUM*ready_update_fifo) +: BITWIDTH_PHYREG_NUM] 
                 = ready_out_fifo_out[ready_update_fifo][PRM_READY_OUT_WIDTH-1:BITWIDTH_IST_ENTRY_NUM];
-            o_ready_update_istidx[(BITWIDTH_IST_ENTRY_NUM*ready_update_fifo) +: BITWIDTH_IST_ENTRY_NUM] 
+            assign o_ready_update_istidx[(BITWIDTH_IST_ENTRY_NUM*ready_update_fifo) +: BITWIDTH_IST_ENTRY_NUM] 
                 = ready_out_fifo_out[ready_update_fifo][BITWIDTH_IST_ENTRY_NUM-1:0];
         end
     endgenerate
