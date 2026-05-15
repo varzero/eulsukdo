@@ -33,7 +33,7 @@ module regfile #(
     parameter       WRITE_CHANNEL   = 4 ,
     parameter       ENTRIES         = 16,
     parameter       REG_WIDTH       = 32,
-    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1)
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES)
 ) (
     input                                               clk                 ,
     input                                               reset_n             ,

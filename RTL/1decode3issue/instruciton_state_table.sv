@@ -12,6 +12,7 @@ module instruction_state_table #(
     parameter PRM_ENTRY_BUFFER  = 4,
     parameter PRM_ENTRY_UPDATE  = 3,
     parameter RS_ENTRY_NUM      = 16,
+    parameter FCL_RB_NUM        = 8,
 
     // Instruction Field Description
     parameter INST_PC_WIDTH                 = 32,
@@ -30,6 +31,8 @@ module instruction_state_table #(
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
+    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH,
     
     localparam RS_PUSH_WIDTH     = PRM_ENTRY_UPDATE + DECODE_NEW_INST,
 
@@ -40,17 +43,17 @@ module instruction_state_table #(
                         IMM | PC | Micro-OP | EX_PATH ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS,
-    localparam IST_BITWIDTH = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
+    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL,
 
-    localparam IST_STARTPOINT_PHYREG            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH,
+    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH,
     localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM,
     localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL,
 
     localparam IST_PACKET_BITWIDTH              = IST_BITWIDTH * DECODE_NEW_INST,
 
     // (Autogenerate) Ready Station Entry
-    localparam RS_ENTRY_BITWIDTH            = INST_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH 
+    localparam RS_ENTRY_BITWIDTH            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH 
                                                 + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL
 ) (
     input                                                                      clk,
@@ -85,8 +88,8 @@ module instruction_state_table #(
 );
     assign o_ready_update_get = (i_push_rs_available)? {PRM_ENTRY_UPDATE{1'b1}} : {PRM_ENTRY_UPDATE{1'b0}};
 
-    wire [(DECODE_NEW_INST*2)-1:0]             new_ist_valid;
-    wire [(IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
+    wire [(DECODE_NEW_INST*2)-1:0]                      new_ist_valid;
+    wire [(BITWIDTH_IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
     assign o_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
 
     // Internal wires
@@ -96,6 +99,7 @@ module instruction_state_table #(
     reg [(IST_BITWIDTH_OPREAND_PHYREG_FULL*DECODE_NEW_INST)-1:0] ist_opreands_spread;
     reg [IST_BITWIDTH_OPREAND_READY_FULL-1:0]                    ist_readys_split  [0:DECODE_NEW_INST-1];
     reg [(IST_BITWIDTH_OPREAND_READY_FULL*DECODE_NEW_INST)-1:0]  ist_readys_spread;
+    reg [DECODE_NEW_INST-1:0]                                    ist_readys_split_opreand[0:IST_BITWIDTH_OPREAND_READY_FULL-1];
     always @(*) begin
         o_push_rs_valid[DECODE_NEW_INST-1:0] = 0;
 
@@ -117,17 +121,23 @@ module instruction_state_table #(
             if (&ist_readys_split[new_entry] && i_push_rs_available) o_push_rs_valid[new_entry] = 1'b1;
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
-                if (ist_readys_split[new_entry][new_opr_sel]) begin
+                if (~ist_readys_split[new_entry][new_opr_sel]) begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)] = 1'b0;
                 end
                 else begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)]
-                        = i_ist_field_insert[((INST_OPREANDS*new_entry)+new_opr_sel)] & o_ist_field_valid[((INST_OPREANDS*new_entry)+new_opr_sel)];
+                        = i_ist_field_insert[new_entry] & o_ist_field_valid[new_entry];
                 end
                 o_prm_istindex_phyreg[( BITWIDTH_PHYREG_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_PHYREG_NUM]
                     = ist_opreands_split[new_entry][(BITWIDTH_PHYREG_NUM*new_opr_sel) +: BITWIDTH_PHYREG_NUM];
                 o_prm_istindex_istidx[( BITWIDTH_IST_ENTRY_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_IST_ENTRY_NUM]
                     = new_ist_num[ (IST_ENTRY_NUM*new_entry) +: IST_ENTRY_NUM];
+                
+            end
+        end
+        for (integer new_entry = 0; new_entry < DECODE_NEW_INST; new_entry = new_entry+1) begin
+            for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
+                ist_readys_split_opreand[new_opr_sel][new_entry] = ist_readys_split[new_entry][new_opr_sel];
             end
         end
     end
@@ -152,21 +162,35 @@ module instruction_state_table #(
         end
     end
 
-    wire [(PRM_ENTRY_UPDATE*IST_BITWIDTH_OPREAND_READY_FULL)-1:0] done_readys[0:PRM_ENTRY_UPDATE-1];
-    reg  [IST_BITWIDTH_OPREAND_READY_FULL-1:0]                    done_readys_update[0:PRM_ENTRY_UPDATE-1];
+    wire [PRM_ENTRY_UPDATE-1:0]                done_readys       [0:IST_BITWIDTH_OPREAND_READY_FULL-1];
+    reg  [PRM_ENTRY_UPDATE-1:0]                done_readys_update[0:IST_BITWIDTH_OPREAND_READY_FULL-1];
+    reg  [IST_BITWIDTH_OPREAND_READY_FULL-1:0] done_readys_spread;
     always @(*) begin
         o_push_rs_valid[PRM_ENTRY_UPDATE+DECODE_NEW_INST-1:DECODE_NEW_INST] = 0;
 
         for (integer comp_opr = 0; comp_opr < PRM_ENTRY_UPDATE; comp_opr = comp_opr+1) begin
             for (integer opr_sel = 0; opr_sel < INST_OPREANDS; opr_sel = opr_sel+1) begin
                 if (done_opreands_split[comp_opr][opr_sel] == comp_target_opreands_split[comp_opr])
-                    done_readys_update[comp_opr][opr_sel] = 1'b1;
+                    done_readys_update[opr_sel][comp_opr] = 1'b1;
                 else 
-                    done_readys_update[comp_opr][opr_sel] = 1'b0;
+                    done_readys_update[opr_sel][comp_opr] = 1'b0;
             end
-            done_readys_update[comp_opr] = done_readys_update[comp_opr] | done_readys[comp_opr];
+        end
+        
+        for (integer opr_sel = 0; opr_sel < INST_OPREANDS; opr_sel = opr_sel+1) begin
+            for (integer comp_opr = 0; comp_opr < PRM_ENTRY_UPDATE; comp_opr = comp_opr+1) begin
+                done_readys_update[opr_sel][comp_opr] = done_readys_update[opr_sel][comp_opr] | done_readys[opr_sel][comp_opr];
+            end
+        end
 
-            if ((&done_readys_update[comp_opr]) && i_push_rs_available) begin
+        for (integer comp_opr = 0; comp_opr < PRM_ENTRY_UPDATE; comp_opr = comp_opr+1) begin
+            done_readys_spread = 0;
+
+            for (integer opr_sel = 0; opr_sel < INST_OPREANDS; opr_sel = opr_sel+1) begin
+                done_readys_spread[opr_sel] = done_readys_update[opr_sel];
+            end
+
+            if ((&done_readys_spread) && i_push_rs_available) begin
                 o_push_rs_valid[comp_opr+DECODE_NEW_INST] = 1'b1;
             end
         end
@@ -181,7 +205,7 @@ module instruction_state_table #(
         .clk                    (clk),
         .reset_n                (reset_n),
         .unallocate_valid_i     (o_push_rs_valid),
-        .unallocate_entries_i   (i_ready_update_istidx),
+        .unallocate_entries_i   ({i_ready_update_istidx, new_ist_num}),
         .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert }),
     	.allocate_valid_o       (new_ist_valid),
         .allocate_entries_o     (new_ist_num),
@@ -192,8 +216,8 @@ module instruction_state_table #(
     regfile #(
         .READ_CHANNEL    (PRM_ENTRY_UPDATE),
         .WRITE_CHANNEL   (DECODE_NEW_INST),
-        .ENTRIES         (RS_ENTRY_BITWIDTH),
-        .REG_WIDTH       (IST_ENTRY_NUM)
+        .ENTRIES         (IST_ENTRY_NUM),
+        .REG_WIDTH       (RS_ENTRY_BITWIDTH)
     ) U_IST_ENTRIES (
         .clk                 (clk),
         .reset_n             (reset_n),
@@ -208,8 +232,8 @@ module instruction_state_table #(
     regfile #(
         .READ_CHANNEL    (PRM_ENTRY_UPDATE),
         .WRITE_CHANNEL   (DECODE_NEW_INST),
-        .ENTRIES         (IST_BITWIDTH_OPREAND_PHYREG_FULL),
-        .REG_WIDTH       (IST_ENTRY_NUM)
+        .ENTRIES         (IST_ENTRY_NUM),
+        .REG_WIDTH       (IST_BITWIDTH_OPREAND_PHYREG_FULL)
     ) U_IST_OPREANDS (
         .clk                 (clk),
         .reset_n             (reset_n),
@@ -227,15 +251,15 @@ module instruction_state_table #(
             regfile #(
                 .READ_CHANNEL    (PRM_ENTRY_UPDATE),
                 .WRITE_CHANNEL   (PRM_ENTRY_UPDATE+DECODE_NEW_INST),
-                .ENTRIES         (1),
-                .REG_WIDTH       (IST_ENTRY_NUM)
+                .ENTRIES         (IST_ENTRY_NUM),
+                .REG_WIDTH       (1)
             ) U_IST_READY (
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_addresses    (i_ready_update_istidx),
                 .i_write_wes         ({ {PRM_ENTRY_UPDATE{1'b1}} , i_ist_field_insert & new_ist_valid[target_ready]}),
                 .i_write_addresses   ({i_ready_update_istidx, new_ist_num}),
-                .i_write_data        ({done_readys_update[target_ready], ist_readys_spread}),
+                .i_write_data        ({done_readys_update[target_ready], ist_readys_split_opreand[target_ready]}),
                 .o_read_data         (done_readys[target_ready])
             );
         end

@@ -185,7 +185,7 @@ module tb_ready_station();
             @(negedge clk);
             out_data();
         end
-        
+
         $finish;
     end
 

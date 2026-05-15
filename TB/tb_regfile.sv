@@ -7,7 +7,7 @@ module tb_regfile();
     parameter       ENTRIES         = 16;
     parameter       REG_WIDTH       = 32;
     
-    localparam      ENTRY_ADDR_WIDTH= $clog2(ENTRIES+1);
+    localparam      ENTRY_ADDR_WIDTH= $clog2(ENTRIES);
 
     reg                                          clk;
     reg                                          reset_n;
