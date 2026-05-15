@@ -409,13 +409,14 @@ module allocator #(
     	.ENTRY_WIDTH	(ENTRY_NUM_WIDTH),
     	.FIFO_DEPTH		(ALLOCATING_FIFO_DEPTH)
     ) U_ALLOCATING_FIFO (
-    	.clk			(clk),
-    	.reset_n		(reset_n),
-    	.push_valid_i	(unallocate_valid_in_fifo),
-    	.push_data_i	(unallocate_entries_in_fifo),
-    	.pop_get_i		(allocating_i),
-		.pop_valid_o	(allocate_valid_o),
-    	.pop_data_o		(allocate_entries_o)
+    	.clk			 (clk),
+    	.reset_n		 (reset_n),
+    	.push_valid_i	 (unallocate_valid_in_fifo),
+    	.push_data_i	 (unallocate_entries_in_fifo),
+    	.pop_get_i		 (allocating_i),
+		.pop_valid_o	 (allocate_valid_o),
+    	.pop_data_o		 (allocate_entries_o),
+		.push_available_o()
     );
 
 endmodule

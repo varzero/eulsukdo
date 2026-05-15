@@ -179,6 +179,7 @@ module tb_instruction_state_table ();
         reset_n = 1'b1;
         @(negedge clk);
         wait(o_ist_insert_available);
+        i_push_rs_available = 1'b1;
         @(negedge clk);
         @(negedge clk);
             

@@ -81,7 +81,7 @@ module instruction_state_table #(
     // Output Ready Station
         // <- Ready Station Create Entry
     input  wire                                                                i_push_rs_available,
-    output reg  [(RS_PUSH_WIDTH)-1:0]                                          o_push_rs_valid,
+    output wire [RS_PUSH_WIDTH-1:0]                                            o_push_rs_valid,
     output wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0]                        o_push_rs_data
 
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
@@ -92,6 +92,10 @@ module instruction_state_table #(
     wire [(BITWIDTH_IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
     assign o_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
 
+    reg  [DECODE_NEW_INST-1:0]  push_rs_valid_low;
+    reg  [PRM_ENTRY_UPDATE-1:0] push_rs_valid_high;
+    assign o_push_rs_valid = { push_rs_valid_high, push_rs_valid_low };
+
     // Internal wires
     reg [RS_ENTRY_BITWIDTH-1:0]                                  ist_entries_split [0:DECODE_NEW_INST-1];
     reg [(RS_ENTRY_BITWIDTH*DECODE_NEW_INST)-1:0]                ist_entries_spread;
@@ -101,7 +105,7 @@ module instruction_state_table #(
     reg [(IST_BITWIDTH_OPREAND_READY_FULL*DECODE_NEW_INST)-1:0]  ist_readys_spread;
     reg [DECODE_NEW_INST-1:0]                                    ist_readys_split_opreand[0:IST_BITWIDTH_OPREAND_READY_FULL-1];
     always @(*) begin
-        o_push_rs_valid[DECODE_NEW_INST-1:0] = 0;
+        push_rs_valid_low = 0;
 
         for (integer new_entry = 0; new_entry < DECODE_NEW_INST; new_entry = new_entry+1) begin
             ist_entries_split[new_entry]                                           
@@ -118,7 +122,7 @@ module instruction_state_table #(
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
             ist_readys_spread[(IST_BITWIDTH_OPREAND_READY_FULL*new_entry) +: IST_BITWIDTH_OPREAND_READY_FULL]
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
-            if (&ist_readys_split[new_entry] && i_push_rs_available) o_push_rs_valid[new_entry] = 1'b1;
+            if (&ist_readys_split[new_entry] && i_push_rs_available) push_rs_valid_low[new_entry] = 1'b1;
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
                 if (~ist_readys_split[new_entry][new_opr_sel]) begin
@@ -131,7 +135,7 @@ module instruction_state_table #(
                 o_prm_istindex_phyreg[( BITWIDTH_PHYREG_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_PHYREG_NUM]
                     = ist_opreands_split[new_entry][(BITWIDTH_PHYREG_NUM*new_opr_sel) +: BITWIDTH_PHYREG_NUM];
                 o_prm_istindex_istidx[( BITWIDTH_IST_ENTRY_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_IST_ENTRY_NUM]
-                    = new_ist_num[ (IST_ENTRY_NUM*new_entry) +: IST_ENTRY_NUM];
+                    = new_ist_num[ (BITWIDTH_IST_ENTRY_NUM*new_entry) +: BITWIDTH_IST_ENTRY_NUM];
                 
             end
         end
@@ -166,12 +170,12 @@ module instruction_state_table #(
     reg  [PRM_ENTRY_UPDATE-1:0]                done_readys_update[0:IST_BITWIDTH_OPREAND_READY_FULL-1];
     reg  [IST_BITWIDTH_OPREAND_READY_FULL-1:0] done_readys_spread;
     always @(*) begin
-        o_push_rs_valid[PRM_ENTRY_UPDATE+DECODE_NEW_INST-1:DECODE_NEW_INST] = 0;
+        push_rs_valid_high = 0;
 
         for (integer comp_opr = 0; comp_opr < PRM_ENTRY_UPDATE; comp_opr = comp_opr+1) begin
             for (integer opr_sel = 0; opr_sel < INST_OPREANDS; opr_sel = opr_sel+1) begin
                 if (done_opreands_split[comp_opr][opr_sel] == comp_target_opreands_split[comp_opr])
-                    done_readys_update[opr_sel][comp_opr] = 1'b1;
+                    done_readys_update[opr_sel][comp_opr] = (i_ready_update_valid)? 1'b1 : 1'b0;
                 else 
                     done_readys_update[opr_sel][comp_opr] = 1'b0;
             end
@@ -187,11 +191,11 @@ module instruction_state_table #(
             done_readys_spread = 0;
 
             for (integer opr_sel = 0; opr_sel < INST_OPREANDS; opr_sel = opr_sel+1) begin
-                done_readys_spread[opr_sel] = done_readys_update[opr_sel];
+                done_readys_spread[opr_sel] = done_readys_update[opr_sel][comp_opr];
             end
 
             if ((&done_readys_spread) && i_push_rs_available) begin
-                o_push_rs_valid[comp_opr+DECODE_NEW_INST] = 1'b1;
+                push_rs_valid_high[comp_opr] = 1'b1;
             end
         end
     end

@@ -75,7 +75,7 @@ module regfile #(
         for (var_target_idx = 0; var_target_idx < ENTRIES; var_target_idx = var_target_idx + 1) begin
             next_mem_reg[var_target_idx] = mem_reg[var_target_idx];
         end
-        for (var_sel_write_addr_idx = 0; var_sel_write_addr_idx < READ_CHANNEL; var_sel_write_addr_idx = var_sel_write_addr_idx + 1) begin
+        for (var_sel_write_addr_idx = 0; var_sel_write_addr_idx < WRITE_CHANNEL; var_sel_write_addr_idx = var_sel_write_addr_idx + 1) begin
             if (i_write_wes[var_sel_write_addr_idx]) begin
                 next_mem_reg[ i_write_addresses[var_sel_write_addr_idx*ENTRY_ADDR_WIDTH +: ENTRY_ADDR_WIDTH] ] = 
                     i_write_data[ var_sel_write_addr_idx*REG_WIDTH +: REG_WIDTH ];
