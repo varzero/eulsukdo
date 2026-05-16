@@ -74,8 +74,9 @@ module tb_instruction_state_table ();
     reg  [BITWIDTH_PHYREG_NUM-1:0]              ist_entry_rs   [0:IST_ENTRY_NUM-1][0:INST_OPREANDS-1];
     reg  [IST_BITWIDTH_OPREAND_READY_FULL-1:0]  ist_entry_ready[0:IST_ENTRY_NUM-1];
 
-    int                                         phyreg_ist_cnt [0:PHYREG_NUM-1]; 
-    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]           phyreg_ist_data[0:PHYREG_NUM-1][$]; 
+    int                                         phyreg_ist_cnt     [0:PHYREG_NUM-1]; 
+    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]           phyreg_ist_phyreg  [0:PHYREG_NUM-1][$]; 
+    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]           phyreg_ist_istentry[0:PHYREG_NUM-1][$]; 
 
     instruction_state_table #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -160,16 +161,126 @@ module tb_instruction_state_table ();
                             rs[IST_BITWIDTH_OPREAND_PHYREG_FULL-1:BITWIDTH_PHYREG_NUM], ready[1]);
             end
         end
-        #1;
-
     endtask
 
     task prm_insert;
-
-    endtask;
+        bit [BITWIDTH_PHYREG_NUM-1:0]    target_phyreg;
+        bit [BITWIDTH_IST_ENTRY_NUM-1:0] out_ist_entry_num;
+        for (int prm_to_idx = 0; prm_to_idx < (DECODE_NEW_INST*INST_OPREANDS); prm_to_idx = prm_to_idx+1) begin
+            if (o_prm_istindex_valid[prm_to_idx]) begin
+                target_phyreg     = o_prm_istindex_phyreg[(BITWIDTH_PHYREG_NUM*prm_to_idx) +: BITWIDTH_PHYREG_NUM];
+                out_ist_entry_num = o_prm_istindex_istidx[(BITWIDTH_IST_ENTRY_NUM*prm_to_idx) +: BITWIDTH_IST_ENTRY_NUM];
+                phyreg_ist_phyreg.push_back(target_phyreg);
+                phyreg_ist_istentry.push_back(out_ist_entry_num);
+                phyreg_ist_cnt[target_phyreg] += 1;
+            end
+        end
+    endtask
 
     task prm_output_sim;
-    endtask;
+        int active = $urandom % 4;
+        int rand_try = $urandom % (PRM_ENTRY_UPDATE+1);
+        int rand_phy_get = $urandom % 20;
+        int rand_circle = $urandom % 20;
+        int enable_phys = 0;
+        bit [BITWIDTH_PHYREG_NUM-1:0]    target_phyreg;
+        bit [BITWIDTH_IST_ENTRY_NUM-1:0] target_ist;
+        
+        for (int ena_phys_idx = 0; ena_phys_idx < PHYREG_NUM; ena_phys_idx = ena_phys_idx+1) begin
+            if (phyreg_ist_cnt[ena_phys_idx] != 0) enable_phys++;
+        end
+
+        if (enable_phys != 0) begin
+            if (active == 0) begin
+                for (int try_idx = 0; try_idx < rand_try; try_idx = try_idx+1) begin
+                    target_phyreg = 0;
+                    for (int phy_get = 0; phy_get < rand_phy_get;) begin
+                        if (phyreg_ist_cnt[target_phyreg]) phy_get++;
+                        target_phyreg++;
+                    end
+
+                    for (int circle_idx = 0; circle_idx < rand_circle; circle_idx++) begin
+                        target_phyreg = phyreg_ist_phyreg.pop_front();
+                        phyreg_ist_phyreg.push_back(target_phyreg);
+                        target_ist = phyreg_ist_istentry.pop_front();
+                        phyreg_ist_istentry.push_back(target_ist);
+                    end
+
+                    phyreg_ist_phyreg.pop_back();
+                    phyreg_ist_istentry.pop_back();
+                    phyreg_ist_cnt[target_phyreg]--;
+
+                    i_ready_update_phyreg[(BITWIDTH_PHYREG_NUM*rand_try) +: BITWIDTH_PHYREG_NUM] = target_phyreg;
+                    i_ready_update_istidx[(BITWIDTH_IST_ENTRY_NUM*rand_try) +: BITWIDTH_IST_ENTRY_NUM] = target_ist;
+
+                    $display("    ready insert!! [%t] PHYREG: %d, IST: %d", $time, target_phyreg, target_ist);
+                end
+            end
+        end
+        else begin
+            $display("    prm are empty!! [%t]", $time);
+        end
+    endtask
+
+    task check_rs_out;
+        bit [BITWIDTH_PHYREG_NUM-1:0]              target_phyreg;
+        bit [BITWIDTH_IST_ENTRY_NUM-1:0]           target_ist;
+        bit [IST_BITWIDTH_OPREAND_PHYREG_FULL-1:0] update_ready;
+        bit [BITWIDTH_PHYREG_NUM-1:0]              opr_phyreg;
+        bit [IST_BITWIDTH-1:0]                     comp_rs;
+        bit [IST_BITWIDTH-1:0]                     out_rs;
+        bit                                        c;
+
+        // ready 업데이트 반영
+        for (int ready_get_idx = 0; ready_get_idx < PRM_ENTRY_UPDATE; ready_get_idx++) begin
+            update_ready = 0;
+            if (i_ready_update_valid[ready_get_idx]) begin
+                target_ist = i_ready_update_istidx[(BITWIDTH_IST_ENTRY_NUM*ready_get_idx) +: BITWIDTH_IST_ENTRY_NUM];
+                target_phyreg = i_ready_update_phyreg[(BITWIDTH_PHYREG_NUM*ready_get_idx) +: BITWIDTH_PHYREG_NUM];
+
+                for (int opr_idx = 0; opr_idx < INST_OPREANDS; opr_idx++) begin
+                    opr_phyreg = ist_entry_rs[target_phyreg][opr_idx];
+                    if (opr_phyreg == target_phyreg) begin update_ready[opr_idx] = 1'b1; end
+                end
+
+                ist_entry_ready[target_ist] |= update_ready;
+            end
+        end
+
+        // rs 확인
+        for (int rs_idx = 0; rs_idx < IST_ENTRY_NUM; rs_idx++) begin
+            if (&ist_entry_ready[rs_idx]) begin
+                comp_rs = ist_entry_data[rs_idx];
+                ist_entry_cnt--;
+                /*
+                ist_entry_data[rs_idx] = 0;
+                for (int opr_idx = 0; opr_idx < INST_OPREANDS; opr_idx++) begin
+                    ist_entry_rs[rs_idx][opr_idx] = 0;
+                end
+                */
+                ist_entry_ready[rs_idx] = 0;
+
+                c = 0;
+
+                for (int rs_out_idx = 0; rs_out_idx < RS_PUSH_WIDTH; rs_out_idx++) begin
+                    if (o_push_rs_valid[rs_out_idx]) begin
+                        c = 1;
+                        out_rs = o_push_rs_data[(RS_ENTRY_BITWIDTH*rs_out_idx) +: RS_ENTRY_BITWIDTH];
+                        if (out_rs === comp_rs) begin
+                            $display("PASS [%t] %d out: %h / target: %h", $time, out_rs, comp_rs);
+                        end
+                        else begin
+                            $display("FAIL [%t] %d out: %h / target: %h", $time, out_rs, comp_rs);
+                        end
+                    end
+                end
+                
+                if (c == 0) begin
+                    $display("FAIL-404 [%t] %d out: %h / target: %h", $time, out_rs, comp_rs);
+                end
+            end
+        end
+    endtask
 
     initial begin
         #0;
@@ -182,6 +293,9 @@ module tb_instruction_state_table ();
         i_push_rs_available = 0;
 
         ist_entry_cnt = 0;
+        for (int ena_phys_idx = 0; ena_phys_idx < PHYREG_NUM; ena_phys_idx = ena_phys_idx+1) begin
+            phyreg_ist_cnt[ena_phys_idx] = 0;
+        end
 
         @(negedge clk);
         @(negedge clk);
@@ -193,8 +307,9 @@ module tb_instruction_state_table ();
         @(negedge clk);
             
         repeat(100) begin
-            insert_entry();
-            @(negedge clk);
+            insert_entry(); #1; prm_insert();
+            @(posedge clk); #1;
+            prm_output_sim(); #1; check_rs_out();
         end
         @(negedge clk);
 

@@ -73,8 +73,8 @@ module instruction_state_table #(
 
     // Update Ready Field
         // -> Physical Register Manager Opreands POP
-    input  wire [(PRM_ENTRY_UPDATE)-1:0]                                       i_ready_update_valid,
-    output wire [(PRM_ENTRY_UPDATE)-1:0]                                       o_ready_update_get,
+    input  wire [PRM_ENTRY_UPDATE-1:0]                                         i_ready_update_valid,
+    output wire [PRM_ENTRY_UPDATE-1:0]                                         o_ready_update_get,
     input  wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   i_ready_update_phyreg,
     input  wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                i_ready_update_istidx,
 
@@ -86,6 +86,8 @@ module instruction_state_table #(
 
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
+    wire allocator_enable;
+    assign o_ist_insert_available = allocator_enable & i_push_rs_available;
     assign o_ready_update_get = (i_push_rs_available)? {PRM_ENTRY_UPDATE{1'b1}} : {PRM_ENTRY_UPDATE{1'b0}};
 
     wire [(DECODE_NEW_INST*2)-1:0]                      new_ist_valid;
@@ -213,7 +215,7 @@ module instruction_state_table #(
         .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert }),
     	.allocate_valid_o       (new_ist_valid),
         .allocate_entries_o     (new_ist_num),
-    	.init_done              (o_ist_insert_available)
+    	.init_done              (allocator_enable)
     );
  
         // IST Entry 
