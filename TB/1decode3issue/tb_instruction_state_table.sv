@@ -151,12 +151,21 @@ module tb_instruction_state_table ();
                     ist_entry_rs[ist_entry_cnt][rs_idx] = rs[(BITWIDTH_PHYREG_NUM*rs_idx) +: BITWIDTH_PHYREG_NUM];
                 end
                 ist_entry_cnt = (ist_entry_cnt == (IST_ENTRY_NUM-1))? 0 : ist_entry_cnt+1;
+
+                // Two Opreand output
+                $display(" [%t] PUSH IST ENTRY: %h (expath: %d / rd: r%d / rs: r%d(%b), r%d(%b) )",
+                            $time, i_ist_field[(IST_BITWIDTH*nel_push_idx) +: IST_BITWIDTH] ,
+                            expath, rd, 
+                            rs[BITWIDTH_PHYREG_NUM-1:0], ready[0],
+                            rs[IST_BITWIDTH_OPREAND_PHYREG_FULL-1:BITWIDTH_PHYREG_NUM], ready[1]);
             end
         end
+        #1;
 
     endtask
 
     task prm_insert;
+
     endtask;
 
     task prm_output_sim;
