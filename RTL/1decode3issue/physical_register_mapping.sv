@@ -55,9 +55,9 @@ module physical_register_mapping #(
     input  wire [PRM_UNALLOCATE_BITWIDTH-1:0]     i_prm_unallocate_phyreg,
 
         // -> Physical Register Manager Opreands Update
-    input  reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          i_prm_istindex_valid,
-    input  reg  [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    i_prm_istindex_phyreg,
-    input  reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] i_prm_istindex_istidx,
+    input  wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          i_prm_istindex_valid,
+    input  wire [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    i_prm_istindex_phyreg,
+    input  wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] i_prm_istindex_istidx,
     
     // Update Ready Field
         // <- Physical Register Manager Opreands POP
@@ -125,7 +125,7 @@ module physical_register_mapping #(
                     target_phyreg_cnt 
                         = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*( (INST_OPREANDS*split_inst_cnt)+split_opreand_cnt ) ) +: BITWIDTH_PHYREG_BUFFER];
 
-                    if (|overlap_phyreg[target_phyreg_cnt] == 1'b0) 
+                    if ((|overlap_phyreg[target_phyreg_cnt]) == 1'b0) 
                         update_prm_istindex_valid[ ( split_inst_cnt*INST_OPREANDS )+split_opreand_cnt ] = 1'b1;
 
                     overlap_phyreg[target_phyreg_cnt][split_opreand_cnt] = 1'b1;
@@ -236,7 +236,7 @@ module physical_register_mapping #(
             ) U_PRM_OUT_FIFO (
             	.clk                (clk),
             	.reset_n            (reset_n),
-            	.push_valid_i       (push_valid_position),
+            	.push_valid_i       (push_valid_position[ready_update_fifo]),
             	.push_data_i        (out_istentries_fifo_push),
             	.pop_get_i          ({1'b0, i_ready_update_get[ready_update_fifo]}),
             	.pop_valid_o        (o_ready_update_valid[ready_update_fifo]),

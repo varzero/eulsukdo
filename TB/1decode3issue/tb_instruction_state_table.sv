@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module tb_instruction_state_table ();
 
     // Dynamic Schedular Description

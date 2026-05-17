@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module tb_new_entry_logic ();
 
     // Dynamic Schedular Description
