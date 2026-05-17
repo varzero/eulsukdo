@@ -87,7 +87,7 @@ module instruction_state_table #(
     // 추후에 여기에 분기 예측 실패에서 IST 엔트리 지우는 부분 추가하기
 );
     wire allocator_enable;
-    assign o_ist_insert_available = allocator_enable & i_push_rs_available;
+    assign o_ist_insert_available = allocator_enable & i_push_rs_available & (|o_ist_field_valid);
     assign o_ready_update_get = (i_push_rs_available)? {PRM_ENTRY_UPDATE{1'b1}} : {PRM_ENTRY_UPDATE{1'b0}};
 
     wire [(DECODE_NEW_INST*2)-1:0]                      new_ist_valid;
@@ -124,15 +124,16 @@ module instruction_state_table #(
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
             ist_readys_spread[(IST_BITWIDTH_OPREAND_READY_FULL*new_entry) +: IST_BITWIDTH_OPREAND_READY_FULL]
                 = i_ist_field[((IST_BITWIDTH*new_entry)+IST_STARTPOINT_OPREAND_READY) +: IST_BITWIDTH_OPREAND_READY_FULL];
-            if (&ist_readys_split[new_entry] && i_push_rs_available) push_rs_valid_low[new_entry] = 1'b1;
+            if (&ist_readys_split[new_entry] && i_push_rs_available) 
+                push_rs_valid_low[new_entry] = new_ist_valid[new_entry] & i_ist_field_insert[new_entry];
 
             for (integer new_opr_sel = 0; new_opr_sel < INST_OPREANDS; new_opr_sel = new_opr_sel+1) begin
-                if (~ist_readys_split[new_entry][new_opr_sel]) begin
+                if (ist_readys_split[new_entry][new_opr_sel]) begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)] = 1'b0;
                 end
                 else begin
                     o_prm_istindex_valid[((INST_OPREANDS*new_entry)+new_opr_sel)]
-                        = i_ist_field_insert[new_entry] & o_ist_field_valid[new_entry];
+                        = (i_push_rs_available)? i_ist_field_insert[new_entry] & o_ist_field_valid[new_entry] : 1'b0;
                 end
                 o_prm_istindex_phyreg[( BITWIDTH_PHYREG_NUM*((INST_OPREANDS*new_entry)+new_opr_sel) ) +: BITWIDTH_PHYREG_NUM]
                     = ist_opreands_split[new_entry][(BITWIDTH_PHYREG_NUM*new_opr_sel) +: BITWIDTH_PHYREG_NUM];
@@ -197,7 +198,7 @@ module instruction_state_table #(
             end
 
             if ((&done_readys_spread) && i_push_rs_available) begin
-                push_rs_valid_high[comp_opr] = 1'b1;
+                push_rs_valid_high[comp_opr] = i_ready_update_valid[comp_opr];
             end
         end
     end
@@ -212,7 +213,7 @@ module instruction_state_table #(
         .reset_n                (reset_n),
         .unallocate_valid_i     (o_push_rs_valid),
         .unallocate_entries_i   ({i_ready_update_istidx, new_ist_num}),
-        .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert }),
+        .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert & o_ist_field_valid }),
     	.allocate_valid_o       (new_ist_valid),
         .allocate_entries_o     (new_ist_num),
     	.init_done              (allocator_enable)

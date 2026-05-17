@@ -358,7 +358,7 @@ module allocator #(
 	always @(*) begin
 		case (state)
 			INIT: begin
-				if (entry_cnt >= (NUM_OF_ENTRIES-1)) begin
+				if (entry_cnt >= NUM_OF_ENTRIES) begin
 					state_next = ALLOCATING;
 				end
 				else begin
@@ -378,7 +378,7 @@ module allocator #(
 		case (state)
 			INIT: begin
                 unallocate_entries_in_fifo = 0;
-				if (entry_cnt == (NUM_OF_ENTRIES - UNALLOCATES)) begin
+				if (entry_cnt == ( (NUM_OF_ENTRIES-UNALLOCATING_FIFO_LAST_ENTRIES) ) ) begin
 					unallocate_valid_in_fifo = { {(UNALLOCATES-UNALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
 												 {UNALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
 				end

@@ -35,7 +35,7 @@ CODE-Memory and Position Splitter or FIFO Element
 CODE-Architecture
   v Rv32I Decoder and IMM
   ? NEL
-  ? IST
+  v IST
   ? PRM
   v RS
   v WBC
