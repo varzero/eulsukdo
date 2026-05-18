@@ -30,7 +30,7 @@ module physical_register_mapping #(
     // (Autogenerate) Elements
     localparam BITWIDTH_EX_PATH_NUM                     = $clog2(EX_PATH_NUM),
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM),
-    localparam BITWIDTH_PHYREG_BUFFER                   = $clog2(PRM_ENTRY_BUFFER),
+    localparam BITWIDTH_PHYREG_BUFFER                   = $clog2(PRM_ENTRY_BUFFER+1),
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     
@@ -102,23 +102,42 @@ module physical_register_mapping #(
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            update_prm_istindex_valid;
     reg  [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     target_phyreg_cnt;
-    reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
+    //reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
+    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            target_phyreg[0:PHYREG_NUM-1];
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            map_table_write_valid[0:PRM_ENTRY_BUFFER-1];
     reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]   map_table_write_ist[0:PRM_ENTRY_BUFFER-1];
     reg  [PRM_ENTRY_BUFFER-1:0]                                           valid_position;
+
+    reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
+    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                     newentry_istnum_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
+
     integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx, position_idx;
     always @(*) begin
         update_prm_istindex_valid = 0;
         cnt_blocking_next = cnt_blocking;
         
         for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
-            overlap_phyreg[init_idx] = 0;
+            target_phyreg[init_idx] = 0;
         end
         for (init_idx = 0; init_idx < PRM_ENTRY_BUFFER; init_idx = init_idx+1) begin
             map_table_write_valid[init_idx] = 0;
             map_table_write_ist[init_idx] = 0;
         end
 
+        for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
+            for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
+                newentry_phyreg_split[split_inst_cnt][split_opreand_cnt]
+                    = i_prm_istindex_phyreg[ (BITWIDTH_PHYREG_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_PHYREG_NUM ];
+                newentry_istnum_split[split_inst_cnt][split_opreand_cnt]
+                    = i_prm_istindex_istidx[ (BITWIDTH_IST_ENTRY_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_IST_ENTRY_NUM ];
+                
+                if (i_prm_istindex_valid[ (split_inst_cnt*INST_OPREANDS)+split_opreand_cnt ]) begin
+                    target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                end
+            end
+        end
+        
+        /*
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
                 if (i_prm_istindex_valid[(INST_OPREANDS*split_inst_cnt)+split_opreand_cnt]) begin
@@ -141,6 +160,7 @@ module physical_register_mapping #(
             
             if ( (target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1) > (PRM_ENTRY_BUFFER-INST_OPREANDS) ) 
                 cnt_blocking_next[target_phyreg_cnt] = 1'b1;
+            else cnt_blocking_next[target_phyreg_cnt] = cnt_blocking[target_phyreg_cnt];
             
             valid_position = ( 1 << (target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1) );
 
@@ -154,6 +174,7 @@ module physical_register_mapping #(
                 end
             end
         end
+        */
     end
     regfile #(
         .READ_CHANNEL  ( EX_PATH_NUM+(DECODE_NEW_INST*INST_OPREANDS) ),

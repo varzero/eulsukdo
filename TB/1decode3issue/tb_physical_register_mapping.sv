@@ -59,17 +59,17 @@ module tb_physical_register_mapping ();
     
     // Update Ready Field
         // <- Physical Register Manager Opreands POP
-    wire [(PRM_ENTRY_UPDATE)-1:0]                                       o_ready_update_valid;
-    reg [(PRM_ENTRY_UPDATE)-1:0]                                        i_ready_update_get;
-    wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   o_ready_update_phyreg;
-    wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                o_ready_update_istidx;
+    wire [(PRM_ENTRY_UPDATE)-1:0]                                      o_ready_update_valid;
+    reg  [(PRM_ENTRY_UPDATE)-1:0]                                      i_ready_update_get;
+    wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                  o_ready_update_phyreg;
+    wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]               o_ready_update_istidx;
 
         // -> WB Physical Register Ready
-    reg [EX_PATH_NUM-1:0]                                               i_wb_done;
-    reg [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0]                         i_wb_done_phyreg;
+    reg [EX_PATH_NUM-1:0]                                              i_wb_done;
+    reg [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0]                        i_wb_done_phyreg;
 
     // Block
-    wire                                                                o_prm_active;
+    wire                                                               o_prm_active;
 
     tb_physical_register_mapping #(
         .DECODE_NEW_INST              (DECODE_NEW_INST),
@@ -119,7 +119,7 @@ module tb_physical_register_mapping ();
         i_prm_istindex_valid = 0;
         i_prm_istindex_phyreg = 0;
         i_prm_istindex_istidx = 0;
-        i_ready_update_get = 0;
+        i_ready_update_get = {PRM_ENTRY_UPDATE{1'b1}};
         i_wb_done = 0;
         i_wb_done_phyreg = 0;
 
@@ -127,6 +127,8 @@ module tb_physical_register_mapping ();
         @(negedge clk);
         reset_n = 1'b1;
         @(negedge clk);
+
+        wait(o_prm_active);
 
         
         $finish;
