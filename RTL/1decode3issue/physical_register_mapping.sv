@@ -105,15 +105,17 @@ module physical_register_mapping #(
     //reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            target_phyreg[0:PHYREG_NUM-1];
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            map_table_write_valid[0:PRM_ENTRY_BUFFER-1];
-    reg  [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]   map_table_write_ist[0:PRM_ENTRY_BUFFER-1];
     reg  [PRM_ENTRY_BUFFER-1:0]                                           valid_position;
 
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][1:(DECODE_NEW_INST*INST_OPREANDS)-1];
+
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_buf_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                     newentry_istnum_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
 
     integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx, position_idx;
     always @(*) begin
-        update_prm_istindex_valid = 0;
+        update_prm_istindex_valid = 0; update_prm_istindex_valid = 0;
         cnt_blocking_next = cnt_blocking;
         
         for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
@@ -121,11 +123,13 @@ module physical_register_mapping #(
         end
         for (init_idx = 0; init_idx < PRM_ENTRY_BUFFER; init_idx = init_idx+1) begin
             map_table_write_valid[init_idx] = 0;
-            map_table_write_ist[init_idx] = 0;
         end
 
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
+                cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt]
+                    = opreands_phyreg_buf_cnt[ (BITWIDTH_PHYREG_BUFFER*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_PHYREG_BUFFER ];
+
                 newentry_phyreg_split[split_inst_cnt][split_opreand_cnt]
                     = i_prm_istindex_phyreg[ (BITWIDTH_PHYREG_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_PHYREG_NUM ];
                 newentry_istnum_split[split_inst_cnt][split_opreand_cnt]
@@ -136,7 +140,49 @@ module physical_register_mapping #(
                 end
             end
         end
+
+        for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
+            for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
+                if ( ( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt ) > 0 ) begin
+                    if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ]
+                                      [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt - 1: 0]) 
+                    begin
+                    end
+                end
+            end
+        end
         
+        for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
+        for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
+            if ( ( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt ) > 0 ) begin
+                if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt]) begin
+                    if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ]
+                                      [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt - 1: 0]) 
+                    begin // 앞에 활성화 된 비트가 있을때
+                        map_table_write_valid[  ]
+                                             [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                    end
+                    else begin // 앞에 활성화 된 비트가 없을때
+                        map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
+                                             [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                        
+                        update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                    end
+                end
+            end
+            else begin // 0번째 비트
+                if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt]) begin
+                    map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
+                                         [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                    
+                    update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+
+                    update_phyreg_buf_cnt = cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] + cnt_phyreg_cnt_new;
+                end
+            end
+        end
+        end
+
         /*
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
@@ -226,7 +272,7 @@ module physical_register_mapping #(
                 .i_read_addresses    (i_wb_done_phyreg),
                 .i_write_wes         (map_table_write_valid[phyreg_buf_idx]),
                 .i_write_addresses   (i_prm_istindex_phyreg),
-                .i_write_data        (map_table_write_ist[phyreg_buf_idx]),
+                .i_write_data        (i_prm_istindex_istidx),
                 .o_read_data         (out_wb_istentries[((BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)*phyreg_buf_idx) +: (BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)])
             );
         end
