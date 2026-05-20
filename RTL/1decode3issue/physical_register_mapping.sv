@@ -40,7 +40,9 @@ module physical_register_mapping #(
 
     // (Autogenerate) Field of Allocator in Physical Register Manager
     localparam PRM_ALLOCATE_BITWIDTH        = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST,
-    localparam PRM_UNALLOCATE_BITWIDTH      = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG
+    localparam PRM_UNALLOCATE_BITWIDTH      = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG,
+
+    localparam BLOCKING_LIMIT               = PRM_ENTRY_BUFFER - DECODE_NEW_INST
 ) (
     input                                       clk,
     input                                       reset_n,
@@ -92,10 +94,10 @@ module physical_register_mapping #(
     );
 
     // PHYREG Counter
-    reg  [PHYREG_NUM-1:0]                                                 cnt_blocking, cnt_blocking_next;
+    reg  [PHYREG_NUM-1:0]                                                 cnt_blocking, cnt_blocking_set, cnt_blocking_reset;
     always @(posedge clk or negedge reset_n) begin
         if (reset_n == 1'b0) cnt_blocking <= 0;
-        else                 cnt_blocking <= cnt_blocking_next;
+        else                 cnt_blocking <= ( cnt_blocking_set & cnt_blocking_reset );
     end
     wire [(BITWIDTH_PHYREG_BUFFER*EX_PATH_NUM)-1:0]                       pop_phyreg_buf_cnt;
     wire [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] opreands_phyreg_buf_cnt;
@@ -114,7 +116,7 @@ module physical_register_mapping #(
 
     integer split_inst_cnt, split_opreand_cnt, init_idx, phyreg_idx, sum_bit_idx;
     always @(*) begin
-        cnt_blocking_next = cnt_blocking;
+        cnt_blocking_set = cnt_blocking;
         // Initial
         update_prm_istindex_valid = 0; update_phyreg_buf_cnt = 0;
         for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
@@ -174,6 +176,10 @@ module physical_register_mapping #(
                     update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
                     update_phyreg_buf_cnt[(BITWIDTH_PHYREG_BUFFER*( (split_inst_cnt*INST_OPREANDS)+split_opreand_cnt )) +: BITWIDTH_PHYREG_BUFFER] 
                         = cnt_phyreg_position[split_inst_cnt][split_opreand_cnt];
+
+                    if ( cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] > (BLOCKING_LIMIT) ) begin
+                        cnt_blocking_set[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ] = 1'b1;
+                    end
                 end
             end
         end
@@ -202,6 +208,7 @@ module physical_register_mapping #(
     reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                   out_istentries_fifo_push_IST;
     integer ist_entrybuf_idx, ist_expath_idx;
     always @(*) begin
+        cnt_blocking_reset = cnt_blocking;
         // to out FIFO
         for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
             for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
@@ -212,7 +219,7 @@ module physical_register_mapping #(
                 out_istentries_fifo_push[( PRM_READY_OUT_WIDTH * ((PRM_ENTRY_BUFFER*ist_expath_idx)+ist_entrybuf_idx) ) +: PRM_READY_OUT_WIDTH]
                     = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
 
-                cnt_blocking_next[out_istentries_fifo_push_PRM] = 1'b0;
+                cnt_blocking_reset[out_istentries_fifo_push_PRM] = 1'b0;
             end
         end
     end
