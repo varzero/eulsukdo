@@ -104,17 +104,19 @@ module physical_register_mapping #(
     reg  [DECODE_NEW_INST-1:0]                                            target_phyreg[0:PHYREG_NUM-1];
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            map_table_write_valid[0:PRM_ENTRY_BUFFER-1];
 
+    reg  [DECODE_NEW_INST-1:0]                                            suffix_or[0:PHYREG_NUM-1];
+
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
 
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_buf_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     //reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                     newentry_istnum_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
 
-    integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx, position_idx, sum_bit_idx;
+    integer split_inst_cnt, split_opreand_cnt, init_idx, phyreg_idx, sum_bit_idx;
     always @(*) begin
-        update_prm_istindex_valid = 0; update_phyreg_buf_cnt = 0;
         cnt_blocking_next = cnt_blocking;
-        
+        // Initial
+        update_prm_istindex_valid = 0; update_phyreg_buf_cnt = 0;
         for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
             target_phyreg[init_idx] = 0;
         end
@@ -122,6 +124,7 @@ module physical_register_mapping #(
             map_table_write_valid[init_idx] = 0;
         end
 
+        // Split fields and Check PHYREG fading
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
                 cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt]
@@ -138,6 +141,16 @@ module physical_register_mapping #(
             end
         end
 
+        // Suffix OR Logic
+        for (phyreg_idx = 0; phyreg_idx < PHYREG_NUM; phyreg_idx = phyreg_idx+1) begin
+            suffix_or[phyreg_idx][DECODE_NEW_INST-1] = 1'b0;
+            for (split_inst_cnt = DECODE_NEW_INST-2; split_inst_cnt >= 0; split_inst_cnt = split_inst_cnt+1) begin
+                suffix_or[phyreg_idx][split_inst_cnt] 
+                    = suffix_or[phyreg_idx][split_inst_cnt+1] | target_phyreg[phyreg_idx][split_inst_cnt+1];
+            end
+        end
+
+        // Prefix Sum Logic
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
                 cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] = cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt];
@@ -149,13 +162,14 @@ module physical_register_mapping #(
             end
         end
         
+        // Valid signal generate
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
         for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
             if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][split_inst_cnt]) begin
                 map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
                                      [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
 
-                if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][DECODE_NEW_INST-1:split_inst_cnt] == 0) begin 
+                if (!suffix_or[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][split_inst_cnt]) begin 
                     // 뒤에 활성화 된 비트가 없을때
                     update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
                     update_phyreg_buf_cnt[(BITWIDTH_PHYREG_BUFFER*( (split_inst_cnt*INST_OPREANDS)+split_opreand_cnt )) +: BITWIDTH_PHYREG_BUFFER] 
