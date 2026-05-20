@@ -101,21 +101,18 @@ module physical_register_mapping #(
     wire [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] opreands_phyreg_buf_cnt;
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            update_prm_istindex_valid;
     reg  [( BITWIDTH_PHYREG_BUFFER*(DECODE_NEW_INST*INST_OPREANDS) )-1:0] update_phyreg_buf_cnt;
-    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     target_phyreg_cnt;
-    //reg  [INST_OPREANDS-1:0]                                              overlap_phyreg[0:PHYREG_NUM-1];
-    reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            target_phyreg[0:PHYREG_NUM-1];
+    reg  [DECODE_NEW_INST-1:0]                                            target_phyreg[0:PHYREG_NUM-1];
     reg  [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                            map_table_write_valid[0:PRM_ENTRY_BUFFER-1];
-    reg  [PRM_ENTRY_BUFFER-1:0]                                           valid_position;
 
-    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][1:(DECODE_NEW_INST*INST_OPREANDS)-1];
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
 
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_buf_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
-    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                     newentry_istnum_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
+    //reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                     newentry_istnum_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
 
-    integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx, position_idx;
+    integer split_cnt, split_inst_cnt, split_opreand_cnt, init_idx, position_idx, sum_bit_idx;
     always @(*) begin
-        update_prm_istindex_valid = 0; update_prm_istindex_valid = 0;
+        update_prm_istindex_valid = 0; update_phyreg_buf_cnt = 0;
         cnt_blocking_next = cnt_blocking;
         
         for (init_idx = 0; init_idx < PHYREG_NUM; init_idx = init_idx+1) begin
@@ -132,95 +129,42 @@ module physical_register_mapping #(
 
                 newentry_phyreg_split[split_inst_cnt][split_opreand_cnt]
                     = i_prm_istindex_phyreg[ (BITWIDTH_PHYREG_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_PHYREG_NUM ];
-                newentry_istnum_split[split_inst_cnt][split_opreand_cnt]
-                    = i_prm_istindex_istidx[ (BITWIDTH_IST_ENTRY_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_IST_ENTRY_NUM ];
+                //newentry_istnum_split[split_inst_cnt][split_opreand_cnt]
+                //    = i_prm_istindex_istidx[ (BITWIDTH_IST_ENTRY_NUM*( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt )) +: BITWIDTH_IST_ENTRY_NUM ];
                 
                 if (i_prm_istindex_valid[ (split_inst_cnt*INST_OPREANDS)+split_opreand_cnt ]) begin
-                    target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+                    target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][split_inst_cnt] = 1'b1;
                 end
             end
         end
 
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
-                if ( ( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt ) > 0 ) begin
-                    if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ]
-                                      [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt - 1: 0]) 
-                    begin
-                    end
+                cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] = cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt];
+
+                for (sum_bit_idx = 0; sum_bit_idx < split_inst_cnt; sum_bit_idx = sum_bit_idx+1) begin
+                    cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] 
+                        += ( (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][sum_bit_idx] )? 1'b1 : 1'b0 );
                 end
             end
         end
         
         for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
         for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
-            if ( ( (split_inst_cnt*INST_OPREANDS) + split_opreand_cnt ) > 0 ) begin
-                if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt]) begin
-                    if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ]
-                                      [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt - 1: 0]) 
-                    begin // 앞에 활성화 된 비트가 있을때
-                        map_table_write_valid[  ]
-                                             [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
-                    end
-                    else begin // 앞에 활성화 된 비트가 없을때
-                        map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
-                                             [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
-                        
-                        update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
-                    end
-                end
-            end
-            else begin // 0번째 비트
-                if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt]) begin
-                    map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
-                                         [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
-                    
+            if (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][split_inst_cnt]) begin
+                map_table_write_valid[ cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] ]
+                                     [(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
+
+                if (|target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][DECODE_NEW_INST-1:split_inst_cnt] == 0) begin 
+                    // 뒤에 활성화 된 비트가 없을때
                     update_prm_istindex_valid[(split_inst_cnt*INST_OPREANDS) + split_opreand_cnt] = 1'b1;
-
-                    update_phyreg_buf_cnt = cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt] + cnt_phyreg_cnt_new;
+                    update_phyreg_buf_cnt[(BITWIDTH_PHYREG_BUFFER*( (split_inst_cnt*INST_OPREANDS)+split_opreand_cnt )) +: BITWIDTH_PHYREG_BUFFER] 
+                        = cnt_phyreg_position[split_inst_cnt][split_opreand_cnt];
                 end
             end
         end
         end
 
-        /*
-        for (split_inst_cnt = 0; split_inst_cnt < DECODE_NEW_INST; split_inst_cnt = split_inst_cnt+1) begin
-            for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
-                if (i_prm_istindex_valid[(INST_OPREANDS*split_inst_cnt)+split_opreand_cnt]) begin
-                    target_phyreg_cnt 
-                        = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*( (INST_OPREANDS*split_inst_cnt)+split_opreand_cnt ) ) +: BITWIDTH_PHYREG_BUFFER];
-
-                    if ((|overlap_phyreg[target_phyreg_cnt]) == 1'b0) 
-                        update_prm_istindex_valid[ ( split_inst_cnt*INST_OPREANDS )+split_opreand_cnt ] = 1'b1;
-
-                    overlap_phyreg[target_phyreg_cnt][split_opreand_cnt] = 1'b1;
-                end
-            end
-        end
-
-        for (split_cnt = 0; split_cnt < (DECODE_NEW_INST*INST_OPREANDS); split_cnt = split_cnt+1) begin
-            target_phyreg_cnt 
-                = opreands_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER];
-            update_phyreg_buf_cnt[ ( BITWIDTH_PHYREG_BUFFER*split_cnt ) +: BITWIDTH_PHYREG_BUFFER] 
-                = target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1;
-            
-            if ( (target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1) > (PRM_ENTRY_BUFFER-INST_OPREANDS) ) 
-                cnt_blocking_next[target_phyreg_cnt] = 1'b1;
-            else cnt_blocking_next[target_phyreg_cnt] = cnt_blocking[target_phyreg_cnt];
-            
-            valid_position = ( 1 << (target_phyreg_cnt+overlap_phyreg[target_phyreg_cnt]+1) );
-
-            for (position_idx = 0; position_idx < PRM_ENTRY_BUFFER; position_idx = position_idx+1) begin
-                if (i_prm_istindex_valid[split_cnt]) begin
-                    map_table_write_valid[position_idx][split_cnt] |= valid_position[position_idx];
-                    if (valid_position[position_idx]) begin
-                        map_table_write_ist[position_idx][( BITWIDTH_IST_ENTRY_NUM*split_cnt ) +: BITWIDTH_IST_ENTRY_NUM] 
-                            = i_prm_istindex_istidx[( BITWIDTH_IST_ENTRY_NUM*split_cnt ) +: BITWIDTH_IST_ENTRY_NUM];
-                    end
-                end
-            end
-        end
-        */
     end
     regfile #(
         .READ_CHANNEL  ( EX_PATH_NUM+(DECODE_NEW_INST*INST_OPREANDS) ),
