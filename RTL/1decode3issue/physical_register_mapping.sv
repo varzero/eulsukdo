@@ -142,7 +142,7 @@ module physical_register_mapping #(
             for (split_opreand_cnt = 0; split_opreand_cnt < INST_OPREANDS; split_opreand_cnt = split_opreand_cnt+1) begin
                 cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] = cnt_phyreg_buf_split[split_inst_cnt][split_opreand_cnt];
 
-                for (sum_bit_idx = 0; sum_bit_idx < split_inst_cnt; sum_bit_idx = sum_bit_idx+1) begin
+                for (sum_bit_idx = 0; sum_bit_idx < DECODE_NEW_INST; sum_bit_idx = sum_bit_idx+1) begin
                     cnt_phyreg_position[split_inst_cnt][split_opreand_cnt] 
                         += ( (target_phyreg[ newentry_phyreg_split[split_inst_cnt][split_opreand_cnt] ][sum_bit_idx] )? 1'b1 : 1'b0 );
                 end
