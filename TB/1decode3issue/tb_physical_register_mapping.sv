@@ -118,10 +118,18 @@ module tb_physical_register_mapping ();
     endtask
 
     task ist_push;
-        int sel = $urandom % PHYREG_NUM;
+        int sel        = $urandom % PHYREG_NUM;
+        int rand_cycle = $urandom % PHYREG_NUM;
+        int k          = 0;
         for (int i = 0; i < (DECODE_NEW_INST*INST_OPREANDS); i++) begin
             if ( ( $urandom % 8 ) == 0 ) begin
-                
+                k = 0;
+                for (int j = 0; j < rand_cycle;) begin
+                    if (k >= PHYREG_NUM) k = 0;
+                    else k++;
+
+                    if (active[k]) j++;
+                end
             end
         end
     endtask
@@ -129,8 +137,14 @@ module tb_physical_register_mapping ();
     task get_phyreg;
         int get_reg = $urandom % (DECODE_NEW_INST+1);
         for (int i = 0; i < DECODE_NEW_INST; i++) begin
-            active[i] = 1'b1;
+            if (!active[i]) active[i] = 1'b1;
         end
+    endtask
+
+    task wb_insert;
+    endtask
+
+    task check_ready;
     endtask
 
     initial begin
