@@ -111,6 +111,28 @@ module tb_physical_register_mapping ();
 
     always #5 clk = ~clk;
 
+    reg active[0:PHYREG_NUM-1];
+
+    task test_variable_init;
+        for (int i = 0; i < PHYREG_NUM; i++) active[i] = 0;
+    endtask
+
+    task ist_push;
+        int sel = $urandom % PHYREG_NUM;
+        for (int i = 0; i < (DECODE_NEW_INST*INST_OPREANDS); i++) begin
+            if ( ( $urandom % 8 ) == 0 ) begin
+                
+            end
+        end
+    endtask
+
+    task get_phyreg;
+        int get_reg = $urandom % (DECODE_NEW_INST+1);
+        for (int i = 0; i < DECODE_NEW_INST; i++) begin
+            active[i] = 1'b1;
+        end
+    endtask
+
     initial begin
         clk = 0; reset_n = 0;
         i_allocate_position = 0;
