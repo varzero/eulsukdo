@@ -112,10 +112,12 @@ module tb_physical_register_mapping ();
     always #5 clk = ~clk;
 
     reg active[0:PHYREG_NUM-1];
+    int active_cnt;
     int ist;
 
     task test_variable_init;
         for (int i = 0; i < PHYREG_NUM; i++) active[i] = 0;
+        active_cnt = 0;
         ist = 0;
     endtask
 
@@ -134,9 +136,9 @@ module tb_physical_register_mapping ();
                     if (k >= PHYREG_NUM) k = 0;
                     else k++;
 
-                    if (active[k]) j++;
+                    if (!active[k]) j++;
                 end
-
+                active_cnt++;
                 i_prm_istindex_phyreg[(BITWIDTH_PHYREG_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_PHYREG_NUM] = k;
                 i_prm_istindex_istidx[(BITWIDTH_IST_ENTRY_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_IST_ENTRY_NUM] = ist;
             end
@@ -159,19 +161,22 @@ module tb_physical_register_mapping ();
         int rand_cycle = $urandom % PHYREG_NUM;
         int k          = 0;
         i_prm_istindex_valid = 0;
-        for (int i = 0; i < EX_PATH_NUM; i++) begin
-            if ( ( $urandom % 16 ) == 0 ) begin
-                i_wb_done[i] = 1'b1;
+        if (active_cnt > 0) begin
+            for (int i = 0; i < EX_PATH_NUM; i++) begin
+                if ( ( $urandom % 8 ) == 0 ) begin
+                    i_wb_done[i] = 1'b1;
 
-                k = 0;
-                for (int j = 0; j < rand_cycle;) begin
-                    if (k >= PHYREG_NUM) k = 0;
-                    else k++;
+                    k = 0;
+                    for (int j = 0; j < rand_cycle;) begin
+                        if (k >= PHYREG_NUM) k = 0;
+                        else k++;
 
-                    if (active[k]) j++;
+                        if (active[k]) j++;
+                    end
+
+                    active_cnt--;
+                    i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM * i) +: BITWIDTH_PHYREG_NUM] = k;
                 end
-
-                i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM * i) +: BITWIDTH_PHYREG_NUM] = k;
             end
         end
     endtask
