@@ -108,7 +108,7 @@ module physical_register_mapping #(
 
     reg  [DECODE_NEW_INST-1:0]                                            suffix_or[0:PHYREG_NUM-1];
 
-    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[1:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
 
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_buf_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];

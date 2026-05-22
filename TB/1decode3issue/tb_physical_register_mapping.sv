@@ -139,6 +139,7 @@ module tb_physical_register_mapping ();
                     if (!active[k]) j++;
                 end
                 active_cnt++;
+                active[k] = 1'b1;
                 i_prm_istindex_phyreg[(BITWIDTH_PHYREG_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_PHYREG_NUM] = k;
                 i_prm_istindex_istidx[(BITWIDTH_IST_ENTRY_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_IST_ENTRY_NUM] = ist;
             end
@@ -160,10 +161,10 @@ module tb_physical_register_mapping ();
         int sel        = $urandom % PHYREG_NUM;
         int rand_cycle = $urandom % PHYREG_NUM;
         int k          = 0;
-        i_prm_istindex_valid = 0;
+        i_wb_done = 0;
         if (active_cnt > 0) begin
             for (int i = 0; i < EX_PATH_NUM; i++) begin
-                if ( ( $urandom % 8 ) == 0 ) begin
+                if ( ( $urandom % 16 ) == 0 ) begin
                     i_wb_done[i] = 1'b1;
 
                     k = 0;
@@ -175,6 +176,7 @@ module tb_physical_register_mapping ();
                     end
 
                     active_cnt--;
+                    active[k] = 1'b0;
                     i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM * i) +: BITWIDTH_PHYREG_NUM] = k;
                 end
             end
@@ -208,7 +210,7 @@ module tb_physical_register_mapping ();
         @(posedge clk);
         repeat(100) begin
             @(posedge clk);
-            #1; ist_push(); wb_insert();
+            #1; wb_insert(); #1; ist_push(); 
         end
         
         $finish;
