@@ -283,6 +283,6 @@ module physical_register_mapping #(
         end
     endgenerate
 
-    assign o_prm_active = allocator_active & (&fifo_available) & (|cnt_blocking);
+    assign o_prm_active = allocator_active & (&fifo_available) & ~(|cnt_blocking);
 
 endmodule
