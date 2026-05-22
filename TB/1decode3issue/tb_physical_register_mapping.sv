@@ -112,17 +112,23 @@ module tb_physical_register_mapping ();
     always #5 clk = ~clk;
 
     reg active[0:PHYREG_NUM-1];
+    int ist;
 
     task test_variable_init;
         for (int i = 0; i < PHYREG_NUM; i++) active[i] = 0;
+        ist = 0;
     endtask
 
     task ist_push;
         int sel        = $urandom % PHYREG_NUM;
         int rand_cycle = $urandom % PHYREG_NUM;
         int k          = 0;
-        for (int i = 0; i < (DECODE_NEW_INST*INST_OPREANDS); i++) begin
-            if ( ( $urandom % 8 ) == 0 ) begin
+        i_prm_istindex_valid = 0;
+        for (int i_inst = 0; i_inst < DECODE_NEW_INST; i_inst++) begin
+        for (int i_opr = 0; i_opr < INST_OPREANDS; i_opr++) begin
+            if ( ( $urandom % 2 ) == 0 ) begin
+                i_prm_istindex_valid[(DECODE_NEW_INST*i_inst)+i_opr] = 1'b1;
+
                 k = 0;
                 for (int j = 0; j < rand_cycle;) begin
                     if (k >= PHYREG_NUM) k = 0;
@@ -130,7 +136,14 @@ module tb_physical_register_mapping ();
 
                     if (active[k]) j++;
                 end
+
+                i_prm_istindex_phyreg[(BITWIDTH_PHYREG_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_PHYREG_NUM] = k;
+                i_prm_istindex_istidx[(BITWIDTH_IST_ENTRY_NUM* ((DECODE_NEW_INST*i_inst)+i_opr) ) +: BITWIDTH_IST_ENTRY_NUM] = ist;
             end
+        end
+            ist++;
+            if (ist >= IST_ENTRY_NUM) ist = 0;
+
         end
     endtask
 
@@ -142,6 +155,25 @@ module tb_physical_register_mapping ();
     endtask
 
     task wb_insert;
+        int sel        = $urandom % PHYREG_NUM;
+        int rand_cycle = $urandom % PHYREG_NUM;
+        int k          = 0;
+        i_prm_istindex_valid = 0;
+        for (int i = 0; i < EX_PATH_NUM; i++) begin
+            if ( ( $urandom % 16 ) == 0 ) begin
+                i_wb_done[i] = 1'b1;
+
+                k = 0;
+                for (int j = 0; j < rand_cycle;) begin
+                    if (k >= PHYREG_NUM) k = 0;
+                    else k++;
+
+                    if (active[k]) j++;
+                end
+
+                i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM * i) +: BITWIDTH_PHYREG_NUM] = k;
+            end
+        end
     endtask
 
     task check_ready;
@@ -159,6 +191,8 @@ module tb_physical_register_mapping ();
         i_wb_done = 0;
         i_wb_done_phyreg = 0;
 
+        test_variable_init();
+
         @(negedge clk);
         @(negedge clk);
         reset_n = 1'b1;
@@ -166,6 +200,11 @@ module tb_physical_register_mapping ();
 
         wait(o_prm_active);
 
+        @(posedge clk);
+        repeat(100) begin
+            @(posedge clk);
+            #1; ist_push(); wb_insert();
+        end
         
         $finish;
     end
