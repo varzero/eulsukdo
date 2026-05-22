@@ -108,7 +108,7 @@ module physical_register_mapping #(
 
     reg  [DECODE_NEW_INST-1:0]                                            suffix_or[0:PHYREG_NUM-1];
 
-    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[1:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_position[0:(DECODE_NEW_INST*INST_OPREANDS)-1][0:(DECODE_NEW_INST*INST_OPREANDS)-1];
 
     reg  [BITWIDTH_PHYREG_BUFFER-1:0]                                     cnt_phyreg_buf_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                        newentry_phyreg_split[0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
@@ -124,6 +124,11 @@ module physical_register_mapping #(
         end
         for (init_idx = 0; init_idx < PRM_ENTRY_BUFFER; init_idx = init_idx+1) begin
             map_table_write_valid[init_idx] = 0;
+        end
+        for (init_idx = 0; init_idx < (DECODE_NEW_INST*INST_OPREANDS); init_idx = init_idx+1) begin
+            for (int i = 0; i < (DECODE_NEW_INST*INST_OPREANDS); i++) begin
+                cnt_phyreg_position[init_idx][i] = 0;
+            end
         end
 
         // Split fields and Check PHYREG fading
