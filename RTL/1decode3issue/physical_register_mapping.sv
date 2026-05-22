@@ -252,7 +252,7 @@ module physical_register_mapping #(
         for (update_idx = 0; update_idx < PRM_ENTRY_UPDATE; update_idx = update_idx+1) begin
             for (pos_idx = 0; pos_idx < PRM_ENTRY_BUFFER; pos_idx = pos_idx+1) begin
                 push_valid_position[update_idx][pos_idx] = 1'b0;
-                if (pop_phyreg_buf_cnt < pos_idx)
+                if (pos_idx < pop_phyreg_buf_cnt)
                     push_valid_position[update_idx][pos_idx] = 1'b1;
             end
         end
