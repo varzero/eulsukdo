@@ -88,8 +88,8 @@ module physical_register_mapping #(
         .unallocate_valid_i     (i_prm_unallocate_valid),
         .unallocate_entries_i   (i_prm_unallocate_phyreg),
         .allocating_i           (i_allocate_position),
-    	.allocate_valid_o       (o_ist_allocate_valid),
-        .allocate_entries_o     (o_ist_allocate_addr),
+    	.allocate_valid_o       (o_prm_allocate_valid),
+        .allocate_entries_o     (o_prm_allocate_phyreg),
     	.init_done              (allocator_active)
     );
 
