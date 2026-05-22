@@ -71,7 +71,7 @@ module tb_physical_register_mapping ();
     // Block
     wire                                                               o_prm_active;
 
-    tb_physical_register_mapping #(
+    physical_register_mapping #(
         .DECODE_NEW_INST              (DECODE_NEW_INST),
         .PHYREG_NUM                   (PHYREG_NUM),
         .IST_ENTRY_NUM                (IST_ENTRY_NUM),
