@@ -215,17 +215,16 @@ module physical_register_mapping #(
     always @(*) begin
         cnt_blocking_reset = cnt_blocking;
         // to out FIFO
-        for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
-            for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
+        for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
+            out_istentries_fifo_push_PRM = i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM*ist_expath_idx) +: BITWIDTH_PHYREG_NUM];
+            cnt_blocking_reset[out_istentries_fifo_push_PRM] = 1'b0;
+            for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
                 out_istentries_fifo_push_IST
                     = out_wb_istentries[ist_entrybuf_idx][( BITWIDTH_IST_ENTRY_NUM * ist_expath_idx ) +: BITWIDTH_IST_ENTRY_NUM];
-                out_istentries_fifo_push_PRM = i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM*ist_expath_idx) +: BITWIDTH_PHYREG_NUM];
-
-                out_istentries_fifo_push[ist_expath_idx][( PRM_READY_OUT_WIDTH * ist_entrybuf_idx ) +: PRM_READY_OUT_WIDTH]
-                    = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
-
-                cnt_blocking_reset[out_istentries_fifo_push_PRM] = 1'b0;
+                    
             end
+            out_istentries_fifo_push[ist_expath_idx][( PRM_READY_OUT_WIDTH * ist_entrybuf_idx ) +: PRM_READY_OUT_WIDTH]
+                = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
         end
     end
     genvar phyreg_buf_idx;
