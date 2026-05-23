@@ -210,21 +210,25 @@ module physical_register_mapping #(
     wire [(BITWIDTH_IST_ENTRY_NUM*EX_PATH_NUM)-1:0]                     out_wb_istentries[0:PRM_ENTRY_BUFFER-1];
     reg  [(PRM_READY_OUT_WIDTH*PRM_ENTRY_BUFFER)-1:0]                   out_istentries_fifo_push[0:EX_PATH_NUM-1];
     reg  [BITWIDTH_PHYREG_NUM-1:0]                                      out_istentries_fifo_push_PRM;
-    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                   out_istentries_fifo_push_IST;
+    reg  [BITWIDTH_IST_ENTRY_NUM-1:0]                                   out_istentries_fifo_push_IST[0:PRM_ENTRY_BUFFER-1][0:EX_PATH_NUM-1];
     integer ist_entrybuf_idx, ist_expath_idx;
     always @(*) begin
         cnt_blocking_reset = cnt_blocking;
         // to out FIFO
         for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
+            for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
+                out_istentries_fifo_push_IST[ist_entrybuf_idx][ist_expath_idx]
+                    = out_wb_istentries[ist_entrybuf_idx][( BITWIDTH_IST_ENTRY_NUM * ist_expath_idx ) +: BITWIDTH_IST_ENTRY_NUM];
+            end
+        end
+
+        for (ist_expath_idx = 0; ist_expath_idx < EX_PATH_NUM; ist_expath_idx = ist_expath_idx+1) begin
             out_istentries_fifo_push_PRM = i_wb_done_phyreg[(BITWIDTH_PHYREG_NUM*ist_expath_idx) +: BITWIDTH_PHYREG_NUM];
             cnt_blocking_reset[out_istentries_fifo_push_PRM] = 1'b0;
             for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
-                out_istentries_fifo_push_IST
-                    = out_wb_istentries[ist_entrybuf_idx][( BITWIDTH_IST_ENTRY_NUM * ist_expath_idx ) +: BITWIDTH_IST_ENTRY_NUM];
-
+                out_istentries_fifo_push[ist_expath_idx][( PRM_READY_OUT_WIDTH * ist_entrybuf_idx ) +: PRM_READY_OUT_WIDTH]
+                    = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST[ist_entrybuf_idx][ist_expath_idx]};
             end
-            out_istentries_fifo_push[ist_expath_idx][( PRM_READY_OUT_WIDTH * ist_entrybuf_idx ) +: PRM_READY_OUT_WIDTH]
-                = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
         end
     end
     genvar phyreg_buf_idx;

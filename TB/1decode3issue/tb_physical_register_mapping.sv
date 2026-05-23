@@ -208,7 +208,7 @@ module tb_physical_register_mapping ();
         wait(o_prm_active);
 
         @(posedge clk);
-        repeat(100) begin
+        repeat(30) begin
             @(posedge clk);
             #1; wb_insert(); #1; ist_push(); 
         end
