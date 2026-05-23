@@ -221,7 +221,7 @@ module physical_register_mapping #(
             for (ist_entrybuf_idx = 0; ist_entrybuf_idx < PRM_ENTRY_BUFFER; ist_entrybuf_idx = ist_entrybuf_idx+1) begin
                 out_istentries_fifo_push_IST
                     = out_wb_istentries[ist_entrybuf_idx][( BITWIDTH_IST_ENTRY_NUM * ist_expath_idx ) +: BITWIDTH_IST_ENTRY_NUM];
-                    
+
             end
             out_istentries_fifo_push[ist_expath_idx][( PRM_READY_OUT_WIDTH * ist_entrybuf_idx ) +: PRM_READY_OUT_WIDTH]
                 = {out_istentries_fifo_push_PRM, out_istentries_fifo_push_IST};
@@ -242,7 +242,7 @@ module physical_register_mapping #(
                 .i_write_wes         (map_table_write_valid[phyreg_buf_idx]),
                 .i_write_addresses   (i_prm_istindex_phyreg),
                 .i_write_data        (i_prm_istindex_istidx),
-                .o_read_data         (out_wb_istentries[PRM_ENTRY_BUFFER])
+                .o_read_data         (out_wb_istentries[phyreg_buf_idx])
             );
         end
     endgenerate
