@@ -249,15 +249,17 @@ module physical_register_mapping #(
     endgenerate
 
     // Output FIFO
-    wire [PRM_ENTRY_UPDATE-1:0]    fifo_available;
-    wire [PRM_READY_OUT_WIDTH-1:0] ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
-    reg  [PRM_ENTRY_BUFFER-1:0]    push_valid_position[0:PRM_ENTRY_UPDATE-1];
+    wire [PRM_ENTRY_UPDATE-1:0]       fifo_available;
+    wire [PRM_READY_OUT_WIDTH-1:0]    ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
+    reg  [PRM_ENTRY_BUFFER-1:0]       push_valid_position[0:PRM_ENTRY_UPDATE-1];
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0] cnt_phyreg_pop_split;
     integer update_idx, pos_idx;
     always @(*) begin
         for (update_idx = 0; update_idx < PRM_ENTRY_UPDATE; update_idx = update_idx+1) begin
+            cnt_phyreg_pop_split = pop_phyreg_buf_cnt[(BITWIDTH_PHYREG_BUFFER*update_idx) +: BITWIDTH_PHYREG_BUFFER];
             for (pos_idx = 0; pos_idx < PRM_ENTRY_BUFFER; pos_idx = pos_idx+1) begin
                 push_valid_position[update_idx][pos_idx] = 1'b0;
-                if (pos_idx < pop_phyreg_buf_cnt)
+                if (pos_idx < cnt_phyreg_pop_split)
                     push_valid_position[update_idx][pos_idx] = 1'b1;
             end
         end
