@@ -249,10 +249,10 @@ module new_entry_logic #(
                         IMM | Micro-OP | EX_PATH | PC ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS,
-    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
+    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL,
 
-    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH,
+    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + MICROOP_WIDTH + INST_IMM_WIDTH,
     localparam IST_STARTPOINT_LOGREG            = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM,
     localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_LOGREG + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER,
     localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL,
@@ -407,7 +407,7 @@ module new_entry_logic #(
         end
 
         for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
-            active_next[new_entry_idx] = o_im_inst_get[new_entry_idx];
+            active_next[new_entry_idx] = i_im_inst_valid[new_entry_idx];
             pc_new[new_entry_idx]      = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: BITWIDTH_FCL_PC_WIDTH];
             microop_new[new_entry_idx] = microop[new_entry_idx];
             imm_new[new_entry_idx]     = imm[new_entry_idx];
@@ -415,7 +415,13 @@ module new_entry_logic #(
                 = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
             opreands_log_phy_next[new_entry_idx] 
                 = opreands_log_phy[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*new_entry_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)];
-            opreands_ready_next[new_entry_idx] = ready[new_entry_idx];
+
+            for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
+                if (rs[new_entry_idx][opreand_idx] == 0)
+                    opreands_ready_next[new_entry_idx][opreand_idx] = 1'b1;
+                else
+                    opreands_ready_next[new_entry_idx][opreand_idx] = ready[new_entry_idx][opreand_idx];
+            end
         end
     end
     assign o_nel_newpc_valid   = i_im_inst_valid;
@@ -440,7 +446,7 @@ module new_entry_logic #(
                 for (opreands_ready_idx = 0; opreands_ready_idx < INST_OPREANDS; opreands_ready_idx = opreands_ready_idx+1) begin
                     if ( opreands_log_phy_reg[ist_field_insert_idx][(BITWIDTH_PHYREG_NUM*opreands_ready_idx) +: BITWIDTH_PHYREG_NUM] 
                          == i_wbc2nel_done_phyreg[(BITWIDTH_PHYREG_NUM *opreands_ready_idx) +: BITWIDTH_PHYREG_NUM] ) begin
-                            opreands_ready_now[opreands_ready_idx] = 1'b1;
+                            opreands_ready_now[opreands_ready_idx] = (i_wbc2nel_done[done_idx])? 1'b1 : 1'b0;
                          end
                 end
             end
