@@ -315,8 +315,8 @@ module new_entry_logic #(
 );
 
     // Stage1: Decoding Section
-    wire [INST_NUM_OF_LOGICAL_REGISTER-1:0] rd          [0:DECODE_NEW_INST-1];
-    wire [INST_NUM_OF_LOGICAL_REGISTER-1:0] rs          [0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
+    wire [BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER-1:0] rd          [0:DECODE_NEW_INST-1];
+    wire [BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER-1:0] rs          [0:DECODE_NEW_INST-1][0:INST_OPREANDS-1];
     wire                                    exception   [0:DECODE_NEW_INST-1];
     wire                                    newreg_alloc[0:DECODE_NEW_INST-1];
     wire                                    jump        [0:DECODE_NEW_INST-1];
@@ -329,8 +329,8 @@ module new_entry_logic #(
     wire [(DECODE_NEW_INST*BITWIDTH_PHYREG_NUM)-1:0]               past_log_phy_reg;
     wire [(DECODE_NEW_INST*INST_OPREANDS*BITWIDTH_PHYREG_NUM)-1:0] opreands_log_phy;
 
-    reg  [(DECODE_NEW_INST*INST_NUM_OF_LOGICAL_REGISTER)-1:0]               rd_spread;
-    reg  [(DECODE_NEW_INST*INST_OPREANDS*INST_NUM_OF_LOGICAL_REGISTER)-1:0] rs_spread;
+    reg  [(DECODE_NEW_INST*BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER)-1:0]               rd_spread;
+    reg  [(DECODE_NEW_INST*INST_OPREANDS*BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER)-1:0] rs_spread;
     reg  [DECODE_NEW_INST-1:0]                                              newreg_alloc_spread;
     reg  [DECODE_NEW_INST-1:0]                                              im_inst_get;
 
@@ -354,29 +354,29 @@ module new_entry_logic #(
     always @(posedge clk or negedge reset_n) begin
         for(reg_new_entry_idx = 0; reg_new_entry_idx < DECODE_NEW_INST; reg_new_entry_idx = reg_new_entry_idx+1) begin
             if (!reset_n) begin
-                active <= 1'b0; 
-                pc_reg <= 0;
-                microop_reg <= 0;
-                imm_reg <= 0;
-                new_log_phy_reg <= 0; 
-                opreands_log_phy_reg <= 0;
-                opreands_ready_reg <= 0;
+                active               [reg_new_entry_idx] <= 1'b0; 
+                pc_reg               [reg_new_entry_idx] <= 0;
+                microop_reg          [reg_new_entry_idx] <= 0;
+                imm_reg              [reg_new_entry_idx] <= 0;
+                new_log_phy_reg      [reg_new_entry_idx] <= 0; 
+                opreands_log_phy_reg [reg_new_entry_idx] <= 0;
+                opreands_ready_reg   [reg_new_entry_idx] <= 0;
             end
             else begin
-                active               <= active_next; 
-                pc_reg               <= pc_new;
-                microop_reg          <= microop_new;
-                imm_reg              <= imm_new;
-                new_log_phy_reg      <= new_log_phy_next;
-                opreands_log_phy_reg <= opreands_log_phy_next;
-                opreands_ready_reg   <= opreands_ready_next;
+                active               [reg_new_entry_idx] <= active_next           [reg_new_entry_idx]; 
+                pc_reg               [reg_new_entry_idx] <= pc_new                [reg_new_entry_idx];
+                microop_reg          [reg_new_entry_idx] <= microop_new           [reg_new_entry_idx];
+                imm_reg              [reg_new_entry_idx] <= imm_new               [reg_new_entry_idx];
+                new_log_phy_reg      [reg_new_entry_idx] <= new_log_phy_next      [reg_new_entry_idx];
+                opreands_log_phy_reg [reg_new_entry_idx] <= opreands_log_phy_next [reg_new_entry_idx];
+                opreands_ready_reg   [reg_new_entry_idx] <= opreands_ready_next   [reg_new_entry_idx];
             end
         end
     end
     always @(*) begin
         for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
             rd_spread[(INST_NUM_OF_LOGICAL_REGISTER*new_entry_idx) +: INST_NUM_OF_LOGICAL_REGISTER]
-                = (newreg_alloc)? rd[new_entry_idx] : 0;
+                = (newreg_alloc[new_entry_idx])? rd[new_entry_idx] : 0;
 
             for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
                 rs_spread[( INST_NUM_OF_LOGICAL_REGISTER * ((new_entry_idx*INST_OPREANDS) + opreand_idx) ) 
@@ -429,27 +429,31 @@ module new_entry_logic #(
     // Stage2: Output Section
     wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0] opreands_phy_ready;
     reg  [INST_OPREANDS-1:0]                   opreands_ready_final, opreands_ready_now;
+    reg  [(DECODE_NEW_INST*INST_OPREANDS*BITWIDTH_PHYREG_NUM)-1:0] opreands_log_phy_reg_spread;
     integer ist_field_insert_idx, done_idx, opreands_ready_idx;
     always @(*) begin
         for (ist_field_insert_idx = 0; ist_field_insert_idx < DECODE_NEW_INST; ist_field_insert_idx = ist_field_insert_idx+1) begin
-            i_im_inst_valid[ist_field_insert_idx] = active[ist_field_insert_idx];
+            o_ist_field_insert[ist_field_insert_idx] = active[ist_field_insert_idx];
 
             opreands_ready_now = 0;
             for (done_idx = 0; done_idx < EX_PATH_NUM; done_idx = done_idx+1) begin
                 for (opreands_ready_idx = 0; opreands_ready_idx < INST_OPREANDS; opreands_ready_idx = opreands_ready_idx+1) begin
                     if ( opreands_log_phy_reg[ist_field_insert_idx][(BITWIDTH_PHYREG_NUM*opreands_ready_idx) +: BITWIDTH_PHYREG_NUM] 
-                         == i_wbc2nel_done_phyreg[(BITWIDTH_PHYREG_NUM *((INST_OPREANDS*done_idx)+opreands_ready_idx)) +: BITWIDTH_PHYREG_NUM] ) begin
+                         == i_wbc2nel_done_phyreg[(BITWIDTH_PHYREG_NUM *opreands_ready_idx) +: BITWIDTH_PHYREG_NUM] ) begin
                             opreands_ready_now[opreands_ready_idx] = 1'b1;
                          end
                 end
             end
 
-            opreands_ready_final = opreands_ready_reg | opreands_phy_ready | opreands_ready_now;
+            opreands_ready_final = opreands_ready_reg[ist_field_insert_idx] | opreands_phy_ready[(INST_OPREANDS*ist_field_insert_idx) +: INST_OPREANDS] | opreands_ready_now[ist_field_insert_idx];
 
             o_ist_field[(IST_BITWIDTH*ist_field_insert_idx) +: IST_BITWIDTH]
                 = { opreands_ready_final,                  opreands_log_phy_reg[ist_field_insert_idx],
                     new_log_phy_reg[ist_field_insert_idx], imm_reg[ist_field_insert_idx],
                     microop_reg[ist_field_insert_idx],     pc_reg[ist_field_insert_idx] };
+
+            opreands_log_phy_reg_spread[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*ist_field_insert_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)]
+                = opreands_log_phy_reg[ist_field_insert_idx];
         end
     end
 
@@ -462,7 +466,7 @@ module new_entry_logic #(
                 .INST_OPREANDS(INST_OPREANDS),
                 .MICROOP_WIDTH(MICROOP_WIDTH)
             ) U_DECODER (
-                .inst_i         (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+                .inst_i         (i_im_inst[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
                 .exception_o    (exception[decoder_idx]), 
                 .newreg_alloc_o (newreg_alloc[decoder_idx]),
                 .jump_o         (jump[decoder_idx]),
@@ -473,14 +477,14 @@ module new_entry_logic #(
             );
             
             rv32i_get_registers U_REGISTER_GET (
-            	.inst_i (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+            	.inst_i (i_im_inst[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
             	.rd_o   (rd[decoder_idx]),
             	.rs1_o  (rs[decoder_idx][0]),
             	.rs2_o  (rs[decoder_idx][1])
             );
 
             imm_extender U_IMM_EXT (
-        	    .inst_i         (o_ist_field[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
+        	    .inst_i         (i_im_inst[(INST_BITWIDTH*decoder_idx) +: INST_BITWIDTH]),
         	    .imm_o          (imm[decoder_idx])
             );
         end
@@ -509,7 +513,7 @@ module new_entry_logic #(
     ) U_PHYREG_READY (
         .clk                 (clk),
         .reset_n             (reset_n),
-        .i_read_addresses    (opreands_log_phy_reg),
+        .i_read_addresses    (opreands_log_phy_reg_spread),
         .i_write_wes         ({i_wbc2nel_done, o_im_inst_get}),
         .i_write_addresses   ({i_wbc2nel_done_phyreg, i_prm_allocate_phyreg}),
         .i_write_data        ({{EX_PATH_NUM{1'b1}}, {DECODE_NEW_INST{1'b0}}}),
