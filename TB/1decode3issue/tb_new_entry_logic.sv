@@ -156,6 +156,9 @@ module tb_new_entry_logic ();
         @(negedge clk);
 
         i_ist_insert_available = 1;
+        i_im_inst_valid = 1'b1';
+        i_im_inst_pc    = 32'h0001_2356;
+        i_im_inst       = 32'h0051_83b3; // add x7, x3, x5
         i_ist_field_valid = {DECODE_NEW_INST{1'b1}};
     end
 
