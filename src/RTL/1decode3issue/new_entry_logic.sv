@@ -19,6 +19,7 @@ module rv32i_decode_opcode #(
     output reg                      jump_reg_o,
     output reg                      branch_o,
     output reg  [INST_OPREANDS-1:0] ready_o,
+    output reg  [BITWIDTH_EX_PATH_NUM-1:0] expath_o,
     output reg  [MICROOP_WIDTH-1:0] microop_o
 );
     /*
@@ -77,8 +78,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b1;
                 ready_o = 2'b00;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b00;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b00, inst_i[14:12]};
+                expath_o = 2'b00;
+                microop_o = {2'b00, inst_i[14:12]};
             end
             7'b1100111: begin // EX 1: Jump Reg
                 exception_o = 1'b0;
@@ -87,8 +88,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b1;
                 branch_o = 1'b0;
                 ready_o = 2'b10;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b00;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b01000;
+                expath_o = 2'b00;
+                microop_o = 5'b01000;
             end
             
             7'b0110011: begin // EX 2: ALU Reg
@@ -98,8 +99,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b00;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {1'b0, inst_i[30], inst_i[14:12]};
+                expath_o = 2'b01;
+                microop_o = {1'b0, inst_i[30], inst_i[14:12]};
             end
             7'b0010011: begin // EX 2: ALU IMM
                 exception_o = 1'b0;
@@ -108,8 +109,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b10;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 
+                expath_o = 2'b01;
+                microop_o = 
                     {1'b1, (inst_i[14:12] == 3'b101)? inst_i[30] : 1'b0, inst_i[14:12]};
             end
             7'b0110111: begin // EX 2: LUI
@@ -119,8 +120,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11000;
+                expath_o = 2'b01;
+                microop_o = 5'b11000;
             end
             7'b0010111: begin // EX 2: AUIPC
                 exception_o = 1'b0;
@@ -129,8 +130,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11001;
+                expath_o = 2'b01;
+                microop_o = 5'b11001;
             end
             7'b1101111: begin // EX 2: JAL
                 exception_o = 1'b0;
@@ -139,8 +140,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b01;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b11010;
+                expath_o = 2'b01;
+                microop_o = 5'b11010;
             end
 
             7'b0000011: begin // EX 3: Memory Access Load
@@ -150,8 +151,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b10;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b10;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b00, inst_i[14:12]};
+                expath_o = 2'b10;
+                microop_o = {2'b00, inst_i[14:12]};
             end
             7'b0100011: begin // EX 3: Memory Access Store
                 exception_o = 1'b0;
@@ -160,8 +161,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b00;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b10;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = {2'b10, inst_i[14:12]};
+                expath_o = 2'b10;
+                microop_o = {2'b10, inst_i[14:12]};
             end
 
             default: begin
@@ -171,8 +172,8 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                microop_o[BITWIDTH_EX_PATH_NUM-1:0] = 2'b11;
-                microop_o[MICROOP_WIDTH-1:BITWIDTH_EX_PATH_NUM] = 5'b00000;
+                expath_o = 2'b11;
+                microop_o = 5'b00000;
             end
         endcase
     end
@@ -249,10 +250,10 @@ module new_entry_logic #(
                         IMM | Micro-OP | EX_PATH | PC ] LSB */    
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS,
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS,
-    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
+    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL,
 
-    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + MICROOP_WIDTH + INST_IMM_WIDTH,
+    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH,
     localparam IST_STARTPOINT_LOGREG            = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM,
     localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_LOGREG + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER,
     localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL,
@@ -323,6 +324,7 @@ module new_entry_logic #(
     wire                                    jump_reg    [0:DECODE_NEW_INST-1];
     wire                                    branch      [0:DECODE_NEW_INST-1];
     wire [INST_OPREANDS-1:0]                ready       [0:DECODE_NEW_INST-1];
+    wire [BITWIDTH_EX_PATH_NUM-1:0]         expath      [0:DECODE_NEW_INST-1];
     wire [MICROOP_WIDTH-1:0]                microop     [0:DECODE_NEW_INST-1];
     wire [31:0]                             imm         [0:DECODE_NEW_INST-1];
 
@@ -339,6 +341,8 @@ module new_entry_logic #(
     reg                                           active_next           [0:DECODE_NEW_INST-1];
     reg [BITWIDTH_FCL_PC_WIDTH-1:0]               pc_reg                [0:DECODE_NEW_INST-1];
     reg [BITWIDTH_FCL_PC_WIDTH-1:0]               pc_new                [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_EX_PATH_NUM-1:0]                expath_reg            [0:DECODE_NEW_INST-1];
+    reg [BITWIDTH_EX_PATH_NUM-1:0]                expath_new            [0:DECODE_NEW_INST-1];
     reg [MICROOP_WIDTH-1:0]                       microop_reg           [0:DECODE_NEW_INST-1];
     reg [MICROOP_WIDTH-1:0]                       microop_new           [0:DECODE_NEW_INST-1];
     reg [INST_IMM_WIDTH-1:0]                      imm_reg               [0:DECODE_NEW_INST-1];
@@ -356,6 +360,7 @@ module new_entry_logic #(
             if (!reset_n) begin
                 active               [reg_new_entry_idx] <= 1'b0; 
                 pc_reg               [reg_new_entry_idx] <= 0;
+                expath_reg           [reg_new_entry_idx] <= 0;
                 microop_reg          [reg_new_entry_idx] <= 0;
                 imm_reg              [reg_new_entry_idx] <= 0;
                 new_log_phy_reg      [reg_new_entry_idx] <= 0; 
@@ -365,6 +370,7 @@ module new_entry_logic #(
             else begin
                 active               [reg_new_entry_idx] <= active_next           [reg_new_entry_idx]; 
                 pc_reg               [reg_new_entry_idx] <= pc_new                [reg_new_entry_idx];
+                expath_reg           [reg_new_entry_idx] <= expath_new            [reg_new_entry_idx];
                 microop_reg          [reg_new_entry_idx] <= microop_new           [reg_new_entry_idx];
                 imm_reg              [reg_new_entry_idx] <= imm_new               [reg_new_entry_idx];
                 new_log_phy_reg      [reg_new_entry_idx] <= new_log_phy_next      [reg_new_entry_idx];
@@ -409,6 +415,7 @@ module new_entry_logic #(
         for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
             active_next[new_entry_idx] = i_im_inst_valid[new_entry_idx];
             pc_new[new_entry_idx]      = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: BITWIDTH_FCL_PC_WIDTH];
+            expath_new[new_entry_idx]  = expath[new_entry_idx];
             microop_new[new_entry_idx] = microop[new_entry_idx];
             imm_new[new_entry_idx]     = imm[new_entry_idx];
             new_log_phy_next[new_entry_idx] 
@@ -426,9 +433,9 @@ module new_entry_logic #(
     end
     assign o_nel_newpc_valid   = i_im_inst_valid;
     assign o_nel_newpc         = i_im_inst_pc;
-    assign o_nel_newreg_valid  = o_im_inst_get & newreg_alloc_spread;
+    assign o_nel_newreg_valid  = i_im_inst_valid & newreg_alloc_spread;
     assign o_nel_newreg        = past_log_phy_reg;
-    assign o_allocate_position = o_im_inst_get & newreg_alloc_spread;
+    assign o_allocate_position = i_im_inst_valid & newreg_alloc_spread;
     assign o_nel_block         = ~i_ist_insert_available | ~(&i_ist_field_valid) | ~(&i_prm_allocate_valid);
         // 이번 버전은 모든 필드가 열린 상태에서만..
 
@@ -456,7 +463,7 @@ module new_entry_logic #(
             o_ist_field[(IST_BITWIDTH*ist_field_insert_idx) +: IST_BITWIDTH]
                 = { opreands_ready_final,                  opreands_log_phy_reg[ist_field_insert_idx],
                     new_log_phy_reg[ist_field_insert_idx], imm_reg[ist_field_insert_idx],
-                    microop_reg[ist_field_insert_idx],     pc_reg[ist_field_insert_idx] };
+                    microop_reg[ist_field_insert_idx], expath_reg[ist_field_insert_idx], pc_reg[ist_field_insert_idx] };
 
             opreands_log_phy_reg_spread[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*ist_field_insert_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)]
                 = opreands_log_phy_reg[ist_field_insert_idx];
@@ -479,6 +486,7 @@ module new_entry_logic #(
                 .jump_reg_o     (jump_reg[decoder_idx]),
                 .branch_o       (branch[decoder_idx]),
                 .ready_o        (ready[decoder_idx]),
+                .expath_o       (expath[decoder_idx]),
                 .microop_o      (microop[decoder_idx])
             );
             

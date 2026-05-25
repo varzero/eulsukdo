@@ -78,7 +78,7 @@ module physical_register_mapping #(
     wire allocator_active;
 
     // Allocate PHYREG
-    allocator #(
+    allocator_start_one #(
     	.NUM_OF_ENTRIES (PHYREG_NUM),
         .UNALLOCATES    (UNALLOCATE_PHYREG),
         .ALLOCATES      (DECODE_NEW_INST)

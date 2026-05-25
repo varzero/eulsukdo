@@ -5,6 +5,8 @@ module eulsukdo_1dec_3issue #(
     parameter IST_ENTRY_NUM     = 128,
     parameter EX_PATH_NUM       = 3,
     parameter PRM_ENTRY_BUFFER  = 4,
+    parameter PRM_ENTRY_UPDATE  = 3,
+    parameter PRM_READY_OUT_FIFO_DEPTH = 32,
     parameter RS_ENTRY_NUM      = 16,
     parameter RS_PUSH_WIDTH     = 3,
     parameter FCL_RB_NUM        = 8,
@@ -39,13 +41,85 @@ module eulsukdo_1dec_3issue #(
     input  wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0] i_im_inst,
     output wire [DECODE_NEW_INST-1:0]                 o_im_inst_get,
     
-    output reg                                        o_im_re,
-    output wire [INST_PC_WIDTH-1:0]                   o_im_pc,
+    output wire                                       o_im_re,
+    output wire [INST_PC_WIDTH-1:0]                   o_im_pc
 
     // EX INOUT Section Start
 
     // EX INOUT Section End
 );
+    localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS;
+    localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS;
+    localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
+                              + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL;
+    localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH;
+    localparam IST_STARTPOINT_LOGREG            = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM;
+    localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_LOGREG + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER;
+    localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL;
+    localparam IST_PACKET_BITWIDTH              = IST_BITWIDTH * DECODE_NEW_INST;
+    localparam IST_ALLOCATE_BITWIDTH            = BITWIDTH_IST_ENTRY_NUM * DECODE_NEW_INST;
+    localparam PRM_ALLOCATE_BITWIDTH            = BITWIDTH_PHYREG_NUM * DECODE_NEW_INST;
+    localparam INST_INPUT_BITWIDTH              = INST_BITWIDTH * DECODE_NEW_INST;
+    localparam WB_PHYREGS_BITWIDTH              = BITWIDTH_PHYREG_NUM * EX_PATH_NUM;
+    localparam PRM_UNALLOCATE_BITWIDTH          = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG;
+    localparam RS_ENTRY_BITWIDTH                = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH
+                                                  + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL;
+    localparam RS_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH;
+    localparam EX_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * EX_PATH_NUM;
+
+    wire [DECODE_NEW_INST-1:0]                                          im_bb_inst_valid;
+    wire [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0]                  im_bb_inst_pc;
+    wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0]                          im_bb_inst;
+    wire [DECODE_NEW_INST-1:0]                                          im_bb_inst_get;
+    wire                                                                ist_insert_available;
+    wire [DECODE_NEW_INST-1:0]                                          ist_field_insert;
+    wire [DECODE_NEW_INST-1:0]                                          ist_field_valid;
+    wire [IST_PACKET_BITWIDTH-1:0]                                      ist_field;
+    wire [DECODE_NEW_INST-1:0]                                          allocate_position;
+    wire [DECODE_NEW_INST-1:0]                                          prm_allocate_valid;
+    wire [PRM_ALLOCATE_BITWIDTH-1:0]                                    prm_allocate_phyreg;
+    wire [EX_PATH_NUM-1:0]                                              wbc2nel_done;
+    wire [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0]                        wbc2nel_done_phyreg;
+    wire                                                                nel_block;
+    wire                                                                nel_jump_inst;
+    wire                                                                nel_jreg_branch_inst;
+    wire [INST_PC_WIDTH-1:0]                                            nel_jump_branch_pc;
+    wire [DECODE_NEW_INST-1:0]                                          nel_newpc_valid;
+    wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0]                  nel_newpc;
+    wire [DECODE_NEW_INST-1:0]                                          nel_newreg_valid;
+    wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]                    nel_newreg;
+    wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          prm_istindex_valid;
+    wire [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    prm_istindex_phyreg;
+    wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] prm_istindex_istidx;
+    wire [PRM_ENTRY_UPDATE-1:0]                                         ready_update_valid;
+    wire [PRM_ENTRY_UPDATE-1:0]                                         ready_update_get;
+    wire [(BITWIDTH_PHYREG_NUM*PRM_ENTRY_UPDATE)-1:0]                   ready_update_phyreg;
+    wire [(BITWIDTH_IST_ENTRY_NUM*PRM_ENTRY_UPDATE)-1:0]                ready_update_istidx;
+    wire                                                                push_rs_available;
+    wire [RS_PUSH_WIDTH-1:0]                                            push_rs_valid;
+    wire [(RS_PUSH_WIDTH*RS_ENTRY_BITWIDTH)-1:0]                        push_rs_data;
+    wire [UNALLOCATE_PHYREG-1:0]                                        prm_unallocate_valid;
+    wire [PRM_UNALLOCATE_BITWIDTH-1:0]                                  prm_unallocate_phyreg;
+    wire [EX_PATH_NUM-1:0]                                              wb_done;
+    wire [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0]                        wb_done_phyreg;
+    wire                                                                prm_active;
+    wire [EX_PATH_NUM-1:0]                                              ex_entry_get;
+    wire [EX_PATH_NUM-1:0]                                              ex_entry_valid;
+    wire [EX_PACKET_BITWIDTH-1:0]                                       ex_entry;
+
+    assign im_bb_inst_valid = i_im_inst_valid;
+    assign im_bb_inst       = i_im_inst;
+    assign im_bb_inst_get   = o_im_inst_get;
+    // temp
+    assign im_bb_inst_pc    = { {BITWIDTH_FCL_RB_NUM{1'b0}} , i_im_inst_pc};
+    assign wbc2nel_done        = 0;
+    assign wbc2nel_done_phyreg = 0;
+    assign prm_unallocate_valid = 0;
+    assign prm_unallocate_phyreg = 0;
+    assign wb_done = 0;
+    assign wb_done_phyreg = 0;
+    assign ex_entry_get = 0;
+
 
     new_entry_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -69,27 +143,27 @@ module eulsukdo_1dec_3issue #(
     ) U_NEL (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .i_im_inst_valid               (i_im_inst_valid),
-        .i_im_inst_pc                  (i_im_inst_pc),
-        .i_im_inst                     (i_im_inst),
-        .o_im_inst_get                 (o_im_inst_get),
-        .i_ist_insert_available        (i_ist_insert_available),
-        .o_ist_field_insert            (o_ist_field_insert),
-        .i_ist_field_valid             (i_ist_field_valid),
-        .o_ist_field                   (o_ist_field),
-        .o_allocate_position           (o_allocate_position),
-        .i_prm_allocate_valid          (i_prm_allocate_valid),
-        .i_prm_allocate_phyreg         (i_prm_allocate_phyreg),
-        .i_wbc2nel_done                (i_wbc2nel_done),
-        .i_wbc2nel_done_phyreg         (i_wbc2nel_done_phyreg),
-        .o_nel_block                   (o_nel_block),
-        .o_nel_jump_inst               (o_nel_jump_inst),
-        .o_nel_jreg_branch_inst        (o_nel_jreg_branch_inst),
-        .o_nel_jump_branch_pc          (o_nel_jump_branch_pc),
-        .o_nel_newpc_valid             (o_nel_newpc_valid),
-        .o_nel_newpc                   (o_nel_newpc),
-        .o_nel_newreg_valid            (o_nel_newreg_valid),
-        .o_nel_newreg                  (o_nel_newreg)
+        .i_im_inst_valid               (im_bb_inst_valid),
+        .i_im_inst_pc                  (im_bb_inst_pc),
+        .i_im_inst                     (im_bb_inst),
+        .o_im_inst_get                 (im_bb_inst_get),
+        .i_ist_insert_available        (ist_insert_available),
+        .o_ist_field_insert            (ist_field_insert),
+        .i_ist_field_valid             (ist_field_valid),
+        .o_ist_field                   (ist_field),
+        .o_allocate_position           (allocate_position),
+        .i_prm_allocate_valid          (prm_allocate_valid),
+        .i_prm_allocate_phyreg         (prm_allocate_phyreg),
+        .i_wbc2nel_done                (wbc2nel_done),
+        .i_wbc2nel_done_phyreg         (wbc2nel_done_phyreg),
+        .o_nel_block                   (nel_block),
+        .o_nel_jump_inst               (nel_jump_inst),
+        .o_nel_jreg_branch_inst        (nel_jreg_branch_inst),
+        .o_nel_jump_branch_pc          (nel_jump_branch_pc),
+        .o_nel_newpc_valid             (nel_newpc_valid),
+        .o_nel_newpc                   (nel_newpc),
+        .o_nel_newreg_valid            (nel_newreg_valid),
+        .o_nel_newreg                  (nel_newreg)
     );
 
     instruction_state_table #(
@@ -112,20 +186,20 @@ module eulsukdo_1dec_3issue #(
     ) U_IST (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .o_ist_insert_available        (o_ist_insert_available),
-        .i_ist_field_insert            (i_ist_field_insert),
-        .o_ist_field_valid             (o_ist_field_valid),
-        .i_ist_field                   (i_ist_field),
-        .o_prm_istindex_valid          (o_prm_istindex_valid),
-        .o_prm_istindex_phyreg         (o_prm_istindex_phyreg),
-        .o_prm_istindex_istidx         (o_prm_istindex_istidx),
-        .i_ready_update_valid          (i_ready_update_valid),
-        .o_ready_update_get            (o_ready_update_get),
-        .i_ready_update_phyreg         (i_ready_update_phyreg),
-        .i_ready_update_istidx         (i_ready_update_istidx),
-        .i_push_rs_available           (i_push_rs_available),
-        .o_push_rs_valid               (o_push_rs_valid),
-        .o_push_rs_data                (o_push_rs_data)
+        .o_ist_insert_available        (ist_insert_available),
+        .i_ist_field_insert            (ist_field_insert),
+        .o_ist_field_valid             (ist_field_valid),
+        .i_ist_field                   (ist_field),
+        .o_prm_istindex_valid          (prm_istindex_valid),
+        .o_prm_istindex_phyreg         (prm_istindex_phyreg),
+        .o_prm_istindex_istidx         (prm_istindex_istidx),
+        .i_ready_update_valid          (ready_update_valid),
+        .o_ready_update_get            (ready_update_get),
+        .i_ready_update_phyreg         (ready_update_phyreg),
+        .i_ready_update_istidx         (ready_update_istidx),
+        .i_push_rs_available           (push_rs_available),
+        .o_push_rs_valid               (push_rs_valid),
+        .o_push_rs_data                (push_rs_data)
     );
 
     physical_register_mapping #(
@@ -149,21 +223,21 @@ module eulsukdo_1dec_3issue #(
     ) U_PRM (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .i_allocate_position           (i_allocate_position),
-        .o_prm_allocate_valid          (o_prm_allocate_valid),
-        .o_prm_allocate_phyreg         (o_prm_allocate_phyreg),
-        .i_prm_unallocate_valid        (i_prm_unallocate_valid),
-        .i_prm_unallocate_phyreg       (i_prm_unallocate_phyreg),
-        .i_prm_istindex_valid          (i_prm_istindex_valid),
-        .i_prm_istindex_phyreg         (i_prm_istindex_phyreg),
-        .i_prm_istindex_istidx         (i_prm_istindex_istidx),
-        .o_ready_update_valid          (o_ready_update_valid),
-        .i_ready_update_get            (i_ready_update_get),
-        .o_ready_update_phyreg         (o_ready_update_phyreg),
-        .o_ready_update_istidx         (o_ready_update_istidx),
-        .i_wb_done                     (i_wb_done),
-        .i_wb_done_phyreg              (i_wb_done_phyreg),
-        .o_prm_active                  (o_prm_active)
+        .i_allocate_position           (allocate_position),
+        .o_prm_allocate_valid          (prm_allocate_valid),
+        .o_prm_allocate_phyreg         (prm_allocate_phyreg),
+        .i_prm_unallocate_valid        (prm_unallocate_valid),
+        .i_prm_unallocate_phyreg       (prm_unallocate_phyreg),
+        .i_prm_istindex_valid          (prm_istindex_valid),
+        .i_prm_istindex_phyreg         (prm_istindex_phyreg),
+        .i_prm_istindex_istidx         (prm_istindex_istidx),
+        .o_ready_update_valid          (ready_update_valid),
+        .i_ready_update_get            (ready_update_get),
+        .o_ready_update_phyreg         (ready_update_phyreg),
+        .o_ready_update_istidx         (ready_update_istidx),
+        .i_wb_done                     (wb_done),
+        .i_wb_done_phyreg              (wb_done_phyreg),
+        .o_prm_active                  (prm_active)
     );
 
     ready_station #(
@@ -188,18 +262,19 @@ module eulsukdo_1dec_3issue #(
     ) U_RS (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .o_ist_ready_entry_get         (o_ist_ready_entry_get),
-        .i_ist_ready_entry_valid       (i_ist_ready_entry_valid),
-        .i_ist_ready_entry             (i_ist_ready_entry),
-        .i_ex_entry_get                (i_ex_entry_get),
-        .o_ex_entry_valid              (o_ex_entry_valid),
-        .o_ex_entry                    (o_ex_entry)
+        .o_ist_ready_entry_get         (push_rs_available),
+        .i_ist_ready_entry_valid       (push_rs_valid),
+        .i_ist_ready_entry             (push_rs_data),
+        .i_ex_entry_get                (ex_entry_get),
+        .o_ex_entry_valid              (ex_entry_valid),
+        .o_ex_entry                    (ex_entry)
     );
 
     // EX Section Start
 
     // EX Section End
 
+    /* 
     write_back_concatenation #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
         .PHYREG_NUM                    (PHYREG_NUM),
@@ -272,6 +347,8 @@ module eulsukdo_1dec_3issue #(
         .i_wbc2fcl_branch_pc           (i_wbc2fcl_branch_pc),
         .o_im_re                       (o_im_re),
         .o_im_pc                       (o_im_pc)
-    );
+    );*/
+
+    assign o_im_re = ist_insert_available & prm_active;
 
 endmodule
