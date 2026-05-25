@@ -519,7 +519,7 @@ module new_entry_logic #(
         .o_read_data         ({past_log_phy_reg, opreands_log_phy})
     );
 
-    regfile #(
+    regfile_init_1 #(
         .READ_CHANNEL  (DECODE_NEW_INST*INST_OPREANDS),
         .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
         .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),

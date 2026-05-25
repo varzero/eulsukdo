@@ -85,6 +85,63 @@ module regfile #(
 
 endmodule
 
+module regfile_init_1 #(
+    parameter       READ_CHANNEL    = 8 ,
+    parameter       WRITE_CHANNEL   = 4 ,
+    parameter       ENTRIES         = 16,
+    parameter       REG_WIDTH       = 32,
+    parameter       ENTRY_ADDR_WIDTH= $clog2(ENTRIES)
+) (
+    input                                               clk                 ,
+    input                                               reset_n             ,
+    input       [READ_CHANNEL*ENTRY_ADDR_WIDTH-1:0]     i_read_addresses    ,
+    input       [WRITE_CHANNEL-1:0]                     i_write_wes         ,
+    input       [WRITE_CHANNEL*ENTRY_ADDR_WIDTH-1:0]    i_write_addresses   ,
+    input       [WRITE_CHANNEL*REG_WIDTH-1:0]           i_write_data        ,
+    output reg  [READ_CHANNEL*REG_WIDTH-1:0]            o_read_data
+);
+    // Synthesis Variables
+    integer var_target_idx = 0, var_sel_read_addr_idx = 0, var_sel_write_addr_idx = 0;
+
+    // Register Memory
+    reg [REG_WIDTH-1:0] mem_reg [0:ENTRIES-1];
+    reg [REG_WIDTH-1:0] next_mem_reg [0:ENTRIES-1];
+
+    always @(posedge clk or negedge reset_n) begin
+        if (reset_n == 1'b0) begin
+            for (var_target_idx = 0; var_target_idx < ENTRIES; var_target_idx = var_target_idx + 1) begin
+                mem_reg[var_target_idx] <= {(REG_WIDTH){1'b1}};
+            end
+        end
+        else begin
+            for (var_target_idx = 0; var_target_idx < ENTRIES; var_target_idx = var_target_idx + 1) begin
+                mem_reg[var_target_idx] <= next_mem_reg[var_target_idx];
+            end
+        end
+    end
+
+    // R/W
+    always @(*) begin
+        // Read channel
+        for (var_sel_read_addr_idx = 0; var_sel_read_addr_idx < READ_CHANNEL; var_sel_read_addr_idx = var_sel_read_addr_idx + 1) begin
+            o_read_data[ var_sel_read_addr_idx*REG_WIDTH +: REG_WIDTH ] = 
+                mem_reg[ (i_read_addresses[ var_sel_read_addr_idx*ENTRY_ADDR_WIDTH +: ENTRY_ADDR_WIDTH ]) ];
+        end
+
+        // Write channel
+        for (var_target_idx = 0; var_target_idx < ENTRIES; var_target_idx = var_target_idx + 1) begin
+            next_mem_reg[var_target_idx] = mem_reg[var_target_idx];
+        end
+        for (var_sel_write_addr_idx = 0; var_sel_write_addr_idx < WRITE_CHANNEL; var_sel_write_addr_idx = var_sel_write_addr_idx + 1) begin
+            if (i_write_wes[var_sel_write_addr_idx]) begin
+                next_mem_reg[ i_write_addresses[var_sel_write_addr_idx*ENTRY_ADDR_WIDTH +: ENTRY_ADDR_WIDTH] ] = 
+                    i_write_data[ var_sel_write_addr_idx*REG_WIDTH +: REG_WIDTH ];
+            end
+        end
+    end
+
+endmodule
+
 // (FOR FIFO_RAM PIPELINING)=============================================================
 `timescale 1ns / 1ps
 module priority_decoder #(
