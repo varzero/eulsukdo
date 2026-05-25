@@ -389,7 +389,7 @@ module new_entry_logic #(
                             +: INST_NUM_OF_LOGICAL_REGISTER] = rs[new_entry_idx][opreand_idx];
             end
 
-            if (past_log_phy_reg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM] != 0)
+            if (rd[new_entry_idx] != 0)
                 newreg_alloc_spread[new_entry_idx] = newreg_alloc[new_entry_idx];
             else
                 newreg_alloc_spread[new_entry_idx] = 0;
@@ -513,7 +513,7 @@ module new_entry_logic #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    ({rd_spread, rs_spread}),
-        .i_write_wes         (o_im_inst_get),
+        .i_write_wes         (o_im_inst_get & i_im_inst_valid),
         .i_write_addresses   (rd_spread),
         .i_write_data        (i_prm_allocate_phyreg),
         .o_read_data         ({past_log_phy_reg, opreands_log_phy})
@@ -528,7 +528,7 @@ module new_entry_logic #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (opreands_log_phy_reg_spread),
-        .i_write_wes         ({i_wbc2nel_done, o_im_inst_get}),
+        .i_write_wes         ({i_wbc2nel_done, o_im_inst_get & i_im_inst_valid}),
         .i_write_addresses   ({i_wbc2nel_done_phyreg, i_prm_allocate_phyreg}),
         .i_write_data        ({{EX_PATH_NUM{1'b1}}, {DECODE_NEW_INST{1'b0}}}),
         .o_read_data         (opreands_phy_ready)

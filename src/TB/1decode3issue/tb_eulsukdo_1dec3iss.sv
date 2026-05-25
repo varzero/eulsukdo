@@ -91,6 +91,7 @@ module tb_eulsukdo_1dec_3issue ();
         i_im_inst_pc    = 32'h0001_2354;
         i_im_inst       = 32'h0000_03b3; // add x7, x0, x0
         @(negedge clk);
+        i_im_inst_valid = 1'b0;
         @(negedge clk);
         @(negedge clk);
         $finish;
