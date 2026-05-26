@@ -264,7 +264,7 @@ module instruction_state_table #(
                 .clk                 (clk),
                 .reset_n             (reset_n),
                 .i_read_addresses    (i_ready_update_istidx),
-                .i_write_wes         ({ {PRM_ENTRY_UPDATE{1'b1}} , i_ist_field_insert & new_ist_valid[target_ready]}),
+                .i_write_wes         ({ done_readys_update[target_ready] , i_ist_field_insert & new_ist_valid[DECODE_NEW_INST-1:0]}),
                 .i_write_addresses   ({i_ready_update_istidx, new_ist_num}),
                 .i_write_data        ({done_readys_update[target_ready], ist_readys_split_opreand[target_ready]}),
                 .o_read_data         (done_readys[target_ready])
