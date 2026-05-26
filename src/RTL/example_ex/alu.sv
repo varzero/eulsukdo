@@ -12,6 +12,7 @@ module alu_ex #(
 	input        [MICROOP_WIDTH-1:0]       microop_i,
 	input        [31:0] 			       rs1_i,
 	input        [31:0] 			       rs2_i,
+	input        [31:0] 			       imm_i,
 	output logic [31:0] 	               alu_result_o,
 	output logic                           done_o
 );
@@ -22,45 +23,78 @@ module alu_ex #(
 				alu_result = rs1_i + rs2_i;
 				done_o = run_i;
 			end
-			`ALU_CMD_SUB: begin
-				alu_result = rs1 - rs2;
+			5'b0_1_000: begin // SUB
+				alu_result = rs1_i - rs2_i;
+				done_o = run_i;
 			end
-			`ALU_CMD_AND: begin
-				alu_result = rs1 & rs2;
+			5'b0_0_001: begin // SLL
+				alu_result = rs1_i << rs2_i[4:0];
+				done_o = run_i;
 			end
-			`ALU_CMD_OR : begin
-				alu_result = rs1 | rs2;
+			5'b0_0_010: begin // SLT
+				alu_result = ( $signed(rs1_i) < $signed(rs2_i) )? 32'd1 : 32'b0;
+				done_o = run_i;
 			end
-			`ALU_CMD_XOR: begin
-				alu_result = rs1 ^ rs2;
+			5'b0_0_011: begin // SLTU
+				alu_result = ( rs1_i < rs2_i )? 32'd1 : 32'b0;
+				done_o = run_i;
 			end
-			`ALU_CMD_SLT: begin
-				alu_result = ( $signed(rs1) < $signed(rs2) )? 32'd1 : 32'b0; // Signed
+			5'b0_0_100: begin // XOR
+				alu_result = rs1_i ^ rs2_i;
+				done_o = run_i;
 			end
-			`ALU_CMD_SLTU: begin
-				alu_result = ( rs1 < rs2 )? 32'd1 : 32'b0; // Unsigned
+			5'b0_0_101: begin // SRL
+				alu_result = rs1_i >> rs2_i[4:0];
+				done_o = run_i;
 			end
-			`ALU_CMD_SLL: begin
-				alu_result = rs1 << rs2[4:0]; // Shift Left
+			5'b0_1_101: begin // SRA
+				alu_result = $signed(rs1_i) >>> rs2[4:0];
+				done_o = run_i;
 			end
-			`ALU_CMD_SRL: begin
-				alu_result = rs1 >> rs2[4:0]; // Shift Right
+			5'b0_0_110: begin // OR
+				alu_result = rs1_i | rs2_i;
+				done_o = run_i;
 			end
-			`ALU_CMD_SRA: begin
-				alu_result = $signed(rs1) >>> rs2[4:0]; // Shift Right Arithmetic
+			5'b0_0_111: begin // AND
+				alu_result = rs1_i & rs2_i;
+				done_o = run_i;
 			end
 
-			`ALU_CMD_EQ:  begin
-				alu_result = ( rs1 == rs2 )? 32'd1 : 32'b0;
+			5'b1_0_000: begin // ADDI
+				alu_result = rs1_i + imm_i;
+				done_o = run_i;
 			end
-			`ALU_CMD_NE:  begin
-				alu_result = ( rs1 != rs2 )? 32'd1 : 32'b0;
+			5'b1_0_001: begin // SLLI
+				alu_result = rs1_i << imm_i[4:0];
+				done_o = run_i;
 			end
-			`ALU_CMD_GE:  begin
-				alu_result = ( $signed(rs1) >= $signed(rs2) )? 32'd1 : 32'b0;
+			5'b1_0_010: begin // SLTI
+				alu_result = ( $signed(rs1_i) < $signed(imm_i) )? 32'd1 : 32'b0;
+				done_o = run_i;
 			end
-			`ALU_CMD_GEU: begin
-				alu_result = ( rs1 >= rs2 )? 32'd1 : 32'b0;
+			5'b1_0_011: begin // SLTIU
+				alu_result = ( rs1_i < imm_i )? 32'd1 : 32'b0;
+				done_o = run_i;
+			end
+			5'b1_0_100: begin // XORI
+				alu_result = rs1_i ^ imm_i;
+				done_o = run_i;
+			end
+			5'b1_0_101: begin // SRLI
+				alu_result = rs1_i >> imm_i[4:0];
+				done_o = run_i;
+			end
+			5'b1_1_101: begin // SRAI
+				alu_result = $signed(rs1_i) >>> imm_i[4:0];
+				done_o = run_i;
+			end
+			5'b1_0_110: begin // ORI
+				alu_result = rs1_i | imm_i;
+				done_o = run_i;
+			end
+			5'b1_0_111: begin // ANDI
+				alu_result = rs1_i & imm_i;
+				done_o = run_i;
 			end
 
 			default: begin
