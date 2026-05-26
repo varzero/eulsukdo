@@ -22,7 +22,7 @@ module tb_new_entry_logic ();
     parameter INST_NUM_OF_LOGICAL_REGISTER  = 32;
     parameter INST_OPREANDS                 = 2;
     // Internal Field Description (Decoder Compiler (or Human) Generate)
-    parameter MICROOP_WIDTH                 = 7; // Micro-OP is not contained information of EX_PATH
+    parameter MICROOP_WIDTH                 = 5; // Micro-OP is not contained information of EX_PATH
     // (Autogenerate) Elements
     localparam BITWIDTH_EX_PATH_NUM                     = $clog2(EX_PATH_NUM);
     localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM);

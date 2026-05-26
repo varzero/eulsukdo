@@ -1,14 +1,26 @@
-module alu (
-	input [31:0] 			rs1,
-	input [31:0] 			rs2,
-	input [3:0] 			alu_control,
-	output logic [31:0] 	alu_result
+module alu_ex #(
+    parameter EX_PATH_NUM           = 3,
+    parameter INST_OPREANDS         = 2,
+    parameter MICROOP_WIDTH         = 7, // Micro-OP is not contained information of EX_PATH
+    parameter PHYREG_NUM            = 64,
+
+    // (Autogenerate) Elements
+    localparam BITWIDTH_PHYREG_NUM  = $clog2(PHYREG_NUM),
+    localparam BITWIDTH_EX_PATH_NUM = $clog2(EX_PATH_NUM)
+) (
+	input                                  run_i,
+	input        [MICROOP_WIDTH-1:0]       microop_i,
+	input        [31:0] 			       rs1_i,
+	input        [31:0] 			       rs2_i,
+	output logic [31:0] 	               alu_result_o,
+	output logic                           done_o
 );
-/*
+
 	always_comb begin
-		case(alu_control)
-			`ALU_CMD_ADD: begin
-				alu_result = rs1 + rs2;
+		case(microop_i)
+			5'b0_0_000: begin // ADD
+				alu_result = rs1_i + rs2_i;
+				done_o = run_i;
 			end
 			`ALU_CMD_SUB: begin
 				alu_result = rs1 - rs2;
@@ -53,8 +65,9 @@ module alu (
 
 			default: begin
 				alu_result = 32'b0;
+				done_o = 1'b0;
 			end
 		endcase
 	end
-*/
+
 endmodule

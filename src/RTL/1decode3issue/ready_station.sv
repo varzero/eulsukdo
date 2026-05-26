@@ -26,7 +26,7 @@ module ready_station #(
     parameter INST_OPREANDS                 = 2,
 
     // Internal Field Description (Decoder Compiler (or Human) Generate)
-    parameter MICROOP_WIDTH                 = 7, // Micro-OP is not contained information of EX_PATH
+    parameter MICROOP_WIDTH                 = 5, // Micro-OP is not contained information of EX_PATH
 
     // (Autogenerate) Elements
     localparam BITWIDTH_EX_PATH_NUM                     = $clog2(EX_PATH_NUM),

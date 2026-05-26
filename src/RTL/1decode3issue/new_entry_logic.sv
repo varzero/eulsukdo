@@ -7,7 +7,7 @@
 module rv32i_decode_opcode #(
     parameter EX_PATH_NUM           = 3,
     parameter INST_OPREANDS         = 2,
-    parameter MICROOP_WIDTH         = 7, // Micro-OP is not contained information of EX_PATH
+    parameter MICROOP_WIDTH         = 5, // Micro-OP is not contained information of EX_PATH
 
     // (Autogenerate) Elements
     localparam BITWIDTH_EX_PATH_NUM = $clog2(EX_PATH_NUM)
