@@ -441,7 +441,7 @@ module allocator_start_one #(
 	localparam ALLOCATING_FIFO_WIDTH_ENTRIES = (UNALLOCATES > ALLOCATES)? UNALLOCATES : ALLOCATES;
 	localparam ALLOCATING_FIFO_DEPTH = (NUM_OF_ENTRIES / ALLOCATING_FIFO_WIDTH_ENTRIES) 
 										+ ( ((NUM_OF_ENTRIES % ALLOCATING_FIFO_WIDTH_ENTRIES) > 0)? 1 : 0 );
-	localparam UNALLOCATING_FIFO_LAST_ENTRIES = NUM_OF_ENTRIES % UNALLOCATES;
+	localparam UNALLOCATING_FIFO_LAST_ENTRIES = (NUM_OF_ENTRIES-1) % UNALLOCATES;
 
 	// Initializer FSM
 		// State
@@ -466,7 +466,7 @@ module allocator_start_one #(
 	always @(*) begin
 		case (state)
 			INIT: begin
-				if (entry_cnt > NUM_OF_ENTRIES) begin
+				if (entry_cnt >= (NUM_OF_ENTRIES-1)) begin
 					state_next = ALLOCATING;
 				end
 				else begin
@@ -486,7 +486,8 @@ module allocator_start_one #(
 		case (state)
 			INIT: begin
                 unallocate_entries_in_fifo = 0;
-				if (entry_cnt == ( (NUM_OF_ENTRIES-UNALLOCATING_FIFO_LAST_ENTRIES) ) ) begin
+				if (entry_cnt >= (NUM_OF_ENTRIES-1)) unallocate_valid_in_fifo = 0; 
+				else if (entry_cnt == ( (NUM_OF_ENTRIES-UNALLOCATING_FIFO_LAST_ENTRIES) )) begin
 					unallocate_valid_in_fifo = { {(UNALLOCATES-UNALLOCATING_FIFO_LAST_ENTRIES){1'b0}},
 												 {UNALLOCATING_FIFO_LAST_ENTRIES{1'b1}} };
 				end

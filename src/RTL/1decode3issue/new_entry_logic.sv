@@ -381,12 +381,12 @@ module new_entry_logic #(
     end
     always @(*) begin
         for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
-            rd_spread[(INST_NUM_OF_LOGICAL_REGISTER*new_entry_idx) +: INST_NUM_OF_LOGICAL_REGISTER]
+            rd_spread[(BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER*new_entry_idx) +: BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER]
                 = (newreg_alloc[new_entry_idx])? rd[new_entry_idx] : 0;
 
             for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
-                rs_spread[( INST_NUM_OF_LOGICAL_REGISTER * ((new_entry_idx*INST_OPREANDS) + opreand_idx) ) 
-                            +: INST_NUM_OF_LOGICAL_REGISTER] = rs[new_entry_idx][opreand_idx];
+                rs_spread[( BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER * ((new_entry_idx*INST_OPREANDS) + opreand_idx) ) 
+                            +: BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER] = rs[new_entry_idx][opreand_idx];
             end
 
             if (rd[new_entry_idx] != 0)
