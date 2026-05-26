@@ -81,19 +81,47 @@ module tb_eulsukdo_1dec_3issue ();
 
         wait(o_im_re);
         @(negedge clk);
-
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2350;
-        i_im_inst       = 32'h0051_83b3; // add x7, x3, x5
-        @(negedge clk);
         
         i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2354;
+        i_im_inst_pc    = 32'h0001_2350;
         i_im_inst       = 32'h0000_03b3; // add x7, x0, x0
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2354;
+        i_im_inst       = 32'h0000_0433; // add x8, x0, x0
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2358;
+        i_im_inst       = 32'h0000_04b3; // add x9, x0, x0
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_235C;
+        i_im_inst       = 32'h0000_0533; // add x10, x0, x0
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2360;
+        i_im_inst       = 32'h0023_80b3; // add x1, x7, x2
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2364;
+        i_im_inst       = 32'h0084_80b3; // add x1, x9, x8
+        @(negedge clk);
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2368;
+        i_im_inst       = 32'h00a3_00b3; // add x1, x6, x10
         @(negedge clk);
         i_im_inst_valid = 1'b0;
         @(negedge clk);
+        /*
+        i_im_inst_valid = 1'b1;
+        i_im_inst_pc    = 32'h0001_2350;
+        i_im_inst       = 32'h0051_83b3; // add x7, x3, x5
+        */
+        @(negedge clk);@(negedge clk);
+        
         @(negedge clk);
+
+
         $finish;
     end
 

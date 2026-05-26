@@ -522,7 +522,7 @@ module new_entry_logic #(
     regfile_init_1 #(
         .READ_CHANNEL  (DECODE_NEW_INST*INST_OPREANDS),
         .WRITE_CHANNEL (EX_PATH_NUM+DECODE_NEW_INST),
-        .ENTRIES       (INST_NUM_OF_LOGICAL_REGISTER),
+        .ENTRIES       (PHYREG_NUM),
         .REG_WIDTH     (1)
     ) U_PHYREG_READY (
         .clk                 (clk),

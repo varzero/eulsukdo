@@ -31,23 +31,23 @@ Glitch와 Fan-Out 관점에서 불리합니다.
 명령의 입력부터 대기, 가용 상태로 변경과 최종 처리 순서를 반영하여 설명하면,
 1. 새로운 명령을 입력받아, 이때 명령의 레지스터들을 내부 체계의 이름으로 변경하며,  
 새로운 명령에서 필요한 레지스터의 준비여부를 모아 내부에서 처리하는 명령 체계로 변환하는  
-[**New Entry Logic**](new_entry_logic.md)
+[**New Entry Logic(NEL)**](new_entry_logic.md)
 2. 내부 체계로 변경된 명령을 저장하고, 필요한 레지스터들의 준비 여부를 업데이트 하며,  
 명령의 소스 레지스터들이 모두 준비되면 해당 명령을 외부로 출력하는  
-[**Instruction State Table**](instruction_state_table.md)
+[**Instruction State Table(IST)**](instruction_state_table.md)
 3. 내부 체계로 변경된 레지스터 이름을 기준으로,  
 특정 레지스터가 사용되는 명령의 내부적인 번호를 저장해두고,  
 실행 유닛에서 처리가 완료된 레지스터 번호를 받아 해당 레지스터의 명령 번호를 출력하는  
-[**Physical Register Mapper**](physical_register_mapper.md)
+[**Physical Register Mapper(PRM)**](physical_register_mapper.md)
 4. 준비된 명령들이 필요한 실행 유닛에 들어가도록 배치하고,  
 각 실행 유닛이 동작할 수 있는 상태에 전달할 수 있도록 버퍼링하는  
-[**Ready Station**](ready_station.md)
+[**Ready Station(RS)**](ready_station.md)
 5. 실행 유닛에서 완료된 명령의 레지스터 번호를 전달하고,  
 명령의 순서를 바꾸는 정보를 전달하거나 외부 I/O로 데이터를 교환하는  
-[**Write Back Concatenation**](write_back_concatenation.md)
+[**Write Back Concatenation(WBC)**](write_back_concatenation.md)
 6. 명령의 순서를 전달하고, 분기/점프로 둘러쌓인 Basic Block 단위로 순서를 관리하며,   
 명령의 처리와 함께 새로운 레지스터로 할당되면서 필요없는 레지스터를 반환하는  
-[**Flow Control Unit**](flow_control_unit.md)
+[**Flow Control Logic(FCL)**](flow_control_logic.md)
 
 ( "내부적인"과 같은 내용을 서술하지 않은 경우 외부에서 들어온 정보 기준입니다.  
 명령:PC / 명령의 내부적인 번호:IST 엔트리 번호 )
@@ -80,6 +80,10 @@ Glitch와 Fan-Out 관점에서 불리합니다.
 
 #### PRM_ENTRY_BUFFER
 내부적인 레지스터 번호에 각각 매핑된 명령 번호의 수입니다. 기본값은 4입니다.
+
+#### PRM_ENTRY_UPDATE
+Physical Register Mapper에서 Instruction State Table로 출력되는 명령의 수 입니다.  
+기본값은 3으로, EX_PATH_NUM과 동일합니다.
 
 #### RS_ENTRY_NUM
 Ready Station에 저장된 명령이 버퍼링 되는 엔트리 수 입니다. 기본값은 16입니다.

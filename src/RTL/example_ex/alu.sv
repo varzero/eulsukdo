@@ -4,7 +4,7 @@ module alu (
 	input [3:0] 			alu_control,
 	output logic [31:0] 	alu_result
 );
-
+/*
 	always_comb begin
 		case(alu_control)
 			`ALU_CMD_ADD: begin
@@ -56,5 +56,5 @@ module alu (
 			end
 		endcase
 	end
-
+*/
 endmodule
