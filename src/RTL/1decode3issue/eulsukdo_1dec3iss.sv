@@ -271,10 +271,43 @@ module eulsukdo_1dec_3issue #(
     );
 
     // EX Section Start
+    wire run_alu;
+    wire [MICROOP_WIDTH-1:0] microop_alu;
+    wire [31:0] imm_alu, rs1_alu, rs2_alu, result_alu;
+    wire done_alu;
+
+    alu_ex #(
+        .EX_PATH_NUM                  (EX_PATH_NUM),
+        .INST_OPREANDS                (INST_OPREANDS),
+        .MICROOP_WIDTH                (MICROOP_WIDTH),
+        .PHYREG_NUM                   (PHYREG_NUM)
+    ) U_EX_ALU0 (
+    	.run_i                        (run_alu),
+    	.microop_i                    (microop_alu),
+    	.rs1_i                        (rs1_alu),
+    	.rs2_i                        (rs2_alu),
+    	.imm_i                        (imm_alu),
+    	.alu_result_o                 (result_alu),
+    	.done_o                       (done_alu)
+    );
+
+    regfile #(
+        .READ_CHANNEL                 (EX_PATH_NUM*INST_OPREANDS),
+        .WRITE_CHANNEL                (EX_PATH_NUM),
+        .ENTRIES                      (PHYREG_NUM),
+        .REG_WIDTH                    (32)
+    ) (
+        .clk                          (clk),
+        .reset_n                      (reset_n),
+        .i_read_addresses             (),
+        .i_write_wes                  (),
+        .i_write_addresses            (),
+        .i_write_data                 ({, result_alu, }),
+        .o_read_data                  ({, , rs2_alu, rs1_alu, , })
+    );
 
     // EX Section End
 
-    /* 
     write_back_concatenation #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
         .PHYREG_NUM                    (PHYREG_NUM),
@@ -308,7 +341,7 @@ module eulsukdo_1dec_3issue #(
         .o_wbc2fcl_branch              (o_wbc2fcl_branch),
         .o_wbc2fcl_branch_pc           (o_wbc2fcl_branch_pc)
     );
-
+/*
     flow_control_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
         .PHYREG_NUM                    (PHYREG_NUM),
