@@ -31,6 +31,14 @@ module tb_eulsukdo_1dec_3issue ();
     wire [DECODE_NEW_INST-1:0]                 o_im_inst_get;
     wire                                       o_im_re;
     wire [INST_PC_WIDTH-1:0]                   o_im_pc;
+    
+    wire                                       re_vmem_o;
+    wire                                       we_vmem_o;
+    wire [31:0]                                addr_vmem_o;
+    wire [31:0]                                strb_vmem_o;
+    reg  [31:0]                                rdata_vmem_i;
+    wire [31:0]                                wdata_vmem_o;
+    reg                                        ready_vmem_i;
 
     eulsukdo_1dec_3issue #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -60,7 +68,14 @@ module tb_eulsukdo_1dec_3issue ();
         .i_im_inst                     (i_im_inst),
         .o_im_inst_get                 (o_im_inst_get),
         .o_im_re                       (o_im_re),
-        .o_im_pc                       (o_im_pc)
+        .o_im_pc                       (o_im_pc),
+        .re_vmem_o                     (re_vmem_o),
+        .we_vmem_o                     (we_vmem_o),
+        .addr_vmem_o                   (addr_vmem_o),
+        .strb_vmem_o                   (strb_vmem_o),
+        .rdata_vmem_i                  (rdata_vmem_i),
+        .wdata_vmem_o                  (wdata_vmem_o),
+        .ready_vmem_i                  (ready_vmem_i)
     );
 
     always #5 clk = ~clk;
@@ -71,6 +86,9 @@ module tb_eulsukdo_1dec_3issue ();
         i_im_inst_valid = 0;
         i_im_inst_pc    = 0;
         i_im_inst       = 0;
+
+        rdata_vmem_i = 0;
+        ready_vmem_i = 0;
 
         @(negedge clk);
         @(negedge clk);
