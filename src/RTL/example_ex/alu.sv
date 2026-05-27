@@ -21,104 +21,104 @@ module alu_ex #(
 	always_comb begin
 		case(microop_i)
 			5'b0_0_000: begin // ADD
-				alu_result = rs1_i + rs2_i;
+				alu_result_o = rs1_i + rs2_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_1_000: begin // SUB
-				alu_result = rs1_i - rs2_i;
+				alu_result_o = rs1_i - rs2_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_001: begin // SLL
-				alu_result = rs1_i << rs2_i[4:0];
+				alu_result_o = rs1_i << rs2_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_010: begin // SLT
-				alu_result = ( $signed(rs1_i) < $signed(rs2_i) )? 32'd1 : 32'b0;
+				alu_result_o = ( $signed(rs1_i) < $signed(rs2_i) )? 32'd1 : 32'b0;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_011: begin // SLTU
-				alu_result = ( rs1_i < rs2_i )? 32'd1 : 32'b0;
+				alu_result_o = ( rs1_i < rs2_i )? 32'd1 : 32'b0;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_100: begin // XOR
-				alu_result = rs1_i ^ rs2_i;
+				alu_result_o = rs1_i ^ rs2_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_101: begin // SRL
-				alu_result = rs1_i >> rs2_i[4:0];
+				alu_result_o = rs1_i >> rs2_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_1_101: begin // SRA
-				alu_result = $signed(rs1_i) >>> rs2[4:0];
+				alu_result_o = $signed(rs1_i) >>> rs2_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_110: begin // OR
-				alu_result = rs1_i | rs2_i;
+				alu_result_o = rs1_i | rs2_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b0_0_111: begin // AND
-				alu_result = rs1_i & rs2_i;
+				alu_result_o = rs1_i & rs2_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 
 			5'b1_0_000: begin // ADDI
-				alu_result = rs1_i + imm_i;
+				alu_result_o = rs1_i + imm_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_001: begin // SLLI
-				alu_result = rs1_i << imm_i[4:0];
+				alu_result_o = rs1_i << imm_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_010: begin // SLTI
-				alu_result = ( $signed(rs1_i) < $signed(imm_i) )? 32'd1 : 32'b0;
+				alu_result_o = ( $signed(rs1_i) < $signed(imm_i) )? 32'd1 : 32'b0;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_011: begin // SLTIU
-				alu_result = ( rs1_i < imm_i )? 32'd1 : 32'b0;
+				alu_result_o = ( rs1_i < imm_i )? 32'd1 : 32'b0;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_100: begin // XORI
-				alu_result = rs1_i ^ imm_i;
+				alu_result_o = rs1_i ^ imm_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_101: begin // SRLI
-				alu_result = rs1_i >> imm_i[4:0];
+				alu_result_o = rs1_i >> imm_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_1_101: begin // SRAI
-				alu_result = $signed(rs1_i) >>> imm_i[4:0];
+				alu_result_o = $signed(rs1_i) >>> imm_i[4:0];
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_110: begin // ORI
-				alu_result = rs1_i | imm_i;
+				alu_result_o = rs1_i | imm_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 			5'b1_0_111: begin // ANDI
-				alu_result = rs1_i & imm_i;
+				alu_result_o = rs1_i & imm_i;
 				we_o = run_i;
 				done_o = run_i;
 			end
 
 			default: begin
-				alu_result = 32'b0;
+				alu_result_o = 32'b0;
 				we_o = 1'b0;
 				done_o = 1'b0;
 			end

@@ -119,13 +119,8 @@ module eulsukdo_1dec_3issue #(
     assign im_bb_inst_get   = o_im_inst_get;
     // temp
     assign im_bb_inst_pc    = { {BITWIDTH_FCL_RB_NUM{1'b0}} , i_im_inst_pc};
-    assign wbc2nel_done        = 0;
-    assign wbc2nel_done_phyreg = 0;
     assign prm_unallocate_valid = 0;
     assign prm_unallocate_phyreg = 0;
-    assign wb_done = 0;
-    assign wb_done_phyreg = 0;
-    assign ex_entry_get = 0;
 
 
     new_entry_logic #(
@@ -299,29 +294,29 @@ module eulsukdo_1dec_3issue #(
     assign ex_entry_get = {done_mem, done_alu, done_branch};
     assign done_all_ex  = {done_mem, done_alu, done_branch};
 
-    inst_branch = ex_entry[0 +: RS_ENTRY_BITWIDTH];
-        pc_branch      = inst_branch[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
-        microop_branch = inst_branch[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
-        imm_branch     = inst_branch[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
-        rd_num_branch  = inst_branch[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
-        rs1_num_branch = inst_branch[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
-        rs2_num_branch = inst_branch[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+    assign inst_branch = ex_entry[0 +: RS_ENTRY_BITWIDTH];
+    assign     pc_branch      = inst_branch[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+    assign     microop_branch = inst_branch[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+    assign     imm_branch     = inst_branch[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+    assign     rd_num_branch  = inst_branch[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs1_num_branch = inst_branch[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs2_num_branch = inst_branch[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
 
-    inst_alu    = ex_entry[RS_ENTRY_BITWIDTH +: RS_ENTRY_BITWIDTH];
-        pc_alu         = inst_alu[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
-        microop_alu    = inst_alu[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
-        imm_alu        = inst_alu[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
-        rd_num_alu     = inst_alu[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
-        rs1_num_alu    = inst_alu[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
-        rs2_num_alu    = inst_alu[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+    assign inst_alu    = ex_entry[RS_ENTRY_BITWIDTH +: RS_ENTRY_BITWIDTH];
+    assign     pc_alu         = inst_alu[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+    assign     microop_alu    = inst_alu[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+    assign     imm_alu        = inst_alu[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+    assign     rd_num_alu     = inst_alu[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs1_num_alu    = inst_alu[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs2_num_alu    = inst_alu[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
 
-    inst_mem    = ex_entry[RS_ENTRY_BITWIDTH*2 +: RS_ENTRY_BITWIDTH];
-        pc_mem         = inst_mem[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
-        microop_mem    = inst_mem[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
-        imm_mem        = inst_mem[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
-        rd_num_mem     = inst_mem[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
-        rs1_num_mem    = inst_mem[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
-        rs2_num_mem    = inst_mem[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+    assign inst_mem    = ex_entry[RS_ENTRY_BITWIDTH*2 +: RS_ENTRY_BITWIDTH];
+    assign     pc_mem         = inst_mem[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+    assign     microop_mem    = inst_mem[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+    assign     imm_mem        = inst_mem[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+    assign     rd_num_mem     = inst_mem[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs1_num_mem    = inst_mem[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+    assign     rs2_num_mem    = inst_mem[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
 
     branch_ex #(
         .EX_PATH_NUM                  (EX_PATH_NUM),
@@ -330,7 +325,7 @@ module eulsukdo_1dec_3issue #(
         .PHYREG_NUM                   (PHYREG_NUM),
         .FCL_RB_NUM                   (FCL_RB_NUM),
         .INST_PC_WIDTH                (INST_PC_WIDTH)
-    ) (
+    ) U_EX_BRANCH (
     	.run_i                        (run_branch),
     	.microop_i                    (microop_branch),
     	.rs1_i                        (rs1_alu),
@@ -360,6 +355,7 @@ module eulsukdo_1dec_3issue #(
     	.done_o                       (done_alu)
     );
     
+    assign done_mem = 1'b0;
     assign we_mem = 1'b0;
 
     regfile #(
@@ -367,7 +363,7 @@ module eulsukdo_1dec_3issue #(
         .WRITE_CHANNEL                (EX_PATH_NUM),
         .ENTRIES                      (PHYREG_NUM),
         .REG_WIDTH                    (32)
-    ) (
+    ) U_EX_PHYREG_RF (
         .clk                          (clk),
         .reset_n                      (reset_n),
         .i_read_addresses             ({rs2_num_mem, rs1_num_mem, rs2_num_alu, rs1_num_alu, rs2_num_branch, rs1_num_branch}),
@@ -402,7 +398,7 @@ module eulsukdo_1dec_3issue #(
         .i_ex_done_pc                  ({pc_mem, pc_alu, pc_branch}),
         .i_ex_done_branch              (en_branch),
         .i_ex_done_branch_pc           (new_pc),
-        .i_ex_done_phyreg              (done_all_ex),
+        .i_ex_done_phyreg              ({rd_num_mem, rd_num_alu, rd_num_branch}),
         .o_wbc2prm_done                (wb_done),
         .o_wbc2prm_done_phyreg         (wb_done_phyreg),
         .o_wbc2nel_done                (wbc2nel_done),
