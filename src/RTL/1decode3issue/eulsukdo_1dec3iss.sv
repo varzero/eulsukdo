@@ -46,9 +46,22 @@ module eulsukdo_1dec_3issue #(
     output wire                                       o_im_re,
     output wire [INST_PC_WIDTH-1:0]                   o_im_pc
 
-    // EX INOUT Section Start
+    // EX INOUT Section Start ==============================================
 
-    // EX INOUT Section End
+        // Memory Start ===================================
+        
+        output wire        re_vmem_o,
+        output wire        we_vmem_o,
+        output wire [31:0] addr_vmem_o,
+        output wire [31:0] strb_vmem_o,
+        input  wire [31:0] rdata_vmem_i,
+        output wire [31:0] wdata_vmem_o,
+        input  wire        ready_vmem_i
+
+        // Memory End =====================================
+    
+
+    // EX INOUT Section End ================================================
 );
     localparam IST_BITWIDTH_OPREAND_PHYREG_FULL = BITWIDTH_PHYREG_NUM * INST_OPREANDS;
     localparam IST_BITWIDTH_OPREAND_READY_FULL  = INST_OPREANDS;
@@ -357,9 +370,28 @@ module eulsukdo_1dec_3issue #(
     	.we_o                         (we_alu),
     	.done_o                       (done_alu)
     );
-    
-    assign done_mem = 1'b0;
-    assign we_mem = 1'b0;
+
+    alu_ex #(
+        .MICROOP_WIDTH                (MICROOP_WIDTH)
+    ) (
+        .clk                          (clk),
+        .reset_n                      (reset_n),
+    	.run_i                        (run_mem),
+    	.microop_i                    (microop_mem),
+    	.rs1_i                        (rs1_mem),
+    	.rs2_i                        (rs2_mem),
+    	.imm_i                        (imm_mem),
+    	.rdata_proc_o                 (result_mem),
+        .re_vmem_o                    (re_vmem_o),
+        .we_vmem_o                    (we_vmem_o),
+    	.addr_vmem_o                  (addr_vmem_o),
+    	.strb_vmem_o                  (strb_vmem_o),
+    	.rdata_vmem_i                 (rdata_vmem_i),
+    	.wdata_vmem_o                 (wdata_vmem_o),
+        .ready_vmem_i                 (ready_vmem_i),
+    	.we_proc_o                    (we_mem),
+    	.done_o                       (done_mem)
+    );
 
     regfile #(
         .READ_CHANNEL                 (EX_PATH_NUM*INST_OPREANDS),

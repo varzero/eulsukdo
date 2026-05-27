@@ -2,7 +2,7 @@
 module branch_ex #(
     parameter EX_PATH_NUM           = 3,
     parameter INST_OPREANDS         = 2,
-    parameter MICROOP_WIDTH         = 7, // Micro-OP is not contained information of EX_PATH
+    parameter MICROOP_WIDTH         = 5, // Micro-OP is not contained information of EX_PATH
     parameter PHYREG_NUM            = 64,
     parameter FCL_RB_NUM            = 8,
     parameter INST_PC_WIDTH         = 32,
