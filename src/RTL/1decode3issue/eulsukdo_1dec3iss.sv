@@ -44,7 +44,7 @@ module eulsukdo_1dec_3issue #(
     output wire [DECODE_NEW_INST-1:0]                 o_im_inst_get,
     
     output wire                                       o_im_re,
-    output wire [INST_PC_WIDTH-1:0]                   o_im_pc
+    output wire [INST_PC_WIDTH-1:0]                   o_im_pc,
 
     // EX INOUT Section Start ==============================================
 
