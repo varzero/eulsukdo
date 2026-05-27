@@ -281,7 +281,8 @@ module eulsukdo_1dec_3issue #(
     wire done_branch, done_alu, done_mem;
     wire [RS_ENTRY_BITWIDTH-1:0] inst_branch, inst_alu, inst_mem;
     wire [MICROOP_WIDTH-1:0] microop_branch, microop_alu, microop_mem;
-    wire [BITWIDTH_FCL_PC_WIDTH-1:0] pc_branch, pc_alu, pc_mem, new_pc;
+    wire [BITWIDTH_FCL_PC_WIDTH-1:0] pc_branch, pc_alu, pc_mem;
+    wire [31:0] new_pc;
     wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_branch, rs2_num_branch, rd_num_branch;
     wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_alu, rs2_num_alu, rd_num_alu;
     wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_mem, rs2_num_mem, rd_num_mem;
@@ -405,10 +406,10 @@ module eulsukdo_1dec_3issue #(
         .o_wbc2prm_done_phyreg         (wb_done_phyreg),
         .o_wbc2nel_done                (wbc2nel_done),
         .o_wbc2nel_done_phyreg         (wbc2nel_done_phyreg),
-        .o_wbc2fcl_done                (o_wbc2fcl_done),
-        .o_wbc2fcl_pc                  (o_wbc2fcl_pc),
-        .o_wbc2fcl_branch              (o_wbc2fcl_branch),
-        .o_wbc2fcl_branch_pc           (o_wbc2fcl_branch_pc)
+        .o_wbc2fcl_done                (),
+        .o_wbc2fcl_pc                  (),
+        .o_wbc2fcl_branch              (),
+        .o_wbc2fcl_branch_pc           ()
     );
 /*
     flow_control_logic #(

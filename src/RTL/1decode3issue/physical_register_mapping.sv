@@ -252,10 +252,11 @@ module physical_register_mapping #(
     endgenerate
 
     // Output FIFO
-    wire [PRM_ENTRY_UPDATE-1:0]       fifo_available;
-    wire [PRM_READY_OUT_WIDTH-1:0]    ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
-    reg  [PRM_ENTRY_BUFFER-1:0]       push_valid_position[0:PRM_ENTRY_UPDATE-1];
-    reg  [BITWIDTH_PHYREG_BUFFER-1:0] cnt_phyreg_pop_split;
+    wire [1:0]                         o_ready_update_valid_out[0:PRM_ENTRY_UPDATE-1];
+    wire [PRM_ENTRY_UPDATE-1:0]        fifo_available;
+    wire [(PRM_READY_OUT_WIDTH*2)-1:0] ready_out_fifo_out[0:PRM_ENTRY_UPDATE-1];
+    reg  [PRM_ENTRY_BUFFER-1:0]        push_valid_position[0:PRM_ENTRY_UPDATE-1];
+    reg  [BITWIDTH_PHYREG_BUFFER-1:0]  cnt_phyreg_pop_split;
     integer update_idx, pos_idx;
     always @(*) begin
         for (update_idx = 0; update_idx < PRM_ENTRY_UPDATE; update_idx = update_idx+1) begin
@@ -281,7 +282,7 @@ module physical_register_mapping #(
             	.push_valid_i       (push_valid_position[ready_update_fifo]),
             	.push_data_i        (out_istentries_fifo_push[ready_update_fifo]),
             	.pop_get_i          ({1'b0, i_ready_update_get[ready_update_fifo]}),
-            	.pop_valid_o        (o_ready_update_valid[ready_update_fifo]),
+            	.pop_valid_o        (o_ready_update_valid_out[ready_update_fifo]),
             	.pop_data_o         (ready_out_fifo_out[ready_update_fifo]),
             	.push_available_o   (fifo_available[ready_update_fifo])
             );
@@ -290,6 +291,7 @@ module physical_register_mapping #(
                 = ready_out_fifo_out[ready_update_fifo][PRM_READY_OUT_WIDTH-1:BITWIDTH_IST_ENTRY_NUM];
             assign o_ready_update_istidx[(BITWIDTH_IST_ENTRY_NUM*ready_update_fifo) +: BITWIDTH_IST_ENTRY_NUM] 
                 = ready_out_fifo_out[ready_update_fifo][BITWIDTH_IST_ENTRY_NUM-1:0];
+            assign o_ready_update_valid[ready_update_fifo] = o_ready_update_valid_out[ready_update_fifo][0];
         end
     endgenerate
 

@@ -91,7 +91,9 @@ module instruction_state_table #(
     assign o_ready_update_get = (i_push_rs_available)? {PRM_ENTRY_UPDATE{1'b1}} : {PRM_ENTRY_UPDATE{1'b0}};
 
     wire [(DECODE_NEW_INST*2)-1:0]                      new_ist_valid;
+    wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*2))-1:0] new_ist_num_full;
     wire [(BITWIDTH_IST_ENTRY_NUM*DECODE_NEW_INST)-1:0] new_ist_num;
+    assign new_ist_num = new_ist_num_full[(BITWIDTH_IST_ENTRY_NUM*DECODE_NEW_INST)-1:0];
     assign o_ist_field_valid = new_ist_valid[DECODE_NEW_INST-1:0];
 
     reg  [DECODE_NEW_INST-1:0]  push_rs_valid_low;
@@ -215,7 +217,7 @@ module instruction_state_table #(
         .unallocate_entries_i   ({i_ready_update_istidx, new_ist_num}),
         .allocating_i           ({ {DECODE_NEW_INST{1'b0}}, i_ist_field_insert & o_ist_field_valid }),
     	.allocate_valid_o       (new_ist_valid),
-        .allocate_entries_o     (new_ist_num),
+        .allocate_entries_o     (new_ist_num_full),
     	.init_done              (allocator_enable)
     );
  

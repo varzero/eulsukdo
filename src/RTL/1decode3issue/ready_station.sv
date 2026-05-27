@@ -73,7 +73,7 @@ module ready_station #(
     output wire [EX_PACKET_BITWIDTH-1:0] o_ex_entry
 );
     wire [EX_PATH_NUM-1:0] ex_fifo_available;
-    wire [EX_PACKET_BITWIDTH-1:0] ex_fifo_data[0:EX_PATH_NUM-1];
+    wire [RS_PACKET_BITWIDTH-1:0] ex_fifo_data[0:EX_PATH_NUM-1];
 
     reg  [RS_PUSH_WIDTH-1:0] ex_fifo_target_same_ex[0:EX_PATH_NUM-1];
     always @(*) begin
@@ -90,7 +90,9 @@ module ready_station #(
         end
     end
 
-    wire [RS_PUSH_WIDTH-1:0] ex_fifo_target_valid[0:EX_PATH_NUM-1];
+    wire [RS_PUSH_WIDTH-1:0]         ex_fifo_target_valid[0:EX_PATH_NUM-1];
+    wire [1:0]                       rs_ex_fifo_valid[0:EX_PATH_NUM-1];
+    wire [(RS_ENTRY_BITWIDTH*2)-1:0] rs_ex_fifo_data[0:EX_PATH_NUM-1];
 
     genvar ex_target_fifo;
     generate
@@ -116,10 +118,14 @@ module ready_station #(
             	.push_valid_i       (ex_fifo_target_valid[ex_target_fifo]),
             	.push_data_i        (ex_fifo_data[ex_target_fifo]),
             	.pop_get_i          ({1'b0, i_ex_entry_get[ex_target_fifo]}),
-            	.pop_valid_o        (o_ex_entry_valid[ex_target_fifo]),
-            	.pop_data_o         (o_ex_entry[(RS_ENTRY_BITWIDTH * ex_target_fifo) +: RS_ENTRY_BITWIDTH]),
+            	.pop_valid_o        (rs_ex_fifo_valid[ex_target_fifo]),
+            	.pop_data_o         (rs_ex_fifo_data[ex_target_fifo]),
             	.push_available_o   (ex_fifo_available[ex_target_fifo])
             );
+
+            assign o_ex_entry_valid[ex_target_fifo] = rs_ex_fifo_valid[ex_target_fifo][0];
+            assign o_ex_entry[(RS_ENTRY_BITWIDTH * ex_target_fifo) +: RS_ENTRY_BITWIDTH] 
+                        = rs_ex_fifo_data[ex_target_fifo][0 +: RS_ENTRY_BITWIDTH];
         end
     endgenerate
 
