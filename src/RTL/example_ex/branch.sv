@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module branch_ex #(
     parameter EX_PATH_NUM           = 3,
     parameter INST_OPREANDS         = 2,

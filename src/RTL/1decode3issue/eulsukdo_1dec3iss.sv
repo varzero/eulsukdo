@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module eulsukdo_1dec_3issue #(
     // Dynamic Schedular Description
     parameter DECODE_NEW_INST   = 1,
@@ -8,7 +9,6 @@ module eulsukdo_1dec_3issue #(
     parameter PRM_ENTRY_UPDATE  = 3,
     parameter PRM_READY_OUT_FIFO_DEPTH = 32,
     parameter RS_ENTRY_NUM      = 16,
-    parameter RS_PUSH_WIDTH     = 3,
     parameter FCL_RB_NUM        = 8,
     parameter FCL_PC_GAP        = 4,
     parameter UNALLOCATE_PHYREG = 4,
@@ -31,7 +31,9 @@ module eulsukdo_1dec_3issue #(
     localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM),
     localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER),
     localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM),
-    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH,
+
+    localparam RS_PUSH_WIDTH     = PRM_ENTRY_UPDATE + DECODE_NEW_INST
 ) (
     input                                             clk,
     input                                             reset_n,

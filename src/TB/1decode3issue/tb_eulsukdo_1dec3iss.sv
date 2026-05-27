@@ -9,7 +9,6 @@ module tb_eulsukdo_1dec_3issue ();
     parameter PRM_ENTRY_UPDATE  = 3;
     parameter PRM_READY_OUT_FIFO_DEPTH = 32;
     parameter RS_ENTRY_NUM      = 16;
-    parameter RS_PUSH_WIDTH     = 3;
     parameter FCL_RB_NUM        = 8; // test, default = 8
     parameter FCL_PC_GAP        = 4;
     parameter UNALLOCATE_PHYREG = 4;
@@ -42,7 +41,6 @@ module tb_eulsukdo_1dec_3issue ();
         .PRM_ENTRY_UPDATE              (PRM_ENTRY_UPDATE),
         .PRM_READY_OUT_FIFO_DEPTH      (PRM_READY_OUT_FIFO_DEPTH),
         .RS_ENTRY_NUM                  (RS_ENTRY_NUM),
-        .RS_PUSH_WIDTH                 (RS_PUSH_WIDTH),
         .FCL_RB_NUM                    (FCL_RB_NUM),
         .FCL_PC_GAP                    (FCL_PC_GAP),
         .UNALLOCATE_PHYREG             (UNALLOCATE_PHYREG),
