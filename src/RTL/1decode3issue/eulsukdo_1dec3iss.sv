@@ -53,8 +53,7 @@ module eulsukdo_1dec_3issue #(
     localparam IST_BITWIDTH = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM
                               + IST_BITWIDTH_OPREAND_PHYREG_FULL + IST_BITWIDTH_OPREAND_READY_FULL;
     localparam IST_STARTPOINT_PHYREG            = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH + INST_IMM_WIDTH;
-    localparam IST_STARTPOINT_LOGREG            = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM;
-    localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_LOGREG + BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER;
+    localparam IST_STARTPOINT_OPREAND_PHYREG    = IST_STARTPOINT_PHYREG + BITWIDTH_PHYREG_NUM;
     localparam IST_STARTPOINT_OPREAND_READY     = IST_STARTPOINT_OPREAND_PHYREG + IST_BITWIDTH_OPREAND_PHYREG_FULL;
     localparam IST_PACKET_BITWIDTH              = IST_BITWIDTH * DECODE_NEW_INST;
     localparam IST_ALLOCATE_BITWIDTH            = BITWIDTH_IST_ENTRY_NUM * DECODE_NEW_INST;
@@ -64,6 +63,14 @@ module eulsukdo_1dec_3issue #(
     localparam PRM_UNALLOCATE_BITWIDTH          = BITWIDTH_PHYREG_NUM * UNALLOCATE_PHYREG;
     localparam RS_ENTRY_BITWIDTH                = BITWIDTH_FCL_PC_WIDTH + BITWIDTH_EX_PATH_NUM + MICROOP_WIDTH
                                                   + INST_IMM_WIDTH + BITWIDTH_PHYREG_NUM + IST_BITWIDTH_OPREAND_PHYREG_FULL;
+    localparam RS_STARTPOINT_PC                 = 0;
+    localparam RS_STARTPOINT_EXPATH             = RS_STARTPOINT_PC + BITWIDTH_FCL_PC_WIDTH;
+    localparam RS_STARTPOINT_MICROOP            = RS_STARTPOINT_EXPATH + BITWIDTH_EX_PATH_NUM;
+    localparam RS_STARTPOINT_IMM                = RS_STARTPOINT_MICROOP + MICROOP_WIDTH;
+    localparam RS_STARTPOINT_RD                 = RS_STARTPOINT_IMM + INST_IMM_WIDTH;
+    localparam RS_STARTPOINT_RS1                = RS_STARTPOINT_RD + BITWIDTH_PHYREG_NUM;
+    localparam RS_STARTPOINT_RS2                = RS_STARTPOINT_RD + BITWIDTH_PHYREG_NUM;
+
     localparam RS_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH;
     localparam EX_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * EX_PATH_NUM;
 
@@ -270,11 +277,72 @@ module eulsukdo_1dec_3issue #(
         .o_ex_entry                    (ex_entry)
     );
 
-    // EX Section Start
-    wire run_alu;
-    wire [MICROOP_WIDTH-1:0] microop_alu;
+    // EX Section Start ============================================================
+
+    wire run_branch, run_alu, run_mem;
+    wire we_branch, we_alu, we_mem;
+    wire done_branch, done_alu, done_mem;
+    wire [RS_ENTRY_BITWIDTH-1:0] inst_branch, inst_alu, inst_mem;
+    wire [MICROOP_WIDTH-1:0] microop_branch, microop_alu, microop_mem;
+    wire [BITWIDTH_FCL_PC_WIDTH-1:0] pc_branch, pc_alu, pc_mem, new_pc;
+    wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_branch, rs2_num_branch, rd_num_branch;
+    wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_alu, rs2_num_alu, rd_num_alu;
+    wire [BITWIDTH_PHYREG_NUM-1:0] rs1_num_mem, rs2_num_mem, rd_num_mem;
+    wire [31:0] imm_branch, rs1_branch, rs2_branch, rd_value_branch;
     wire [31:0] imm_alu, rs1_alu, rs2_alu, result_alu;
-    wire done_alu;
+    wire [31:0] imm_mem, rs1_mem, rs2_mem, result_mem;
+    wire en_branch;
+
+    wire [EX_PATH_NUM-1:0] done_all_ex;
+
+    assign {run_mem, run_alu, run_branch} = ex_entry_valid;
+    assign ex_entry_get = {done_mem, done_alu, done_branch};
+    assign done_all_ex  = {done_mem, done_alu, done_branch};
+
+    inst_branch = ex_entry[0 +: RS_ENTRY_BITWIDTH];
+        pc_branch      = inst_branch[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+        microop_branch = inst_branch[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+        imm_branch     = inst_branch[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+        rd_num_branch  = inst_branch[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+        rs1_num_branch = inst_branch[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+        rs2_num_branch = inst_branch[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+
+    inst_alu    = ex_entry[RS_ENTRY_BITWIDTH +: RS_ENTRY_BITWIDTH];
+        pc_alu         = inst_alu[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+        microop_alu    = inst_alu[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+        imm_alu        = inst_alu[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+        rd_num_alu     = inst_alu[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+        rs1_num_alu    = inst_alu[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+        rs2_num_alu    = inst_alu[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+
+    inst_mem    = ex_entry[RS_ENTRY_BITWIDTH*2 +: RS_ENTRY_BITWIDTH];
+        pc_mem         = inst_mem[RS_STARTPOINT_PC      +: BITWIDTH_FCL_PC_WIDTH];
+        microop_mem    = inst_mem[RS_STARTPOINT_MICROOP +: MICROOP_WIDTH        ];
+        imm_mem        = inst_mem[RS_STARTPOINT_IMM     +: INST_IMM_WIDTH       ];
+        rd_num_mem     = inst_mem[RS_STARTPOINT_RD      +: BITWIDTH_PHYREG_NUM  ];
+        rs1_num_mem    = inst_mem[RS_STARTPOINT_RS1     +: BITWIDTH_PHYREG_NUM  ];
+        rs2_num_mem    = inst_mem[RS_STARTPOINT_RS2     +: BITWIDTH_PHYREG_NUM  ];
+
+    branch_ex #(
+        .EX_PATH_NUM                  (EX_PATH_NUM),
+        .INST_OPREANDS                (INST_OPREANDS),
+        .MICROOP_WIDTH                (MICROOP_WIDTH),
+        .PHYREG_NUM                   (PHYREG_NUM),
+        .FCL_RB_NUM                   (FCL_RB_NUM),
+        .INST_PC_WIDTH                (INST_PC_WIDTH)
+    ) (
+    	.run_i                        (run_branch),
+    	.microop_i                    (microop_branch),
+    	.rs1_i                        (rs1_alu),
+    	.rs2_i                        (rs2_branch),
+    	.imm_i                        (imm_branch),
+    	.pc_i                         (pc_branch),
+    	.new_pc_o                     (new_pc),
+    	.return_pc_o                  (rd_value_branch),
+    	.we_o                         (we_branch),
+    	.branch_o                     (en_branch),
+    	.done_o                       (done_branch)
+    );
 
     alu_ex #(
         .EX_PATH_NUM                  (EX_PATH_NUM),
@@ -288,8 +356,11 @@ module eulsukdo_1dec_3issue #(
     	.rs2_i                        (rs2_alu),
     	.imm_i                        (imm_alu),
     	.alu_result_o                 (result_alu),
+    	.we_o                         (we_alu),
     	.done_o                       (done_alu)
     );
+    
+    assign we_mem = 1'b0;
 
     regfile #(
         .READ_CHANNEL                 (EX_PATH_NUM*INST_OPREANDS),
@@ -299,14 +370,14 @@ module eulsukdo_1dec_3issue #(
     ) (
         .clk                          (clk),
         .reset_n                      (reset_n),
-        .i_read_addresses             (),
-        .i_write_wes                  (),
-        .i_write_addresses            (),
-        .i_write_data                 ({, result_alu, }),
-        .o_read_data                  ({, , rs2_alu, rs1_alu, , })
+        .i_read_addresses             ({rs2_num_mem, rs1_num_mem, rs2_num_alu, rs1_num_alu, rs2_num_branch, rs1_num_branch}),
+        .i_write_wes                  ({we_mem, we_alu, we_branch}),
+        .i_write_addresses            ({rd_num_mem, rd_num_alu, rd_num_branch}),
+        .i_write_data                 ({result_mem, result_alu, rd_value_branch}),
+        .o_read_data                  ({rs2_mem, rs1_mem, rs2_alu, rs1_alu, rs2_branch, rs1_branch})
     );
 
-    // EX Section End
+    // EX Section End =====================================================
 
     write_back_concatenation #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -327,11 +398,11 @@ module eulsukdo_1dec_3issue #(
     ) U_WBC (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .i_ex_done                     (i_ex_done),
-        .i_ex_done_pc                  (i_ex_done_pc),
-        .i_ex_done_branch              (i_ex_done_branch),
-        .i_ex_done_branch_pc           (i_ex_done_branch_pc),
-        .i_ex_done_phyreg              (i_ex_done_phyreg),
+        .i_ex_done                     (done_all_ex),
+        .i_ex_done_pc                  ({pc_mem, pc_alu, pc_branch}),
+        .i_ex_done_branch              (en_branch),
+        .i_ex_done_branch_pc           (new_pc),
+        .i_ex_done_phyreg              (done_all_ex),
         .o_wbc2prm_done                (o_wbc2prm_done),
         .o_wbc2prm_done_phyreg         (o_wbc2prm_done_phyreg),
         .o_wbc2nel_done                (o_wbc2nel_done),
