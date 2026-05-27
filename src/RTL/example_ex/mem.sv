@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-module alu_ex #(
+module mem_ex #(
     parameter MICROOP_WIDTH         = 5
 ) (
     input                                  clk,

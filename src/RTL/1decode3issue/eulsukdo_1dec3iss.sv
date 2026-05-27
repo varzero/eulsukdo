@@ -371,9 +371,9 @@ module eulsukdo_1dec_3issue #(
     	.done_o                       (done_alu)
     );
 
-    alu_ex #(
+    mem_ex #(
         .MICROOP_WIDTH                (MICROOP_WIDTH)
-    ) (
+    ) U_EX_MEM0 (
         .clk                          (clk),
         .reset_n                      (reset_n),
     	.run_i                        (run_mem),
