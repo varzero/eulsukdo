@@ -87,8 +87,8 @@ module tb_new_entry_logic ();
         // <- Allocate Registers input
     wire [DECODE_NEW_INST-1:0]                         o_nel_newpc_valid;
     wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] o_nel_newpc;
-    wire [DECODE_NEW_INST-1:0]                         o_nel_newreg_valid;
-    wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_newreg;
+    wire [DECODE_NEW_INST-1:0]                         o_nel_lastreg_valid;
+    wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_lastreg;
 
     new_entry_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -131,8 +131,8 @@ module tb_new_entry_logic ();
         .o_nel_jump_branch_pc   (o_nel_jump_branch_pc),
         .o_nel_newpc_valid      (o_nel_newpc_valid),
         .o_nel_newpc            (o_nel_newpc),
-        .o_nel_newreg_valid     (o_nel_newreg_valid),
-        .o_nel_newreg           (o_nel_newreg)
+        .o_nel_lastreg_valid    (o_nel_lastreg_valid),
+        .o_nel_lastreg          (o_nel_lastreg)
     );
 
     always #5 clk = ~clk;

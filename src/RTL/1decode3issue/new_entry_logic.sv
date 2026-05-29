@@ -310,8 +310,8 @@ module new_entry_logic #(
         // <- Allocate Registers input
     output wire [DECODE_NEW_INST-1:0]                         o_nel_newpc_valid,
     output wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] o_nel_newpc,
-    output wire [DECODE_NEW_INST-1:0]                         o_nel_newreg_valid,
-    output wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_newreg
+    output wire [DECODE_NEW_INST-1:0]                         o_nel_lastreg_valid,
+    output wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   o_nel_lastreg
 );
 
     // Stage1: Decoding Section
@@ -432,8 +432,8 @@ module new_entry_logic #(
     end
     assign o_nel_newpc_valid   = i_im_inst_valid;
     assign o_nel_newpc         = i_im_inst_pc;
-    assign o_nel_newreg_valid  = i_im_inst_valid & newreg_alloc_spread;
-    assign o_nel_newreg        = past_log_phy_reg;
+    assign o_nel_lastreg_valid = i_im_inst_valid & newreg_alloc_spread;
+    assign o_nel_lastreg       = past_log_phy_reg;
     assign o_allocate_position = i_im_inst_valid & newreg_alloc_spread;
     assign o_nel_block         = ~i_ist_insert_available | ~(&i_ist_field_valid) | ~(&i_prm_allocate_valid);
         // 이번 버전은 모든 필드가 열린 상태에서만..

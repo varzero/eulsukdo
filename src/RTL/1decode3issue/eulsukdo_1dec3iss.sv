@@ -89,10 +89,7 @@ module eulsukdo_1dec_3issue #(
     localparam RS_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH;
     localparam EX_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * EX_PATH_NUM;
 
-    wire [DECODE_NEW_INST-1:0]                                          im_bb_inst_valid;
-    wire [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0]                  im_bb_inst_pc;
-    wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0]                          im_bb_inst;
-    wire [DECODE_NEW_INST-1:0]                                          im_bb_inst_get;
+    wire [(DECODE_NEW_INST*BITWIDTH_FCL_PC_WIDTH)-1:0]                  fcl_inst_pc;
     wire                                                                ist_insert_available;
     wire [DECODE_NEW_INST-1:0]                                          ist_field_insert;
     wire [DECODE_NEW_INST-1:0]                                          ist_field_valid;
@@ -108,8 +105,8 @@ module eulsukdo_1dec_3issue #(
     wire [INST_PC_WIDTH-1:0]                                            nel_jump_branch_pc;
     wire [DECODE_NEW_INST-1:0]                                          nel_newpc_valid;
     wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0]                  nel_newpc;
-    wire [DECODE_NEW_INST-1:0]                                          nel_newreg_valid;
-    wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]                    nel_newreg;
+    wire [DECODE_NEW_INST-1:0]                                          nel_lastreg_valid;
+    wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]                    nel_lastreg;
     wire [(DECODE_NEW_INST*INST_OPREANDS)-1:0]                          prm_istindex_valid;
     wire [(BITWIDTH_PHYREG_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0]    prm_istindex_phyreg;
     wire [(BITWIDTH_IST_ENTRY_NUM*(DECODE_NEW_INST*INST_OPREANDS))-1:0] prm_istindex_istidx;
@@ -129,14 +126,11 @@ module eulsukdo_1dec_3issue #(
     wire [EX_PATH_NUM-1:0]                                              ex_entry_valid;
     wire [EX_PACKET_BITWIDTH-1:0]                                       ex_entry;
 
-    assign im_bb_inst_valid = i_im_inst_valid;
-    assign im_bb_inst       = i_im_inst;
-    assign im_bb_inst_get   = o_im_inst_get;
-    // temp
-    assign im_bb_inst_pc    = { {BITWIDTH_FCL_RB_NUM{1'b0}} , i_im_inst_pc};
-    assign prm_unallocate_valid = 0;
-    assign prm_unallocate_phyreg = 0;
+    assign o_im_pc = fcl_inst_pc[INST_PC_WIDTH-1:0];
 
+    // temp
+    assign prm_unallocate_valid  = 0;
+    assign prm_unallocate_phyreg = 0;
 
     new_entry_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -160,10 +154,10 @@ module eulsukdo_1dec_3issue #(
     ) U_NEL (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .i_im_inst_valid               (im_bb_inst_valid),
-        .i_im_inst_pc                  (im_bb_inst_pc),
-        .i_im_inst                     (im_bb_inst),
-        .o_im_inst_get                 (im_bb_inst_get),
+        .i_im_inst_valid               (i_im_inst_valid),
+        .i_im_inst_pc                  (fcl_inst_pc),
+        .i_im_inst                     (i_im_inst),
+        .o_im_inst_get                 (o_im_inst_get),
         .i_ist_insert_available        (ist_insert_available),
         .o_ist_field_insert            (ist_field_insert),
         .i_ist_field_valid             (ist_field_valid),
@@ -179,8 +173,8 @@ module eulsukdo_1dec_3issue #(
         .o_nel_jump_branch_pc          (nel_jump_branch_pc),
         .o_nel_newpc_valid             (nel_newpc_valid),
         .o_nel_newpc                   (nel_newpc),
-        .o_nel_newreg_valid            (nel_newreg_valid),
-        .o_nel_newreg                  (nel_newreg)
+        .o_nel_lastreg_valid           (nel_lastreg_valid),
+        .o_nel_lastreg                 (nel_lastreg)
     );
 
     instruction_state_table #(
@@ -443,7 +437,7 @@ module eulsukdo_1dec_3issue #(
         .o_wbc2fcl_branch              (),
         .o_wbc2fcl_branch_pc           ()
     );
-/*
+
     flow_control_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
         .PHYREG_NUM                    (PHYREG_NUM),
@@ -466,24 +460,24 @@ module eulsukdo_1dec_3issue #(
     ) (
         .clk                           (clk),
         .reset_n                       (reset_n),
-        .i_nel_block                   (i_nel_block),
-        .i_nel_jump_inst               (i_nel_jump_inst),
-        .i_nel_jreg_branch_inst        (i_nel_jreg_branch_inst),
-        .i_nel_jump_branch_pc          (i_nel_jump_branch_pc),
-        .i_nel_newpc_valid             (i_nel_newpc_valid),
-        .i_nel_newpc                   (i_nel_newpc),
-        .i_nel_newreg_valid            (i_nel_newreg_valid),
-        .i_nel_newreg                  (i_nel_newreg),
-        .o_prm_unallocate_valid        (o_prm_unallocate_valid),
-        .o_prm_unallocate_phyreg       (o_prm_unallocate_phyreg),
+        .i_im_inst_get                 (o_im_inst_get),
+        .i_nel_block                   (nel_block),
+        .i_nel_jump_inst               (nel_jump_inst),
+        .i_nel_jreg_branch_inst        (nel_jreg_branch_inst),
+        .i_nel_jump_branch_pc          (nel_jump_branch_pc),
+        .i_nel_newpc_valid             (nel_newpc_valid),
+        .i_nel_newpc                   (nel_newpc),
+        .i_nel_lastreg_valid           (nel_lastreg_valid),
+        .i_nel_lastreg                 (nel_lastreg),
+        .o_prm_unallocate_valid        (prm_unallocate_valid),
+        .o_prm_unallocate_phyreg       (prm_unallocate_phyreg),
         .i_wbc2fcl_done                (i_wbc2fcl_done),
         .i_wbc2fcl_pc                  (i_wbc2fcl_pc),
         .i_wbc2fcl_branch              (i_wbc2fcl_branch),
         .i_wbc2fcl_branch_pc           (i_wbc2fcl_branch_pc),
+        .i_im_inst_valid               (i_im_inst_valid),
         .o_im_re                       (o_im_re),
-        .o_im_pc                       (o_im_pc)
-    );*/
-
-    assign o_im_re = ist_insert_available & prm_active;
+        .o_im_pc                       (fcl_inst_pc)
+    );
 
 endmodule

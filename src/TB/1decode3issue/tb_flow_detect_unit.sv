@@ -77,11 +77,30 @@ module tb_flow_detect_unit ();
         addr = $urandom;
         i_set_start_pc_valid = 1'b1; i_set_start_pc = {addr   , 2'b00};
         i_set_last_pc_valid  = 1'b1; i_set_last_pc  = {addr+32, 2'b00};
+        @(negedge clk);
+        i_set_start_pc_valid = 1'b0;
+        i_set_last_pc_valid  = 1'b0;
     endtask
 
     task new_inst_insert;
-        addr = addr+1;
-        
+        if (flag_change_last_addr == 0) begin
+            addr = addr+1;
+            flag_change_last_addr = ( ($urandom % 10) == 0 );
+            
+            i_nel_newpc_valid   = 1'b1; 
+            i_nel_newpc = addr;
+            i_nel_lastreg_valid = $urandom % 2;
+            i_nel_lastreg = $urandom;
+        end
+    endtask
+
+    task end_inst_insert;
+        i_nel_newpc_valid   = 1'b0;
+        i_nel_lastreg_valid = 1'b0;
+    endtask
+    
+    task done_fcl;
+        i_wbc2fcl_done = 1'b1; i_wbc2fcl_pc = 0;
     endtask
 
     initial begin

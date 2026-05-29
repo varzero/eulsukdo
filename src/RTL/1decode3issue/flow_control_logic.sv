@@ -43,6 +43,8 @@ module flow_control_logic #(
     input  wire                  reset_n,
 
     // New Entry Logic
+        // <- Get instruction
+    input  wire [DECODE_NEW_INST-1:0]                         i_im_inst_get,
         // <- Block
     input  wire                                               i_nel_block,
         // <- Jump Instruction Input
@@ -69,6 +71,7 @@ module flow_control_logic #(
 
     // Instruction Memory
         // -> New PC Output
+    input  wire [DECODE_NEW_INST-1:0]                         i_im_inst_valid,
     output reg                                                o_im_re, // read enable
     output wire [BITWIDTH_FCL_PC_WIDTH-1:0]                   o_im_pc
 );
@@ -124,7 +127,7 @@ module flow_control_logic #(
             end
             RUN  : begin
                 state_next = RUN;
-                o_im_re = 1'b1;
+                o_im_re = (i_im_inst_valid && i_im_inst_get);
                 if (!i_nel_block) begin
                     if ( |fc_path_available ) begin
                         if (i_nel_jump_inst) begin
@@ -138,7 +141,7 @@ module flow_control_logic #(
                             update_pc_last_addr  = pc_rb_last_next;
                         end
                         else begin
-                            pc_im_req_next      = pc_im_req + FCL_PC_GAP;
+                            pc_im_req_next      = (i_im_inst_valid && i_im_inst_get)? pc_im_req + FCL_PC_GAP : pc_im_req;
                             if ( pc_im_req == pc_rb_last ) begin
                                 pc_fcpath_next  = available_fcpath;
                                 pc_rb_last_next = pc_im_req + (FCL_PC_GAP + FCL_RB_PC_GAP_MAX);
