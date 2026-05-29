@@ -349,8 +349,8 @@ module flow_detect_unit #(
         // <- Allocate Registers input
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
     input  wire [(INST_PC_WIDTH*DECODE_NEW_INST)-1:0]         i_nel_newpc,
-    input  wire [DECODE_NEW_INST-1:0]                         i_nel_newreg_valid,
-    input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_newreg,
+    input  wire [DECODE_NEW_INST-1:0]                         i_nel_lastreg_valid,
+    input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_lastreg,
 
     // Write Back Concatenation
         // <- PC Input
