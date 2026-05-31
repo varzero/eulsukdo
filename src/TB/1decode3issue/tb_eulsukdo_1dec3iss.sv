@@ -57,7 +57,7 @@ module tb_eulsukdo_1dec_3issue ();
 
     initial begin
         now_pc = 0; // Reset Address
-        $readmemh("inst.mem", instruction_memory);
+        $readmemh("./inst.mem", instruction_memory);
     end
 
     task ist_memory_access_detect;
@@ -85,6 +85,7 @@ module tb_eulsukdo_1dec_3issue ();
         reg [31:0] mem_addr = addr_vmem_o;
         reg mode = {re_vmem_o, we_vmem_o};
 
+        @(negedge clk);
         if (mode) begin
             for (int i = 0; i < wait_time; i++) @(negedge clk);
             if (mode || 2'b10) begin // read

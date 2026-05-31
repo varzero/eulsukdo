@@ -123,9 +123,11 @@ module flow_control_logic #(
 
         case(state)
             RESET: begin 
-                state_next = RUN; o_im_re = 1'b0; 
-                update_pc_start = 1'b1; update_pc_start_addr = 0;
-                update_pc_last  = 1'b1; update_pc_last_addr  = FCL_RB_PC_GAP_MAX;
+                state_next      = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? RUN : RESET; 
+                o_im_re         = (!i_nel_block)? 1'b1 : 1'b0;
+                update_pc_start = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? 1'b1 : 1'b0; update_pc_start_addr = 0;
+                update_pc_last  = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? 1'b1 : 1'b0; update_pc_last_addr  = FCL_RB_PC_GAP_MAX;
+                pc_im_req_next  = 0; pc_rb_last_next = FCL_RB_PC_GAP_MAX;
             end
             RUN  : begin
                 state_next = RUN;
@@ -552,7 +554,7 @@ module flow_detect_unit #(
     	.reset_n            (reset_n),
     	.push_valid_i       ({1'b0, push_valid}),
     	.push_data_i        ({{BITWIDTH_PHYREG_NUM{1'b0}}, i_nel_lastreg}),
-    	.pop_get_i          (pop_get),
+    	.pop_get_i          ({{UNALLOCATE_PHYREG{1'b0}}, pop_get}),
     	.pop_valid_o        (phyreg_unallocate_valid),
     	.pop_data_o         (phyreg_unallocate),
     	.push_available_o   ()
