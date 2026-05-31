@@ -54,8 +54,8 @@ module flow_control_logic #(
         // <- Allocate Registers input
     input  wire [DECODE_NEW_INST-1:0]                         i_nel_newpc_valid,
     input  wire [(BITWIDTH_FCL_PC_WIDTH*DECODE_NEW_INST)-1:0] i_nel_newpc,
-    input  wire [DECODE_NEW_INST-1:0]                         i_nel_newreg_valid,
-    input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_newreg,
+    input  wire [DECODE_NEW_INST-1:0]                         i_nel_lastreg_valid,
+    input  wire [(BITWIDTH_PHYREG_NUM*DECODE_NEW_INST)-1:0]   i_nel_lastreg,
 
     // Physical Register Mapper
         // -> Unallocate Registers Output
@@ -75,8 +75,9 @@ module flow_control_logic #(
     output reg                                                o_im_re, // read enable
     output wire [BITWIDTH_FCL_PC_WIDTH-1:0]                   o_im_pc
 );
-    wire [BITWIDTH_FCL_RB_NUM-1:0] available_fcpath;
-    wire [FCL_RB_NUM-1:0]          fc_path_active, fc_path_available;
+    wire [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0] available_fcpath_out;
+    wire [BITWIDTH_FCL_RB_NUM-1:0]              available_fcpath;
+    wire [FCL_RB_NUM-1:0]                       fc_path_active, fc_path_available;
 
     reg  [1:0]                     state,      state_next;
     reg  [BITWIDTH_FCL_RB_NUM-1:0] pc_fcpath,  pc_fcpath_next;
@@ -89,6 +90,7 @@ module flow_control_logic #(
     localparam BLOCK_BRANCH        = 2'b11;
 
     assign o_im_pc = {pc_fcpath, pc_im_req};
+    assign available_fcpath = available_fcpath_out[BITWIDTH_FCL_RB_NUM-1:0];
 
     always @(posedge clk or negedge reset_n) begin // Registers
         if (reset_n == 1'b0) begin
@@ -224,13 +226,13 @@ module flow_control_logic #(
         end
     end
 
-    reg  [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0] fc_path_pos_data;
-    integer path_pos_idx;
-    always @(*) begin
+    wire [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0] fc_path_pos_data;
+    genvar path_pos_idx;
+    generate
         for (path_pos_idx = 0; path_pos_idx < FCL_RB_NUM; path_pos_idx = path_pos_idx+1) begin
-            fc_path_pos_data[(BITWIDTH_FCL_RB_NUM*path_pos_idx) +: BITWIDTH_FCL_RB_NUM] = path_pos_idx;
+            assign fc_path_pos_data[(BITWIDTH_FCL_RB_NUM*path_pos_idx) +: BITWIDTH_FCL_RB_NUM] = path_pos_idx;
         end
-    end
+    endgenerate
     position_splitter #(
         .INPUT_ENTRIES(FCL_RB_NUM),
         .DATA_WIDTH   (BITWIDTH_FCL_RB_NUM)
@@ -238,14 +240,17 @@ module flow_control_logic #(
     	.valid_position_i(~fc_path_active),
     	.position_data_i (fc_path_pos_data),
     	.out_position_o  (fc_path_available),
-    	.data_o          (available_fcpath)
+    	.data_o          (available_fcpath_out)
     );
 
     wire [FCL_RB_NUM-1:0]                              fc_path_free, fc_path_free_ordering_valid;
     wire [FCL_RB_NUM-1:0]                              fc_path_free_ordering;
     wire [UNALLOCATE_PHYREG-1:0]                       unallocate_valid [0:FCL_RB_NUM-1];
     wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] unallocate_phyreg[0:FCL_RB_NUM-1];
+    wire [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0]        new_free_target_fcpath_out;
     wire [BITWIDTH_FCL_RB_NUM-1:0]                     new_free_target_fcpath;
+    
+    assign new_free_target_fcpath = new_free_target_fcpath_out[BITWIDTH_FCL_RB_NUM-1:0];
 
     position_splitter #(
         .INPUT_ENTRIES(FCL_RB_NUM),
@@ -254,13 +259,13 @@ module flow_control_logic #(
     	.valid_position_i(fc_path_free),
     	.position_data_i (fc_path_pos_data),
     	.out_position_o  (fc_path_free_ordering_valid),
-    	.data_o          (new_free_target_fcpath)
+    	.data_o          (new_free_target_fcpath_out)
     );
 
     reg                           free_active, free_active_next;
     reg [BITWIDTH_FCL_RB_NUM-1:0] free_target_fcpath, free_target_fcpath_next;
     always @(posedge clk or negedge reset_n) begin
-        if (reset_n) begin
+        if (reset_n == 1'b0) begin
             free_active        <= 1'b0;
             free_target_fcpath <= 0;
         end
@@ -311,8 +316,8 @@ module flow_control_logic #(
                 .i_set_last_pc          ( (pc_fcpath_next == fdu_fcpath_idx)? update_pc_last_addr  :    0 ),
                 .i_nel_newpc_valid      (nel_newpc_valid_FCPATH[fdu_fcpath_idx]),
                 .i_nel_newpc            (nel_newpc_split_FCPATH),
-                .i_nel_newreg_valid     (i_nel_newreg_valid),
-                .i_nel_newreg           (i_nel_newreg),
+                .i_nel_lastreg_valid    (i_nel_lastreg_valid),
+                .i_nel_lastreg          (i_nel_lastreg),
                 .i_wbc2fcl_done         (wbc2fcl_pc_valid_FCPATH[fdu_fcpath_idx]),
                 .i_wbc2fcl_pc           (wbc2fcl_pc_split_FCPATH),
                 .i_unallocate_use       ( (free_active && (free_target_fcpath == fdu_fcpath_idx))? 1'b1 : 1'b0 ),
@@ -321,6 +326,9 @@ module flow_control_logic #(
             );
         end
     endgenerate
+
+    assign o_prm_unallocate_valid  = unallocate_valid[free_target_fcpath][UNALLOCATE_PHYREG-1:0];
+    assign o_prm_unallocate_phyreg = unallocate_phyreg[free_target_fcpath][(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0];
 
 endmodule
 
@@ -366,11 +374,12 @@ module flow_detect_unit #(
     output wire [UNALLOCATE_PHYREG-1:0]                       o_prm_unallocate_valid,
     output wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] o_prm_unallocate_phyreg
 );
-    reg  [EX_PATH_NUM-1:0] entry_done_range_catch;
-    reg  [INST_PC_WIDTH-1:0] split_wb_pc;
-    wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate_valid;
-    wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] phyreg_unallocate;
+    reg  [BITWIDTH_PC_RANGE-1:0] entry_done_range_sum;
+    reg  [INST_PC_WIDTH-1:0] split_wb_pc[0:EX_PATH_NUM-1];
+    wire [(UNALLOCATE_PHYREG*2)-1:0] phyreg_unallocate_valid;
+    wire [(BITWIDTH_PHYREG_NUM*(UNALLOCATE_PHYREG*2))-1:0] phyreg_unallocate;
     wire [INST_PC_WIDTH-1:0]                           new_range_sub_pc;
+
     integer target_pc;
 
     // Register Variables
@@ -380,17 +389,6 @@ module flow_detect_unit #(
     reg [BITWIDTH_PC_RANGE-1:0]  range_cnt, range_cnt_next;
     reg [BITWIDTH_PC_RANGE-1:0]  range,     range_next;
     
-    always @(*) begin
-        for (target_pc = 0; target_pc < EX_PATH_NUM; target_pc = target_pc+1) begin
-            split_wb_pc = i_wbc2fcl_pc[(INST_PC_WIDTH*target_pc) +: INST_PC_WIDTH];
-            if (i_wbc2fcl_done[target_pc]) begin
-                entry_done_range_catch[target_pc] 
-                    = ( (split_wb_pc >= pc_start) && (split_wb_pc <= pc_last) )? 1'b1 : 1'b0;
-            end
-            else entry_done_range_catch[target_pc] = 1'b0;
-        end
-    end
-
     // FSM
     localparam UNACTIVE  = 2'b00;
     localparam ACTIVE    = 2'b01;
@@ -445,6 +443,17 @@ module flow_detect_unit #(
     reg [DECODE_NEW_INST-1:0]   push_valid;
     reg [UNALLOCATE_PHYREG-1:0] pop_get;
     always @(*) begin
+        entry_done_range_sum = 0;
+        for (target_pc = 0; target_pc < EX_PATH_NUM; target_pc = target_pc+1) begin
+            split_wb_pc[target_pc] = i_wbc2fcl_pc[(INST_PC_WIDTH*target_pc) +: INST_PC_WIDTH];
+            if (i_wbc2fcl_done[target_pc]) begin
+                if ( (split_wb_pc[target_pc] >= pc_start) && (split_wb_pc[target_pc] <= pc_last) ) begin
+                    entry_done_range_sum = entry_done_range_sum+1;
+                end
+            end
+            else entry_done_range_sum = 1'b0;
+        end
+
         case(state)
             UNACTIVE: begin
                 push_valid = 0;
@@ -465,16 +474,14 @@ module flow_detect_unit #(
             ACTIVE  : begin
                 for (target_push_catch = 0; target_push_catch < DECODE_NEW_INST; target_push_catch = target_push_catch+1) begin
                     push_valid[target_push_catch] 
-                        = ( (i_nel_newpc[(INST_PC_WIDTH*target_push_catch) +: INST_PC_WIDTH] >= pc_start) && (i_nel_newpc <= pc_last) )? 
-                            i_nel_newpc_valid & i_nel_newreg_valid : 1'b0;
+                        = ( (i_nel_newpc[(INST_PC_WIDTH*target_push_catch) +: INST_PC_WIDTH] >= pc_start) 
+                            && (i_nel_newpc[(INST_PC_WIDTH*target_push_catch) +: INST_PC_WIDTH] <= pc_last) )? 
+                                    i_nel_newpc_valid & i_nel_lastreg_valid : 1'b0;
                 end
                 pop_get         = 0;
                 pc_start_next   = pc_start;
                 pc_last_next    = (i_set_last_pc_valid)? i_set_last_pc : pc_last;
-                range_cnt_next  = range_cnt;
-                for (target_done_catch = 0; target_done_catch < INST_PC_WIDTH; target_done_catch = target_done_catch+1) begin
-                    range_cnt_next = range_cnt_next + ( ( entry_done_range_catch[target_done_catch] )? 1 : 0 );
-                end
+                range_cnt_next  = range_cnt + entry_done_range_sum;
                 range_next      = (i_set_last_pc_valid)? new_range_sub_pc[BITWIDTH_PC_RANGE+1:2] : range;
             end
             WAIT_FREE: begin
@@ -532,16 +539,19 @@ module flow_detect_unit #(
 
     assign new_range_sub_pc = i_set_last_pc-pc_start;
 
+    assign o_prm_unallocate_valid = (state == FREE)? phyreg_unallocate_valid[UNALLOCATE_PHYREG-1:0] : 0;
+    assign o_prm_unallocate_phyreg = phyreg_unallocate[(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0];
+
     fifo_ordering_position #(
-        .PUSH_DATA      (DECODE_NEW_INST),
+        .PUSH_DATA      (DECODE_NEW_INST+1),
         .POP_DATA       (UNALLOCATE_PHYREG*2),
         .ENTRY_WIDTH    (BITWIDTH_PHYREG_NUM),
         .FIFO_DEPTH     ( (PHYREG_NUM/ (UNALLOCATE_PHYREG*2) )+1 )
     ) U_END_PHYREG_STORE (
     	.clk                (clk),
     	.reset_n            (reset_n),
-    	.push_valid_i       (push_valid),
-    	.push_data_i        (i_nel_newreg),
+    	.push_valid_i       ({1'b0, push_valid}),
+    	.push_data_i        ({{BITWIDTH_PHYREG_NUM{1'b0}}, i_nel_lastreg}),
     	.pop_get_i          (pop_get),
     	.pop_valid_o        (phyreg_unallocate_valid),
     	.pop_data_o         (phyreg_unallocate),

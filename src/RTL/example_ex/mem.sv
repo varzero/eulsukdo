@@ -72,7 +72,7 @@ module mem_ex #(
 				we_proc_o    = ready_vmem_i;
 				done_o       = ready_vmem_i;
 			end
-			5'b0_0_001: begin // LW
+			5'b0_0_010: begin // LW
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = rdata_vmem_i;
@@ -133,7 +133,7 @@ module mem_ex #(
 				we_proc_o    = ready_vmem_i;
 				done_o       = ready_vmem_i;
 			end
-			5'b1_0_000: begin // SH
+			5'b1_0_001: begin // SH
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = 32'b0;
@@ -145,7 +145,7 @@ module mem_ex #(
 				we_proc_o    = ready_vmem_i;
 				done_o       = ready_vmem_i;
 			end
-			5'b1_0_000: begin // SW
+			5'b1_0_010: begin // SW
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = 32'b0;

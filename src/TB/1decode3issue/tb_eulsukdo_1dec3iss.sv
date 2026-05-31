@@ -23,22 +23,86 @@ module tb_eulsukdo_1dec_3issue ();
     // Internal Field Description (Decoder Compiler (or Human) Generate)
     parameter MICROOP_WIDTH                 = 5; // Micro-OP is not contained information of EX_PATH
 
-    reg                                        clk;
-    reg                                        reset_n;
-    reg  [DECODE_NEW_INST-1:0]                 i_im_inst_valid;
-    reg  [(DECODE_NEW_INST*INST_PC_WIDTH)-1:0] i_im_inst_pc;
-    reg  [(DECODE_NEW_INST*INST_BITWIDTH)-1:0] i_im_inst;
-    wire [DECODE_NEW_INST-1:0]                 o_im_inst_get;
-    wire                                       o_im_re;
-    wire [INST_PC_WIDTH-1:0]                   o_im_pc;
+    // (Autogenerate) Elements
+    localparam BITWIDTH_EX_PATH_NUM                     = $clog2(EX_PATH_NUM);
+    localparam BITWIDTH_PHYREG_NUM                      = $clog2(PHYREG_NUM);
+    localparam BITWIDTH_IST_ENTRY_NUM                   = $clog2(IST_ENTRY_NUM);
+    localparam BITWIDTH_INST_NUM_OF_LOGICAL_REGISTER    = $clog2(INST_NUM_OF_LOGICAL_REGISTER);
+    localparam BITWIDTH_FCL_RB_NUM                      = $clog2(FCL_RB_NUM);
+    localparam BITWIDTH_FCL_PC_WIDTH                    = BITWIDTH_FCL_RB_NUM + INST_PC_WIDTH;
+
+    localparam RS_PUSH_WIDTH     = PRM_ENTRY_UPDATE + DECODE_NEW_INST;
+
+    reg                                                clk;
+    reg                                                reset_n;
+    reg  [DECODE_NEW_INST-1:0]                         i_im_inst_valid;
+    reg  [(DECODE_NEW_INST*INST_BITWIDTH)-1:0]         i_im_inst;
+    wire [DECODE_NEW_INST-1:0]                         o_im_inst_get;
+    wire                                               o_im_re;
+    wire [BITWIDTH_FCL_PC_WIDTH-1:0]                   o_im_pc;
     
-    wire                                       re_vmem_o;
-    wire                                       we_vmem_o;
-    wire [31:0]                                addr_vmem_o;
-    wire [31:0]                                strb_vmem_o;
-    reg  [31:0]                                rdata_vmem_i;
-    wire [31:0]                                wdata_vmem_o;
-    reg                                        ready_vmem_i;
+    wire                                               re_vmem_o;
+    wire                                               we_vmem_o;
+    wire [31:0]                                        addr_vmem_o;
+    wire [3:0]                                         strb_vmem_o;
+    reg  [31:0]                                        rdata_vmem_i;
+    wire [31:0]                                        wdata_vmem_o;
+    reg                                                ready_vmem_i;
+
+    reg [INST_PC_WIDTH-3:0] now_pc;
+    reg end_pc_flag;
+
+    reg [31:0] instruction_memory[0:511];
+    reg [31:0] data_memory[0:511];
+
+    initial begin
+        now_pc = 0; // Reset Address
+        $readmemh("inst.mem", instruction_memory);
+    end
+
+    task ist_memory_access_detect;
+        bit i_set;
+
+        i_set = 0;
+        if (o_im_re) i_set = 1;
+        
+        @(negedge clk);
+        if (i_set) begin
+            if (now_pc < 512) begin
+                now_pc = o_im_pc[11:2];
+                i_im_inst_valid = 1'b1;
+                i_im_inst = instruction_memory[now_pc[8:0]];
+            end
+            else begin
+                i_im_inst_valid = 1'b0;
+                end_pc_flag = 1'b1;
+            end
+        end
+    endtask
+
+    task data_memory_access_detect;
+        int wait_time = $urandom%200; 
+        reg [31:0] mem_addr = addr_vmem_o;
+        reg mode = {re_vmem_o, we_vmem_o};
+
+        if (mode) begin
+            for (int i = 0; i < wait_time; i++) @(negedge clk);
+            if (mode || 2'b10) begin // read
+                rdata_vmem_i = data_memory[mem_addr];
+                ready_vmem_i = 1'b1;
+            end
+            else if (mode || 2'b01) begin // write
+                data_memory[mem_addr] 
+                    = { (strb_vmem_o[3])? wdata_vmem_o[31:24] : data_memory[mem_addr][31:24], 
+                        (strb_vmem_o[2])? wdata_vmem_o[23:16] : data_memory[mem_addr][23:16], 
+                        (strb_vmem_o[1])? wdata_vmem_o[15: 8] : data_memory[mem_addr][15: 8], 
+                        (strb_vmem_o[0])? wdata_vmem_o[ 7: 0] : data_memory[mem_addr][ 7: 0] };
+                ready_vmem_i = 1'b1;
+            end
+        end
+        @(negedge clk);
+        ready_vmem_i = 1'b0;
+    endtask
 
     eulsukdo_1dec_3issue #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -64,7 +128,6 @@ module tb_eulsukdo_1dec_3issue ();
         .clk                           (clk),
         .reset_n                       (reset_n),
         .i_im_inst_valid               (i_im_inst_valid),
-        .i_im_inst_pc                  (i_im_inst_pc),
         .i_im_inst                     (i_im_inst),
         .o_im_inst_get                 (o_im_inst_get),
         .o_im_re                       (o_im_re),
@@ -81,10 +144,11 @@ module tb_eulsukdo_1dec_3issue ();
     always #5 clk = ~clk;
 
     initial begin
+        end_pc_flag = 0;
+
         #0;
         clk = 1'b0; reset_n = 1'b0;
         i_im_inst_valid = 0;
-        i_im_inst_pc    = 0;
         i_im_inst       = 0;
 
         rdata_vmem_i = 0;
@@ -98,42 +162,10 @@ module tb_eulsukdo_1dec_3issue ();
         wait(o_im_re);
         @(negedge clk);
         
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2350;
-        i_im_inst       = 32'h0000_03b3; // add x7, x0, x0
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2354;
-        i_im_inst       = 32'h0000_0433; // add x8, x0, x0
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2358;
-        i_im_inst       = 32'h0000_04b3; // add x9, x0, x0
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_235C;
-        i_im_inst       = 32'h0000_0533; // add x10, x0, x0
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2360;
-        i_im_inst       = 32'h0023_80b3; // add x1, x7, x2
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2364;
-        i_im_inst       = 32'h0084_80b3; // add x1, x9, x8
-        @(negedge clk);
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2368;
-        i_im_inst       = 32'h00a3_00b3; // add x1, x6, x10
-        @(negedge clk);
-        i_im_inst_valid = 1'b0;
-        @(negedge clk);
-        /*
-        i_im_inst_valid = 1'b1;
-        i_im_inst_pc    = 32'h0001_2350;
-        i_im_inst       = 32'h0051_83b3; // add x7, x3, x5
-        */
-        @(negedge clk);@(negedge clk);
+        repeat(200) fork
+            ist_memory_access_detect();
+            data_memory_access_detect();
+        join_any
         
         @(negedge clk);
 

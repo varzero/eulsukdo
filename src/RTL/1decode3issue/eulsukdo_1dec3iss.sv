@@ -38,13 +38,12 @@ module eulsukdo_1dec_3issue #(
     input                                             clk,
     input                                             reset_n,
 
-    input  wire [DECODE_NEW_INST-1:0]                 i_im_inst_valid,
-    input  wire [(DECODE_NEW_INST*INST_PC_WIDTH)-1:0] i_im_inst_pc,
-    input  wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0] i_im_inst,
-    output wire [DECODE_NEW_INST-1:0]                 o_im_inst_get,
+    input  wire [DECODE_NEW_INST-1:0]                         i_im_inst_valid,
+    input  wire [(DECODE_NEW_INST*INST_BITWIDTH)-1:0]         i_im_inst,
+    output wire [DECODE_NEW_INST-1:0]                         o_im_inst_get,
     
-    output wire                                       o_im_re,
-    output wire [INST_PC_WIDTH-1:0]                   o_im_pc,
+    output wire                                               o_im_re,
+    output wire [BITWIDTH_FCL_PC_WIDTH-1:0]                   o_im_pc,
 
     // EX INOUT Section Start ==============================================
 
@@ -53,7 +52,7 @@ module eulsukdo_1dec_3issue #(
         output wire        re_vmem_o,
         output wire        we_vmem_o,
         output wire [31:0] addr_vmem_o,
-        output wire [31:0] strb_vmem_o,
+        output wire [3:0]  strb_vmem_o,
         input  wire [31:0] rdata_vmem_i,
         output wire [31:0] wdata_vmem_o,
         input  wire        ready_vmem_i
@@ -125,12 +124,12 @@ module eulsukdo_1dec_3issue #(
     wire [EX_PATH_NUM-1:0]                                              ex_entry_get;
     wire [EX_PATH_NUM-1:0]                                              ex_entry_valid;
     wire [EX_PACKET_BITWIDTH-1:0]                                       ex_entry;
+    wire [EX_PATH_NUM-1:0]                                              wbc2fcl_done;
+    wire [(EX_PATH_NUM*BITWIDTH_FCL_PC_WIDTH)-1:0]                      wbc2fcl_pc;
+    wire                                                                wbc2fcl_branch;
+    wire [INST_PC_WIDTH-1:0]                                            wbc2fcl_branch_pc;
 
     assign o_im_pc = fcl_inst_pc[INST_PC_WIDTH-1:0];
-
-    // temp
-    assign prm_unallocate_valid  = 0;
-    assign prm_unallocate_phyreg = 0;
 
     new_entry_logic #(
         .DECODE_NEW_INST               (DECODE_NEW_INST),
@@ -432,10 +431,10 @@ module eulsukdo_1dec_3issue #(
         .o_wbc2prm_done_phyreg         (wb_done_phyreg),
         .o_wbc2nel_done                (wbc2nel_done),
         .o_wbc2nel_done_phyreg         (wbc2nel_done_phyreg),
-        .o_wbc2fcl_done                (),
-        .o_wbc2fcl_pc                  (),
-        .o_wbc2fcl_branch              (),
-        .o_wbc2fcl_branch_pc           ()
+        .o_wbc2fcl_done                (wbc2fcl_done),
+        .o_wbc2fcl_pc                  (wbc2fcl_pc),
+        .o_wbc2fcl_branch              (wbc2fcl_branch),
+        .o_wbc2fcl_branch_pc           (wbc2fcl_branch_pc)
     );
 
     flow_control_logic #(
@@ -457,7 +456,7 @@ module eulsukdo_1dec_3issue #(
         .INST_NUM_OF_LOGICAL_REGISTER  (INST_NUM_OF_LOGICAL_REGISTER),
         .INST_OPREANDS                 (INST_OPREANDS),
         .MICROOP_WIDTH                 (MICROOP_WIDTH)
-    ) (
+    ) U_FCL (
         .clk                           (clk),
         .reset_n                       (reset_n),
         .i_im_inst_get                 (o_im_inst_get),
@@ -471,10 +470,10 @@ module eulsukdo_1dec_3issue #(
         .i_nel_lastreg                 (nel_lastreg),
         .o_prm_unallocate_valid        (prm_unallocate_valid),
         .o_prm_unallocate_phyreg       (prm_unallocate_phyreg),
-        .i_wbc2fcl_done                (i_wbc2fcl_done),
-        .i_wbc2fcl_pc                  (i_wbc2fcl_pc),
-        .i_wbc2fcl_branch              (i_wbc2fcl_branch),
-        .i_wbc2fcl_branch_pc           (i_wbc2fcl_branch_pc),
+        .i_wbc2fcl_done                (wbc2fcl_done),
+        .i_wbc2fcl_pc                  (wbc2fcl_pc),
+        .i_wbc2fcl_branch              (wbc2fcl_branch),
+        .i_wbc2fcl_branch_pc           (wbc2fcl_branch_pc),
         .i_im_inst_valid               (i_im_inst_valid),
         .o_im_re                       (o_im_re),
         .o_im_pc                       (fcl_inst_pc)
