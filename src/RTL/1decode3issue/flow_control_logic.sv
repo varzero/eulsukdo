@@ -127,7 +127,8 @@ module flow_control_logic #(
                 o_im_re         = (!i_nel_block)? 1'b1 : 1'b0;
                 update_pc_start = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? 1'b1 : 1'b0; update_pc_start_addr = 0;
                 update_pc_last  = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? 1'b1 : 1'b0; update_pc_last_addr  = FCL_RB_PC_GAP_MAX;
-                pc_im_req_next  = 0; pc_rb_last_next = FCL_RB_PC_GAP_MAX;
+                pc_im_req_next  = (i_im_inst_valid && i_im_inst_get && !i_nel_block)? FCL_PC_GAP : 0; 
+                pc_rb_last_next = FCL_RB_PC_GAP_MAX;
             end
             RUN  : begin
                 state_next = RUN;

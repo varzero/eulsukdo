@@ -32,49 +32,49 @@ module branch_ex #(
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = (rs1_i == rs2_i);
+                branch_o = (rs1_i == rs2_i)? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_0_001: begin // BNE
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = (rs1_i != rs2_i);
+                branch_o = (rs1_i != rs2_i)? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_0_100: begin // BLT
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = ($signed(rs1_i) < $signed(rs2_i));
+                branch_o = ($signed(rs1_i) < $signed(rs2_i))? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_0_101: begin // BGE
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = ($signed(rs1_i) >= $signed(rs2_i));
+                branch_o = ($signed(rs1_i) >= $signed(rs2_i))? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_0_110: begin // BLTU
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = (rs1_i < rs2_i);
+                branch_o = (rs1_i < rs2_i)? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_0_111: begin // BGEU
                 new_pc_o = pc_i[INST_PC_WIDTH-1:0] + imm_i;
                 return_pc_o = 0;
 				we_o = 1'b0;
-                branch_o = (rs1_i >= rs2_i);
+                branch_o = (rs1_i >= rs2_i)? run_i : 1'b0;
 				done_o = run_i;
 			end
 			5'b0_1_000: begin // Jump Reg
                 new_pc_o = rs1_i + imm_i;
                 return_pc_o = pc_i+4;
 				we_o = run_i;
-                branch_o = 1'b1;
+                branch_o = run_i;
 				done_o = run_i;
             end
 			5'b1_1_010: begin // JAL
