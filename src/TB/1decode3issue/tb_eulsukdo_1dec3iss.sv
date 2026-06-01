@@ -61,6 +61,7 @@ module tb_eulsukdo_1dec_3issue ();
         now_pc = 0; // Reset Address
         max_pc = 512;
         $readmemh("inst.mem", instruction_memory);
+        $readmemh("data.mem", data_memory);
         for (int i = 0; i < 512; i++) begin
             if (instruction_memory[i] == 32'h0010_0073) begin // ebreak
                 max_pc = i;
@@ -171,7 +172,7 @@ module tb_eulsukdo_1dec_3issue ();
         wait(o_im_re);
         @(negedge clk);
         
-        repeat(100) begin
+        repeat(10000) begin
             fork
                 ist_memory_access_detect();
                 data_memory_access_detect();
