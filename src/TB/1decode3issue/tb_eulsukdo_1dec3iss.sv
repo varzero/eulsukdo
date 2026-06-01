@@ -78,8 +78,8 @@ module tb_eulsukdo_1dec_3issue ();
         if (i_set) begin
             if (now_pc < max_pc) begin
                 now_pc = o_im_pc[11:2];
-                i_im_inst_valid = 1'b1;
                 i_im_inst = instruction_memory[now_pc[8:0]];
+                i_im_inst_valid = (i_im_inst == 32'h0010_0073)? 1'b0 : 1'b1;
             end
             else begin
                 i_im_inst_valid = 1'b0;
