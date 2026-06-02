@@ -291,6 +291,7 @@ module new_entry_logic #(
 
     // PRM
     output wire [DECODE_NEW_INST-1:0]                   o_allocate_position,
+    input  wire                                         i_prm_active,
         // <- Physical Register Manager Allocator
     input  wire [DECODE_NEW_INST-1:0]                   i_prm_allocate_valid,
     input  wire [PRM_ALLOCATE_BITWIDTH-1:0]             i_prm_allocate_phyreg,
@@ -300,7 +301,7 @@ module new_entry_logic #(
     input  wire [EX_PATH_NUM-1:0]                       i_wbc2nel_done,
     input  wire [(EX_PATH_NUM*BITWIDTH_PHYREG_NUM)-1:0] i_wbc2nel_done_phyreg,
 
-    // New Entry Logic
+    // flow control Logic
         // <- Block
     output wire                                               o_nel_block,
         // <- Jump Instruction Input
@@ -406,27 +407,43 @@ module new_entry_logic #(
         im_inst_get = i_prm_allocate_valid & newreg_alloc_spread;
         im_inst_get |= ~newreg_alloc_spread;
         o_im_inst_get = 0;
-        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
-            o_im_inst_get[new_entry_idx] = im_inst_get[new_entry_idx];
-            if (!im_inst_get[new_entry_idx]) break;
+        if (i_prm_active) begin
+            for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+                o_im_inst_get[new_entry_idx] = im_inst_get[new_entry_idx];
+                if (!im_inst_get[new_entry_idx]) break;
+            end
         end
 
-        for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
-            active_next[new_entry_idx] = i_im_inst_valid[new_entry_idx];
-            pc_new[new_entry_idx]      = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: BITWIDTH_FCL_PC_WIDTH];
-            expath_new[new_entry_idx]  = expath[new_entry_idx];
-            microop_new[new_entry_idx] = microop[new_entry_idx];
-            imm_new[new_entry_idx]     = imm[new_entry_idx];
-            new_log_phy_next[new_entry_idx] 
-                = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
-            opreands_log_phy_next[new_entry_idx] 
-                = opreands_log_phy[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*new_entry_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)];
+        if (i_prm_active) begin
+            for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+                active_next[new_entry_idx] = i_im_inst_valid[new_entry_idx];
+                pc_new[new_entry_idx]      = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: BITWIDTH_FCL_PC_WIDTH];
+                expath_new[new_entry_idx]  = expath[new_entry_idx];
+                microop_new[new_entry_idx] = microop[new_entry_idx];
+                imm_new[new_entry_idx]     = imm[new_entry_idx];
+                new_log_phy_next[new_entry_idx] 
+                    = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
+                opreands_log_phy_next[new_entry_idx] 
+                    = opreands_log_phy[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*new_entry_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)];
 
-            for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
-                if (rs[new_entry_idx][opreand_idx] == 0)
-                    opreands_ready_next[new_entry_idx][opreand_idx] = 1'b1;
-                else
-                    opreands_ready_next[new_entry_idx][opreand_idx] = ready[new_entry_idx][opreand_idx];
+                for (opreand_idx = 0; opreand_idx < INST_OPREANDS; opreand_idx = opreand_idx+1) begin
+                    if (rs[new_entry_idx][opreand_idx] == 0)
+                        opreands_ready_next[new_entry_idx][opreand_idx] = 1'b1;
+                    else
+                        opreands_ready_next[new_entry_idx][opreand_idx] = ready[new_entry_idx][opreand_idx];
+                end
+            end
+        end
+        else begin
+            for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
+                active_next           [new_entry_idx] = active               [new_entry_idx]; 
+                pc_new                [new_entry_idx] = pc_reg               [new_entry_idx];
+                expath_new            [new_entry_idx] = expath_reg           [new_entry_idx];
+                microop_new           [new_entry_idx] = microop_reg          [new_entry_idx];
+                imm_new               [new_entry_idx] = imm_reg              [new_entry_idx];
+                new_log_phy_next      [new_entry_idx] = new_log_phy_reg      [new_entry_idx];
+                opreands_log_phy_next [new_entry_idx] = opreands_log_phy_reg [new_entry_idx];
+                opreands_ready_next   [new_entry_idx] = opreands_ready_reg   [new_entry_idx];
             end
         end
     end
@@ -467,6 +484,7 @@ module new_entry_logic #(
             opreands_log_phy_reg_spread[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*ist_field_insert_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)]
                 = opreands_log_phy_reg[ist_field_insert_idx];
         end
+        if (~i_prm_active) o_ist_field_insert= 0;
     end
 
     genvar decoder_idx;

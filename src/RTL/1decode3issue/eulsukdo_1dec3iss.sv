@@ -162,6 +162,7 @@ module eulsukdo_1dec_3issue #(
         .i_ist_field_valid             (ist_field_valid),
         .o_ist_field                   (ist_field),
         .o_allocate_position           (allocate_position),
+        .i_prm_active                  (prm_active),
         .i_prm_allocate_valid          (prm_allocate_valid),
         .i_prm_allocate_phyreg         (prm_allocate_phyreg),
         .i_wbc2nel_done                (wbc2nel_done),
