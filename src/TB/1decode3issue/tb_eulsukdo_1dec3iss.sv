@@ -61,12 +61,12 @@ module tb_eulsukdo_1dec_3issue ();
         now_pc = 0; // Reset Address
         max_pc = 512;
         $readmemh("inst.mem", instruction_memory);
-        $readmemh("data.mem", data_memory);
         for (int i = 0; i < 512; i++) begin
             if (instruction_memory[i] == 32'h0010_0073) begin // ebreak
                 max_pc = i;
             end
         end
+        $readmemh("data.mem", data_memory);
     end
 
     task ist_memory_access_detect;
@@ -87,21 +87,27 @@ module tb_eulsukdo_1dec_3issue ();
                 end_pc_flag = 1'b1;
             end
         end
+        else begin
+            i_im_inst_valid = 0;
+        end
     endtask
 
     task data_memory_access_detect;
-        int wait_time = $urandom%200; 
+        int wait_time = $urandom%5; 
         reg [31:0] mem_addr = addr_vmem_o;
-        reg mode = {re_vmem_o, we_vmem_o};
-
+        reg [1:0] mode;
+        
+        mode = {re_vmem_o, we_vmem_o};
         @(negedge clk);
+        $display("1 wait time %d, mode %b", wait_time, mode);
         if (mode) begin
-            for (int i = 0; i < wait_time; i++) @(negedge clk);
-            if (mode || 2'b10) begin // read
+            for (int i = 0; i < wait_time; i++) begin @(negedge clk); end
+            $display("wait time %d, mode %b", wait_time, mode);
+            if (mode == 2'b10) begin // read
                 rdata_vmem_i = data_memory[mem_addr];
                 ready_vmem_i = 1'b1;
             end
-            else if (mode || 2'b01) begin // write
+            else if (mode == 2'b01) begin // write
                 data_memory[mem_addr] 
                     = { (strb_vmem_o[3])? wdata_vmem_o[31:24] : data_memory[mem_addr][31:24], 
                         (strb_vmem_o[2])? wdata_vmem_o[23:16] : data_memory[mem_addr][23:16], 
@@ -172,12 +178,21 @@ module tb_eulsukdo_1dec_3issue ();
         wait(o_im_re);
         @(negedge clk);
         
-        repeat(10000) begin
-            fork
-                ist_memory_access_detect();
-                data_memory_access_detect();
-            join_any
-        end
+        fork
+            begin
+                repeat(10000) begin
+                    ist_memory_access_detect();
+                end
+            end
+
+            begin
+                forever begin
+                    @(negedge clk);
+                    if (re_vmem_o || we_vmem_o)
+                        data_memory_access_detect();
+                end
+            end
+        join
 
         @(negedge clk);
 

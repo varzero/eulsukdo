@@ -132,7 +132,7 @@ module flow_control_logic #(
             end
             RUN  : begin
                 state_next = RUN;
-                o_im_re = (i_im_inst_valid && i_im_inst_get);
+                o_im_re = &i_im_inst_get & ~i_nel_block;
                 if (!i_nel_block) begin
                     if ( |fc_path_available ) begin
                         if (i_nel_jump_inst) begin

@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+ `timescale 1ns / 1ps
 
 //`include "../memories.sv"
 
@@ -189,8 +189,8 @@ module imm_extender (
 
 		case(inst_i[6:0])
 			7'b0100011 : imm_o = { {20{inst_i[31]}}, inst_i[31:25], inst_i[11:7] };
-			7'b0000011, 7'b0110011, 7'b1100111 : imm_o = { {20{inst_i[31]}}, inst_i[31:20] };
-			7'b1100011 : imm_o = { {20{inst_i[31]}},	inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0 };
+			7'b0000011, 7'b0010011, 7'b1100111 : imm_o = { {20{inst_i[31]}}, inst_i[31:20] };
+			7'b1100011 : imm_o = { {20{inst_i[31]}}, inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0 };
 			7'b0110111, 7'b0010111 : imm_o = { inst_i[31:12], {12{1'b0}} };
 			7'b1101111: imm_o = { {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0 };
 		endcase
@@ -407,7 +407,7 @@ module new_entry_logic #(
         im_inst_get = i_prm_allocate_valid & newreg_alloc_spread;
         im_inst_get |= ~newreg_alloc_spread;
         o_im_inst_get = 0;
-        if (i_prm_active) begin
+        if (i_prm_active & i_ist_insert_available) begin
             for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
                 o_im_inst_get[new_entry_idx] = im_inst_get[new_entry_idx];
                 if (!im_inst_get[new_entry_idx]) break;
@@ -447,12 +447,12 @@ module new_entry_logic #(
             end
         end
     end
-    assign o_nel_newpc_valid   = i_im_inst_valid;
+    assign o_nel_newpc_valid   = i_im_inst_valid & o_im_inst_get;
     assign o_nel_newpc         = i_im_inst_pc;
-    assign o_nel_lastreg_valid = i_im_inst_valid & newreg_alloc_spread;
+    assign o_nel_lastreg_valid = i_im_inst_valid & o_im_inst_get & newreg_alloc_spread;
     assign o_nel_lastreg       = past_log_phy_reg;
-    assign o_allocate_position = i_im_inst_valid & newreg_alloc_spread;
-    assign o_nel_block         = ~i_ist_insert_available | ~(&i_ist_field_valid) | ~(&i_prm_allocate_valid);
+    assign o_allocate_position = i_im_inst_valid & o_im_inst_get & newreg_alloc_spread;
+    assign o_nel_block         = ~i_ist_insert_available | ~i_prm_active;
         // 이번 버전은 모든 필드가 열린 상태에서만..
 
     // Stage2: Output Section
@@ -521,6 +521,19 @@ module new_entry_logic #(
         end
     endgenerate
 
+    reg [DECODE_NEW_INST-1:0] map_log_phy_wes;
+    integer rd_idx;
+    always @(*) begin
+        for(rd_idx = 0; rd_idx < DECODE_NEW_INST; rd_idx = rd_idx+1) begin
+            if (rd[rd_idx] == 0) begin
+                map_log_phy_wes[rd_idx] = 0;
+            end
+            else begin
+                map_log_phy_wes[rd_idx] = o_im_inst_get & i_im_inst_valid & newreg_alloc[rd_idx];
+            end
+        end
+    end
+
     regfile #(
         .READ_CHANNEL  (DECODE_NEW_INST+(DECODE_NEW_INST*INST_OPREANDS)),
         .WRITE_CHANNEL (DECODE_NEW_INST),
@@ -530,7 +543,7 @@ module new_entry_logic #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    ({rd_spread, rs_spread}),
-        .i_write_wes         (o_im_inst_get & i_im_inst_valid),
+        .i_write_wes         (map_log_phy_wes),
         .i_write_addresses   (rd_spread),
         .i_write_data        (i_prm_allocate_phyreg),
         .o_read_data         ({past_log_phy_reg, opreands_log_phy})
@@ -545,7 +558,7 @@ module new_entry_logic #(
         .clk                 (clk),
         .reset_n             (reset_n),
         .i_read_addresses    (opreands_log_phy_reg_spread),
-        .i_write_wes         ({i_wbc2nel_done, o_im_inst_get & i_im_inst_valid}),
+        .i_write_wes         ({i_wbc2nel_done, map_log_phy_wes}),
         .i_write_addresses   ({i_wbc2nel_done_phyreg, i_prm_allocate_phyreg}),
         .i_write_data        ({{EX_PATH_NUM{1'b1}}, {DECODE_NEW_INST{1'b0}}}),
         .o_read_data         (opreands_phy_ready)
