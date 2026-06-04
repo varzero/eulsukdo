@@ -106,14 +106,15 @@ module tb_eulsukdo_1dec_3issue ();
             if (mode == 2'b10) begin // read
                 rdata_vmem_i = data_memory[mem_addr];
                 ready_vmem_i = 1'b1;
+                $display("load!! mem[%h] = %h", mem_addr, rdata_vmem_i);
             end
             else if (mode == 2'b01) begin // write
-                data_memory[mem_addr] 
-                    = { (strb_vmem_o[3])? wdata_vmem_o[31:24] : data_memory[mem_addr][31:24], 
-                        (strb_vmem_o[2])? wdata_vmem_o[23:16] : data_memory[mem_addr][23:16], 
-                        (strb_vmem_o[1])? wdata_vmem_o[15: 8] : data_memory[mem_addr][15: 8], 
-                        (strb_vmem_o[0])? wdata_vmem_o[ 7: 0] : data_memory[mem_addr][ 7: 0] };
+                data_memory[mem_addr][31:24] = (strb_vmem_o[3])? wdata_vmem_o[31:24] : data_memory[mem_addr][31:24];
+                data_memory[mem_addr][23:16] = (strb_vmem_o[2])? wdata_vmem_o[23:16] : data_memory[mem_addr][23:16];
+                data_memory[mem_addr][15: 8] = (strb_vmem_o[1])? wdata_vmem_o[15: 8] : data_memory[mem_addr][15: 8];
+                data_memory[mem_addr][ 7: 0] = (strb_vmem_o[0])? wdata_vmem_o[ 7: 0] : data_memory[mem_addr][ 7: 0];
                 ready_vmem_i = 1'b1;
+                $display("store!! mem[%h] = %h", mem_addr, data_memory[mem_addr]);
             end
         end
         @(negedge clk);

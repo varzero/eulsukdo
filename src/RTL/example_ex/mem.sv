@@ -47,13 +47,13 @@ module mem_ex #(
                     default: rdata_proc_o = 32'b0;
                 endcase
 
-                re_vmem_o    = ~req & run_i;
+                re_vmem_o    = run_i;
                 we_vmem_o    = 1'b0;
                 addr_vmem_o  = {addr[31:2], 2'b0};
                 strb_vmem_o  = 4'b0;
                 wdata_vmem_o = 32'b0;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = req & ready_vmem_i;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b0_0_001: begin // LH
                 addr         = rs1_i + imm_i;
@@ -64,25 +64,25 @@ module mem_ex #(
                     default: rdata_proc_o = 32'b0;
                 endcase
 
-                re_vmem_o    = ~req & run_i;
+                re_vmem_o    = run_i;
                 we_vmem_o    = 1'b0;
                 addr_vmem_o  = {addr[31:2], 2'b0};
                 strb_vmem_o  = 4'b0;
                 wdata_vmem_o = 32'b0;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = req & ready_vmem_i;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b0_0_010: begin // LW
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = rdata_vmem_i;
-                re_vmem_o    = ~req & run_i;
+                re_vmem_o    = run_i;
                 we_vmem_o    = 1'b0;
                 addr_vmem_o  = {addr[31:2], 2'b0};
                 strb_vmem_o  = 4'b0;
                 wdata_vmem_o = 32'b0;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = req & ready_vmem_i;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b0_0_100: begin // LBU
                 addr         = rs1_i + imm_i;
@@ -95,13 +95,13 @@ module mem_ex #(
                     default: rdata_proc_o = 32'b0;
                 endcase
 
-                re_vmem_o    = ~req & run_i;
+                re_vmem_o    = run_i;
                 we_vmem_o    = 1'b0;
                 addr_vmem_o  = {addr[31:2], 2'b0};
                 strb_vmem_o  = 4'b0;
                 wdata_vmem_o = 32'b0;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = req & ready_vmem_i;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b0_0_101: begin // LHU
                 addr         = rs1_i + imm_i;
@@ -112,13 +112,13 @@ module mem_ex #(
                     default: rdata_proc_o = 32'b0;
                 endcase
 
-                re_vmem_o    = ~req & run_i;
+                re_vmem_o    = run_i;
                 we_vmem_o    = 1'b0;
                 addr_vmem_o  = {addr[31:2], 2'b0};
                 strb_vmem_o  = 4'b0;
                 wdata_vmem_o = 32'b0;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = req & ready_vmem_i;
+				done_o       = req & ready_vmem_i;
 			end
             
 			5'b1_0_000: begin // SB
@@ -126,36 +126,36 @@ module mem_ex #(
 
                 rdata_proc_o = 32'b0;
                 re_vmem_o    = 1'b0;
-                we_vmem_o    = ~req & run_i;
+                we_vmem_o    = run_i;
                 addr_vmem_o  = addr;
                 strb_vmem_o  = 4'b0001;
                 wdata_vmem_o = rs2_i;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = 1'b0;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b1_0_001: begin // SH
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = 32'b0;
                 re_vmem_o    = 1'b0;
-                we_vmem_o    = ~req & run_i;
+                we_vmem_o    = run_i;
                 addr_vmem_o  = addr;
                 strb_vmem_o  = 4'b0011;
                 wdata_vmem_o = rs2_i;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = 1'b0;
+				done_o       = req & ready_vmem_i;
 			end
 			5'b1_0_010: begin // SW
                 addr         = rs1_i + imm_i;
 
                 rdata_proc_o = 32'b0;
                 re_vmem_o    = 1'b0;
-                we_vmem_o    = ~req & run_i;
+                we_vmem_o    = run_i;
                 addr_vmem_o  = addr;
                 strb_vmem_o  = 4'b1111;
                 wdata_vmem_o = rs2_i;
-				we_proc_o    = ready_vmem_i;
-				done_o       = ready_vmem_i;
+				we_proc_o    = 1'b0;
+				done_o       = req & ready_vmem_i;
 			end
 
 			default: begin

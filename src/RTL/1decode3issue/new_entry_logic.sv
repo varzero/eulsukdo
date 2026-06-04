@@ -140,7 +140,7 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                expath_o = 2'b01;
+                expath_o = 2'b00;
                 microop_o = 5'b11010;
             end
 
@@ -200,13 +200,70 @@ endmodule
 
 module rv32i_get_registers (
 	input  wire [31:0] inst_i,
-	output wire [4:0]  rd_o,
-	output wire [4:0]  rs1_o,
-	output wire [4:0]  rs2_o
+	output reg  [4:0]  rd_o,
+	output reg  [4:0]  rs1_o,
+	output reg  [4:0]  rs2_o
 );
     assign rd_o  = inst_i[11:7];
     assign rs1_o = inst_i[19:15];
     assign rs2_o = inst_i[24:20];
+    always @(*) begin : Decoding
+        case(inst_i[6:0])
+            7'b1100011: begin // EX 1: Branch
+                rd_o  = 0;
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+            7'b1100111: begin // EX 1: Jump Reg
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = 0;
+            end
+            
+            7'b0110011: begin // EX 2: ALU Reg
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+            7'b0010011: begin // EX 2: ALU IMM
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = 0;
+            end
+            7'b0110111: begin // EX 2: LUI
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+            7'b0010111: begin // EX 2: AUIPC
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+            7'b1101111: begin // EX 2: JAL
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+
+            7'b0000011: begin // EX 3: Memory Access Load
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = 0;
+            end
+            7'b0100011: begin // EX 3: Memory Access Store
+                rd_o  = 0;
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+
+            default: begin
+                rd_o  = inst_i[11:7];
+                rs1_o = inst_i[19:15];
+                rs2_o = inst_i[24:20];
+            end
+        endcase
+    end
 endmodule
 
 module new_entry_logic #(
@@ -421,8 +478,11 @@ module new_entry_logic #(
                 expath_new[new_entry_idx]  = expath[new_entry_idx];
                 microop_new[new_entry_idx] = microop[new_entry_idx];
                 imm_new[new_entry_idx]     = imm[new_entry_idx];
-                new_log_phy_next[new_entry_idx] 
-                    = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
+                new_log_phy_next[new_entry_idx] = 0;
+                if (newreg_alloc[new_entry_idx]) begin
+                    new_log_phy_next[new_entry_idx] 
+                        = i_prm_allocate_phyreg[(BITWIDTH_PHYREG_NUM*new_entry_idx) +: BITWIDTH_PHYREG_NUM];
+                end
                 opreands_log_phy_next[new_entry_idx] 
                     = opreands_log_phy[((INST_OPREANDS*BITWIDTH_PHYREG_NUM)*new_entry_idx) +: (INST_OPREANDS*BITWIDTH_PHYREG_NUM)];
 
