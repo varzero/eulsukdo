@@ -132,7 +132,7 @@ module flow_control_logic #(
             end
             RUN  : begin
                 state_next = RUN;
-                o_im_re = &i_im_inst_get & ~i_nel_block;
+                o_im_re = (i_im_inst_valid && i_im_inst_get);
                 if (!i_nel_block) begin
                     if ( |fc_path_available ) begin
                         if (i_nel_jump_inst) begin
@@ -386,11 +386,11 @@ module flow_detect_unit #(
     integer target_pc;
 
     // Register Variables
-    reg [1:0]                    state,     state_next;
-    reg [INST_PC_WIDTH-1:0]      pc_start,  pc_start_next;
-    reg [INST_PC_WIDTH-1:0]      pc_last,   pc_last_next;
-    reg [BITWIDTH_PC_RANGE-1:0]  range_cnt, range_cnt_next;
-    reg [BITWIDTH_PC_RANGE-1:0]  range,     range_next;
+    reg [1:0]                  state,     state_next;
+    reg [INST_PC_WIDTH-1:0]    pc_start,  pc_start_next;
+    reg [INST_PC_WIDTH-1:0]    pc_last,   pc_last_next;
+    reg [BITWIDTH_PC_RANGE:0]  range_cnt, range_cnt_next;
+    reg [BITWIDTH_PC_RANGE:0]  range,     range_next;
     
     // FSM
     localparam UNACTIVE  = 2'b00;
@@ -424,7 +424,7 @@ module flow_detect_unit #(
                 else                      state_next = UNACTIVE;
             end
             ACTIVE   : begin
-                if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = FREE;
+                if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = WAIT_FREE;
                 else                         state_next = ACTIVE;
             end
             WAIT_FREE: begin
