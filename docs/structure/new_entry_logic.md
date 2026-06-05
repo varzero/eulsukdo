@@ -20,13 +20,25 @@ New Entry Logic는
 
 ### 내부 체계로 변경된 명령어 코드를 IST로 전달
 새로운 명령을 받아들이기 위해 3가지를 정보를 동시에 받아들입니다.  
-이 정보는 동시에 DECODE_NEW_INST 만큼 수신할 수 있습니다.  
-- (출력) NEL이 수신할 수 있는 명령 위치: Get
-- (입력) 새로운 명령의 유효성 정보: Valid
-- (출력) NEL이 수신할 수 있는 명령 위치: Get
-- (입력) RV32I 기반의 새로운 명령: Inst
+이 정보는 동시에 DECODE_NEW_INST 만큼 전달할 수 있습니다.  
+- (입력) IST의 입력 가능 상태: Insert Available
+- (출력) 
 
 코드에서 명칭은 ```i_ist_insert_avaliable```, ```i/o_ist_field_*``` 입니다.  
 
+### 사용 가능한 레지스터 번호를 PRM에서 수신
+새로운 명령에서 레지스터 쓰기가 발생한다면, *레지스터 리네이밍*을 위해 새로운 레지스터를 할당받습니다.  
+이 정보는 동시에 DECODE_NEW_INST 만큼 수신할 수 있습니다.  
+- (출력) PRM에서 할당받을 레지스터 번호의 위치: Allocate Position
+- (입력) PRM의 동작 가능 상태: Active
+- (입력) PRM에서 할당하는 레지스터의 유효성 정보: Valid
+- (입력) PRM에서 할당하는 레지스터의 번호: Phyreg
+
+코드에서 명칭은 ```o_allocate_position```, ```i_prm_active```, ```i_prm_allocate_*``` 입니다.  
+
+
+
 ## 내부 모듈들의 구성과 역할
 
+
+## 데이터 흐름과 예시

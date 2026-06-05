@@ -117,6 +117,11 @@ module alu_ex #(
 				we_o = run_i;
 				done_o = run_i;
 			end
+			5'b1_1_000: begin // LUI
+				alu_result_o = imm_i;
+				we_o = run_i;
+				done_o = run_i;
+			end
 
 			default: begin
 				alu_result_o = 32'b0;

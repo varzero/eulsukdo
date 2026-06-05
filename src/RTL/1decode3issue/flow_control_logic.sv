@@ -178,7 +178,6 @@ module flow_control_logic #(
                 o_im_re = 1'b0;
                 if ( |fc_path_available ) begin
                     state_next      = RUN;
-                    o_im_re         = 1'b1;
                 end
             end
             BLOCK_BRANCH: begin
@@ -186,7 +185,6 @@ module flow_control_logic #(
                 o_im_re = 1'b0;
                 if (i_wbc2fcl_branch) begin
                     state_next      = RUN;
-                    o_im_re         = 1'b1;
                     pc_fcpath_next  = available_fcpath;
                     pc_im_req_next  = i_wbc2fcl_branch_pc;
                     pc_rb_last_next = i_wbc2fcl_branch_pc + FCL_RB_PC_GAP_MAX;
