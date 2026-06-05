@@ -73,11 +73,12 @@ module tb_eulsukdo_1dec_3issue ();
         bit i_set;
 
         i_set = 0;
+        #1;
         if (o_im_re) i_set = 1;
         
-        @(negedge clk);
+        @(posedge clk);
         if (i_set) begin
-            if (now_pc < max_pc) begin
+            if (now_pc < 512) begin
                 now_pc = o_im_pc[11:2];
                 i_im_inst = instruction_memory[now_pc[8:0]];
                 i_im_inst_valid = (i_im_inst == 32'h0010_0073)? 1'b0 : 1'b1;
@@ -93,10 +94,14 @@ module tb_eulsukdo_1dec_3issue ();
     endtask
 
     task data_memory_access_detect;
-        int wait_time = $urandom%5; 
-        reg [31:0] mem_addr = addr_vmem_o;
+        int wait_time;
+        reg [31:0] mem_addr;
         reg [1:0] mode;
         
+        wait_time = $urandom%5;
+        mem_addr = addr_vmem_o;
+        mem_addr = addr_vmem_o;
+        mem_addr[16] = 1'b0;
         mode = {re_vmem_o, we_vmem_o};
         @(negedge clk);
         $display("1 wait time %d, mode %b", wait_time, mode);
@@ -177,7 +182,7 @@ module tb_eulsukdo_1dec_3issue ();
         @(negedge clk);
 
         wait(o_im_re);
-        @(negedge clk);
+        @(posedge clk);
         
         fork
             begin

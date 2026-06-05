@@ -130,7 +130,7 @@ module rv32i_decode_opcode #(
                 jump_reg_o = 1'b0;
                 branch_o = 1'b0;
                 ready_o = 2'b11;
-                expath_o = 2'b01;
+                expath_o = 2'b00;
                 microop_o = 5'b11001;
             end
             7'b1101111: begin // EX 2: JAL
@@ -453,8 +453,8 @@ module new_entry_logic #(
         end
 
         for(new_entry_idx = 0; new_entry_idx < DECODE_NEW_INST; new_entry_idx = new_entry_idx+1) begin
-            o_nel_jump_inst        = jump[new_entry_idx];
-            o_nel_jreg_branch_inst = jump_reg[new_entry_idx] | branch[new_entry_idx];
+            o_nel_jump_inst        = i_im_inst_valid & o_im_inst_get & jump[new_entry_idx];
+            o_nel_jreg_branch_inst = i_im_inst_valid & o_im_inst_get & (jump_reg[new_entry_idx] | branch[new_entry_idx]);
             o_nel_jump_branch_pc   
                 = i_im_inst_pc[(BITWIDTH_FCL_PC_WIDTH*new_entry_idx) +: INST_PC_WIDTH]+imm[new_entry_idx];
 

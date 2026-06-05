@@ -77,6 +77,13 @@ module branch_ex #(
                 branch_o = run_i;
 				done_o = run_i;
             end
+			5'b1_1_001: begin // AUIPC
+                new_pc_o = 0;
+                return_pc_o = pc_i+imm_i;
+				we_o = run_i;
+                branch_o = 1'b0;
+				done_o = run_i;
+			end
 			5'b1_1_010: begin // JAL
                 new_pc_o = 0;
                 return_pc_o = pc_i+4;
