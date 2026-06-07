@@ -167,6 +167,9 @@ module flow_control_logic #(
                     if (i_nel_jreg_branch_inst) begin
                         state_next = BLOCK_BRANCH;
                         o_im_re = 1'b0;
+
+                        update_pc_last  = 1'b1; 
+                        update_pc_last_addr  = pc_im_req;
                     end
                 end
                 else begin
@@ -188,6 +191,9 @@ module flow_control_logic #(
                     pc_fcpath_next  = available_fcpath;
                     pc_im_req_next  = i_wbc2fcl_branch_pc;
                     pc_rb_last_next = i_wbc2fcl_branch_pc + FCL_RB_PC_GAP_MAX;
+
+                    update_pc_start = 1'b1; 
+                    update_pc_start_addr = i_wbc2fcl_branch_pc;
                 end
             end
         endcase
@@ -245,7 +251,6 @@ module flow_control_logic #(
     );
 
     wire [FCL_RB_NUM-1:0]                              fc_path_free, fc_path_free_ordering_valid;
-    wire [FCL_RB_NUM-1:0]                              fc_path_free_ordering;
     wire [UNALLOCATE_PHYREG-1:0]                       unallocate_valid [0:FCL_RB_NUM-1];
     wire [(BITWIDTH_PHYREG_NUM*UNALLOCATE_PHYREG)-1:0] unallocate_phyreg[0:FCL_RB_NUM-1];
     wire [(FCL_RB_NUM*BITWIDTH_FCL_RB_NUM)-1:0]        new_free_target_fcpath_out;
@@ -440,7 +445,7 @@ module flow_detect_unit #(
     end
 
     // State Operations
-    integer target_push_catch, target_done_catch;
+    integer target_push_catch;
     reg [DECODE_NEW_INST-1:0]   push_valid;
     reg [UNALLOCATE_PHYREG-1:0] pop_get;
     always @(*) begin
