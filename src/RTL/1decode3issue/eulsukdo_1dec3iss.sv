@@ -338,7 +338,7 @@ module eulsukdo_1dec_3issue #(
     ) U_EX_BRANCH (
     	.run_i                        (run_branch),
     	.microop_i                    (microop_branch),
-    	.rs1_i                        (rs1_alu),
+    	.rs1_i                        (rs1_branch),
     	.rs2_i                        (rs2_branch),
     	.imm_i                        (imm_branch),
     	.pc_i                         (pc_branch),
