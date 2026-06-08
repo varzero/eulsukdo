@@ -83,7 +83,7 @@ module eulsukdo_1dec_3issue #(
     localparam RS_STARTPOINT_IMM                = RS_STARTPOINT_MICROOP + MICROOP_WIDTH;
     localparam RS_STARTPOINT_RD                 = RS_STARTPOINT_IMM + INST_IMM_WIDTH;
     localparam RS_STARTPOINT_RS1                = RS_STARTPOINT_RD + BITWIDTH_PHYREG_NUM;
-    localparam RS_STARTPOINT_RS2                = RS_STARTPOINT_RD + BITWIDTH_PHYREG_NUM;
+    localparam RS_STARTPOINT_RS2                = RS_STARTPOINT_RS1 + BITWIDTH_PHYREG_NUM;
 
     localparam RS_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * RS_PUSH_WIDTH;
     localparam EX_PACKET_BITWIDTH               = RS_ENTRY_BITWIDTH * EX_PATH_NUM;

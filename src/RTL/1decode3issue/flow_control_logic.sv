@@ -228,7 +228,7 @@ module flow_control_logic #(
                 split_fcpath 
                     = i_wbc2fcl_pc[( (BITWIDTH_FCL_PC_WIDTH*wbc2fcl_pc_idx) + INST_PC_WIDTH ) +: BITWIDTH_FCL_RB_NUM];
                 if (split_fcpath == rcpath_split_idx)
-                    wbc2fcl_pc_valid_FCPATH[rcpath_split_idx][wbc2fcl_pc_idx] = 1'b1;
+                    wbc2fcl_pc_valid_FCPATH[rcpath_split_idx][wbc2fcl_pc_idx] = (i_wbc2fcl_done[wbc2fcl_pc_idx])? 1'b1 : 1'b0;
             end
         end
     end
@@ -427,7 +427,7 @@ module flow_detect_unit #(
                 else                      state_next = UNACTIVE;
             end
             ACTIVE   : begin
-                if (!i_set_last_pc_valid && (range_cnt_next == range)) state_next = WAIT_FREE;
+                if (!i_set_last_pc_valid && (range_cnt == range)) state_next = WAIT_FREE;
                 else                         state_next = ACTIVE;
             end
             WAIT_FREE: begin
@@ -457,7 +457,6 @@ module flow_detect_unit #(
                     entry_done_range_sum = entry_done_range_sum+1;
                 end
             end
-            else entry_done_range_sum = 1'b0;
         end
 
         case(state)
