@@ -76,9 +76,11 @@ Valid 발생 단위의 데이터 전송과 Handshake 기반 전송 단위에서 
 을숙도 아키텍쳐는 Execution Unit을 모두 커스텀 하고 추가하는 구조입니다.  
 이때 사용되는 EX의 명령 포맷과 결과 포맷은 특정한 구조를 가져야 합니다.  
 **반드시, 모든 커스텀 EX 모듈들의 입력 명령 포맷과 결과 포맷은 동일해야 합니다.**  
-MSB부터 LSB로 왼쪽부터 오른쪽으로 명령 구조를 나타내면
-|Program Counter|Micro-Opcode|RS_1 Value|...RS Values List...|RS_last Value|Immediate Value|
+LSB부터 MSB로 왼쪽부터 오른쪽으로 명령 구조를 나타내면
+|Program Counter|Micro-Opcode|RD Address|RS_1 Address|...RS Addresses List...|RS_last Address|RS_1 Value|...RS Values List...|RS_last Value|Immediate Value|
 |-|-|-|-|-|-|
+
+형태로 배치됩니다.
 
 
 ### 파라미터
@@ -86,9 +88,22 @@ MSB부터 LSB로 왼쪽부터 오른쪽으로 명령 구조를 나타내면
 이에 따라, 파라미터를 이용하여 확장 가능한 RTL 코드를 제공~~하고 있습니다.~~  할 예정입니다.  
 
 파라미터의 이름 구조는
+- ```IS_INST_*```: Instruction Set에 따른 파라미터의 접두사 입니다.  
 - ```EX_INST_*```: Execution Unit에 입력되는 명령의 정보에 대한 파라미터의 접두사 입니다.  
 **반드시, 모든 커스텀 EX 모듈들의 입출력 정보 파라미터는 공유되어야 합니다.** 
 - ```STRUCT_*```: 구조적인 설정을 위해 사용되는 파라미터의 접두사 입니다.
+
+#### Parameter of Instruction Set
+Instruction Set에 대한 파라미터입니다. Instruction Set의 명령 포맷 정보를 입력합니다.
+```IS_INST_REGS```: Instruction Set에 정의된 범용 레지스터 갯수입니다. CSR과 같은 전용 레지스터는 MicroOP을 이용합니다.
+```IS_INST_IMM```: Instruction Set에 정의된 Immediate 값의 너비입니다.
+
+#### Parameter of Execution Unit
+Execution Unit에 대한 파라미터입니다. 상단 포맷에 맞게 EX의 명령 포맷 정보를 입력합니다.
+- ```EX_INST_MICROOP```: Execution Unit용 명령의 비트 너비입니다.
+
+#### Parameter of EULSUKDO Structure
+- 
 
 내부적으로 사용하기 위해 파라미터로 자동 생성되는 상수들은 ```_```로 시작합니다.  
 전체적으로 사용되는 상수의 이름 구조는
@@ -97,11 +112,7 @@ MSB부터 LSB로 왼쪽부터 오른쪽으로 명령 구조를 나타내면
 - ```_ENDPOINT_*```: 여러개의 데이터 구조 결합에서, 데이터 구조의 끝 위치 비트 번호입니다.  
     - ```_*_LOW_*```: 최소 단위 데이터 구조를 뜻하는 명칭입니다.
     - ```_*_CMB_*n*```: 두개 이상의 단위를 결합한 데이터 구조를 뜻하는 명칭입니다.  
-    MSB부터 결합된 순서대로 작성하며, ```n```로 구분합니다.
+    LSB부터 결합된 순서대로 작성하며, ```n```로 구분합니다.
     - ```_*_IO_*```: 입출력 단위로 구성된 데이터 구조를 뜻하는 명칭입니다.
 
-이들을 결합하여 ```_BITWIDTH_LOW_IS_INST_OPCODE```, ```_STARTPOINT_CMB_FUNCnOPCODE_OPCODE``` 와 같은 형태로 작성합니다.
-
-#### Parameter of Execution Unit
-Execution Unit에 대한 파라미터입니다. 상단 포맷에 맞게 EX의 명령 포맷 정보를 입력합니다.
-- ```EX_INST_MICROOP```: 
+이들을 결합하여 ```_BITWIDTH_LOW_IS_INST_IMM```, ```_STARTPOINT_CMB_OPCODEnFUNC_OPCODE``` 와 같은 형태로 작성합니다.
