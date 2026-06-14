@@ -3,8 +3,67 @@ New Entry Logic는
 새로운 명령을 입력받아, 이때 명령의 레지스터들을 내부 체계의 이름으로 변경하며,  
 새로운 명령에서 필요한 레지스터의 준비여부를 모아 내부에서 처리하는 명령 체계로 변환합니다.
 
-## 내부 모듈들의 구성과 역할
 ![NEL 다이어그램](../img/3_NEL.JPG)
+
+## 내부의 구성과 역할
+### 설계자 정의 ISA 디코더
+을숙도 아키텍쳐는 설계자가 원하는 형태의 Instruction Set을 사용할 수 있습니다.  
+다만, 몇가지 조건이 있습니다.  
+- 고정 길이 명령 구조만 사용할 수 있습니다.
+- 명령을 구분하는 PC 값의 단위가 반드시 동일하게 구분되어야 합니다.
+
+설계자가 사용할 수 있는 디코더의 입출력 포맷이 고정되어 있습니다.  
+
+명령을 처리하기 위해 설계자가 정의 하는 ISA 디코더는    
+입력으로
+|Name|Bit-Width|Description|
+|-|-|-|
+|inst|```IS_INST_BITWIDTH```|Instruction Set 기반의 명령|
+
+을 받고,   
+
+출력으로  
+|Name|Bit-Width|Quantity|Description|
+|-|-|-|-|
+|EX_PATH|BIT_WIDTH(```STRUCT_EX_PATH```)|1|EX 종류 지정|
+|Micro-OP|```EX_INST_MICROOP```|1|EX용 Opcode|
+|RD|BIT_WIDTH(```IS_INST_REGS```)|1|Register Destination|
+|Allocate_NEW_RD|1|1|명령이 레지스터를 수정하는지 여부|
+|RS|BIT_WIDTH(```IS_INST_REGS```)|```IS_INST_OPERANDS```|Register Sources|
+|RS_use|1|```IS_INST_OPERANDS```|사용하는 Register Source 필드|
+|Jump|1|1|PC의 값을 레지스터 없이 변경하는 명령 여부, 다음 명령을 불러오는 경우는 포함하지 않음|
+|Jump_Reg|1|1|PC의 값을 레지스터를 이용하여 변경하는 명령 여부|
+|Branch|1|1|PC의 값을 조건에 따라 변경하는 명령 여부|
+
+가 출력되게 만드셔야 합니다.   
+이 디코더는 총 ```STRUCT_DECODE_NEW_INST```개 만큼 존재하게 됩니다.
+
+BIT_WIDTH(```인자```)는 인자의 log2에서 소수점 아래 값이 있을때 올림한 값입니다.  
+
+위와 같은 형태를 맞춰 <u>설계자 정의 ISA 디코더</u>를 설계한다면,  
+제공하는 생성기로 바로 을숙도 아키텍쳐에서 사용할 수 있습니다.  
+
+### ISA Register <-> Physical Register Mapping Table
+Instruction Set Architecture에 정의 된 레지스터와 내부 레지스터 간의 매핑 관계를 저장하는 Register File입니다.  
+Register File의 주소로 **Instruction Set 레지스터 번호**를 사용하고,  
+Register File의 데이터로 **내부 레지스터 번호**를 저장합니다.  
+
+이 Register File 입출력 채널의 구성으로  
+- 입력 채널 갯수: ```STRUCT_DECODE_NEW_INST```
+    - 아래부터 명령의 PC 값 순서로 전달하여  
+    *입력되는 가장 낮은 PC의 명령 RD 레지스터 번호, ... , 입력되는 가장 높은 PC의 명령 RD 레지스터 번호* 형태의 주소를 사용하고,  
+    동일한 형태로 **재할당된 레지스터 필드의 위치**(Write Enable)과 **매핑할 레지스터 값을 데이터로 입력**합니다.
+- 출력 채널 갯수: ```(STRUCT_DECODE_NEW_INST*(1+IS_INST_OPERANDS))```
+    - <u>명령의 RD 레지스터 번호, 명령의 RS_1 레지스터 번호, ... , 명령의 RS_n 레지스터 번호</u> 묶음을  
+    아래부터 명령의 PC 값 순서로 전달하여  
+    *[ (Inst ```1```)RD, RS_1, ... , RS_n ] ~~~ [ (Inst ```STRUCT_DECODE_NEW_INST```)RD, RS_1, --- , RS_n ]* 형태의 주소를 사용하고,  
+    동일한 형태로 **매핑 된 레지스터 값이 데이터로 출력**됩니다.  
+
+### Physical Register Ready Table
+
+
+### Decode
+
 
 ## 수신/송신하는 정보
 많은 부분에서 Handshake/Valid 구조를 이용하였기 때문에,  
