@@ -28,11 +28,55 @@ Register File의 데이터로 **내부 명령**(너비: ```_BITWIDTH_INTERNAL_IN
 와 같습니다. 내부 명령의 입력에서 Ready부분만 제외된 형태입니다.
 
 이 Register File 입출력 채널 구성으로
-- 입력 채널 갯수: 
+- 입력 채널 갯수: ```STRUCT_DECODE_NEW_INST```
+    - 아래부터 IST 모듈에 입력된 순서로 전달하여   
+    *Instruction State Entry Number Allocator의 낮은 할당 필드 부터 높은 할당 필드에 출력된 Entry Number* 형태의 주소를 사용하고,  
+    동일한 순서로 **입력되는 명령의 위치**(Write Enable)와 **입력되는 내부 명령을 데이터로 입력**합니다.
+- 출력 채널 갯수: ```STRUCT_PRM_ENTRY_UPDATE```
+    - <u>IST 엔트리 번호</u>를  
+    RPM에서 수신된 필드 순서로 전달하여  
+    *[IST Entry 1], ... , [IST Entry n]*  
+    형태의 주소를 사용하고,  
+    동일한 순서로 **저장된 내부 명령이 데이터로 출력**됩니다.  
 
 ### Instruction Source Table
-대기하는 명령이 필요한 내부 레지스터 번호를 저장하는 Register File입니다. 
+대기하는 명령에서 소스로 사용하는 내부 레지스터 번호를 저장하는 Register File입니다.  
+Register File의 주소로 **Instruction State Entry 번호**(너비: ```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```)를 사용하고,   
+Register File의 데이터로 **소스로 사용되는 내부 레지스터 번호**(너비: ```_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS```)를 저장합니다.  
+ 
+이 Register File 입출력 채널 구성으로
+- 입력 채널 갯수: ```STRUCT_DECODE_NEW_INST```
+    - 아래부터 IST 모듈에 입력된 순서로 전달하여   
+    *Instruction State Entry Number Allocator의 낮은 할당 필드 부터 높은 할당 필드에 출력된 Entry Number* 형태의 주소를 사용하고,  
+    동일한 순서로 **입력되는 명령의 위치**(Write Enable)와 **입력되는 내부 명령을 데이터로 입력**합니다.
+- 출력 채널 갯수: ```STRUCT_PRM_ENTRY_UPDATE```
+    - <u>IST 엔트리 번호</u>를  
+    RPM에서 수신된 필드 순서로 전달하여  
+    *[IST Entry 1], ... , [IST Entry n]*  
+    형태의 주소를 사용하고,  
+    동일한 순서로 **저장된 내부 명령의 소스 레지스터 번호들이 데이터로 출력**됩니다.  
 
 ### Ready Flags Table
-대기하는 명령에서 준비된 내부 레지스터의 Ready Flag를 저장하는 Register File입니다. 
+대기하는 명령에서 준비된 내부 레지스터의 Ready Flag를 저장하는 Register File입니다.  
+Register File의 주소로 **Instruction State Entry 번호**(너비: ```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```)를 사용하고,   
+Register File의 데이터로 **소스 레지스터 준비 상태**(너비: 1)를 저장합니다.  
+
+이 Register File 입출력 채널 구성으로
+- 입력 채널 갯수: ```STRUCT_DECODE_NEW_INST```
+    - 아래부터 IST 모듈에 입력된 순서로 전달하여   
+    *Instruction State Entry Number Allocator의 낮은 할당 필드 부터 높은 할당 필드에 출력된 Entry Number* 형태의 주소를 사용하고,  
+    동일한 순서로 **업데이트하는 Ready Flag의 위치**(Write Enable)와 **업데이트하는 Ready Flag를 데이터로 입력**합니다.
+- 출력 채널 갯수: ```STRUCT_PRM_ENTRY_UPDATE```
+    - <u>IST 엔트리 번호</u>를  
+    RPM에서 수신된 필드 순서로 전달하여  
+    *[IST Entry 1], ... , [IST Entry n]*  
+    형태의 주소를 사용하고,  
+    동일한 순서로 **저장된 Ready Flag가 데이터로 출력**됩니다.  
+
+### IST-PHYREG Mapping Information
+입력되는 내부 명령 체계에서 소스 레지스터와 현재 IST 엔트리 번호를 그대로 전달하는 로직으로,  
+입력되는 내부 명령 체계의 Ready Flag의 반전을 Valid로 적용합니다.  
+즉, **Ready Flag가 활성화 되지 않은 경우만 전달하는 구조**입니다.   
+
+### Ready Checker
 
