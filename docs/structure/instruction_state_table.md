@@ -21,9 +21,9 @@ Register File의 주소로 **Instruction State Entry 번호**(너비: ```_BITWID
 Register File의 데이터로 **내부 명령**(너비: ```_BITWIDTH_INTERNAL_INST```)을 저장합니다.  
 
 ```INTERNAL_INST```의 구조는
-|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|Flow Index|Program Counter|
-|-|-|-|-|-|-|
-|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
+|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|EX Path|Flow Index|Program Counter|
+|-|-|-|-|-|-|-|
+|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_EX_PATH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
 
 와 같습니다. 내부 명령의 입력에서 Ready부분만 제외된 형태입니다.
 
