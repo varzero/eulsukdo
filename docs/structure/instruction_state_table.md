@@ -9,10 +9,14 @@ Instruction State Table은
 ### Instruction State Entry Number Allocator
 Instruction State Table의 Entry를 할당하기 위한 Entry 번호 Allocator입니다.  
 
-이 Allocator는 Instruction State Table의 Entry 번호를 출력하고, 사용이 완료된 Entry 번호를   
+이 Allocator는 Instruction State Table의 Entry 번호를 출력하고, 사용이 완료된 Entry 번호를 입력받습니다.  
+BIT_WIDTH(```IS_INST_REGS```)만큼의 너비를 가집니다  
+
+BIT_WIDTH(```인자```)는 인자의 log2에서 소수점 아래 값이 있을때 올림한 값입니다.  
 
 ### Instruction Entry Table
-대기하는 명령을 저장하는 Register File입니다. 
+대기하는 명령을 저장하는 Register File입니다.  
+
 
 ### Instruction Source Table
 대기하는 명령이 필요한 내부 레지스터 번호를 저장하는 Register File입니다. 
