@@ -88,16 +88,59 @@ IST는 대기가 필요한 내부 레지스터 번호를 IST 엔트리 번호와
 준비된 내부 레지스터 번호를 IST 엔트리 번호와 함께 수신받아 실행 가능한 명령 상태로 변경합니다.  
 
 #### 대기가 필요한 내부 레지스터 번호를 IST 엔트리 번호와 함께 PRM으로 전달
-새로운 명령이 들어오면 명령의 Ready Flag에 따라, 내부 레지스터 번호에 해당하는 대기열에 명령의 IST 엔트리 번호를 저장하기 위해  
----/----
+새로운 명령이 들어오면 내부 레지스터 번호에 해당하는 대기열에 명령의 IST 엔트리 번호를 저장하기 위해  
+내부 레지스터 번호와 명령에 할당된 IST 엔트리 번호를 내보냅니다.  
+이때, 데이터의 유효성은 명령의 Ready Flag에 따르며, Ready Flag가 활성화 되지 않는 경우에 Valid 신호를 출력합니다.   
 
 데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
-|New Physical Register Number|
-|-|
-|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|
+|Instruction State Entry Number|Physical Register Number|
+|-|-|
+|[```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|
+
+이 정보는 동시에 STRUCT_DECODE_NEW_INST*IS_INST_OPERANDS 만큼 전달할 수 있습니다.  
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_prm_wait_phyreg_*``` 입니다.
+
+#### 준비 완료된 내부 레지스터 번호와 IST 엔트리 번호와 함께 PRM에서 수신
+준비가 완료된 내부 레지스터가 있다면, PRM에서 내부 레지스터 대기열에 있던 IST 엔트리를 입력받습니다.    
+
+데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|Instruction State Entry Number|Physical Register Number|
+|-|-|
+|[```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|
+
+이 정보는 동시에 STRUCT_PRM_ENTRY_UPDATE 만큼 수신할 수 있습니다.  
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_prm_ready_phyreg_*``` 입니다.
+
+### 새로운 내부 명령을 수신하고, 준비된 내부 명령을 전달
+#### 새로운 내부 명령을 NEL에서 수신
+새로운 명령을 NEL에서 입력받습니다.  
+이때 모든 Operand의 Ready Flag가 활성화 되어 있다면 통과하고, 아니라면 저장합니다.  
+
+데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|...RS Ready List...|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|Flow Index|Program Counter|
+|-|-|-|-|-|-|-|
+|[```IS_INST_OPERANDS```-1:0]|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
 
 이 정보는 동시에 STRUCT_DECODE_NEW_INST 만큼 수신할 수 있습니다.  
 
-**Valid 기반 전송**을 사용합니다.  
-배포용 소스 코드에서 명칭은 ```i/o_prm_allocate_*``` 입니다.
+**Handshake 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_nel_newinst_*``` 입니다.
 
+#### 준비된 내부 명령을 RS로 전달
+준비된 명령을 RS로 내보냅니다.   
+
+데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|Flow Index|Program Counter|
+|-|-|-|-|-|-|
+|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
+
+이 정보는 동시에 STRUCT_DECODE_NEW_INST*STRUCT_EX_PATH 만큼 전달할 수 있습니다.  
+
+**Handshake 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_rs_readyinst_*``` 입니다.
+
+## 데이터 흐름과 예시
