@@ -1,4 +1,4 @@
-# Write Back Concatenation
+# Write Back Concatenation(WBC)
 Write Back Concatenation은  
 EX에서 처리가 완료된 결과의 Flow Index, PC와  
 내부 레지스터 번호를 추출하여 전달하는 모듈입니다.  
