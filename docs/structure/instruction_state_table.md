@@ -10,10 +10,8 @@ Instruction State Table은
 Instruction State Table의 Entry를 할당하기 위한 Entry 번호 Allocator입니다.  
 
 이 Allocator는 Instruction State Table의 Entry 번호를 출력하고, 사용이 완료된 Entry 번호를 입력받습니다.  
-내부 레지스터의 출력으로 ```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```만큼의 너비를 가지고,  
-이 정보는 동시에 STRUCT_DECODE_NEW_INST만큼 할당하고, STRUCT_UNALLOCATE_PHYREG만큼 반환 할 수 있습니다.  
-
-BIT_WIDTH(```인자```)는 인자의 log2에서 소수점 아래 값이 있을때 올림한 값입니다.  
+IST Entry 번호의 출력으로 ```_BITWIDTH_STRUCT_INST_STATE_ENTRIES```만큼의 너비를 가지고,  
+이 정보는 동시에 STRUCT_DECODE_NEW_INST만큼 할당하고, 최대 STRUCT_PRM_ENTRY_UPDATE만큼 반환 할 수 있습니다.   
 
 ### Instruction Entry Table
 대기하는 명령을 저장하는 Register File입니다.  
