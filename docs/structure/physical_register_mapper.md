@@ -24,7 +24,7 @@ Register File의 데이터로 **대기열에 저장된 명령의 수**(너비: `
     동일한 순서로 **업데이트 되는 명령의 Operand 위치**(Write Enable)와 **업데이트 이후 카운터 값을 데이터로 입력**합니다.
 - 출력 채널 갯수: ```(STRUCT_DECODE_NEW_INST*IS_INST_OPERANDS)+_STRUCT_EX_OUT_RESULT_ALL```
     - <u>카운터 값</u>을  
-    IST의 명령과 Operand 묶음의 순서, EX의 번호 순서대로 전달받아 주소를 사용하고,  
+    IST의 Operand 묶음의 명령들, EX의 번호 순서대로 전달받아 주소를 사용하고,  
     동일한 순서로 **저장된 카운터 값이 데이터로 출력**됩니다. 
 
 ### Internal Register <-> IST Entry Map Buffer
