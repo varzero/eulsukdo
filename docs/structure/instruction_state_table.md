@@ -121,9 +121,9 @@ IST는 대기가 필요한 내부 레지스터 번호를 IST 엔트리 번호와
 이때 모든 Operand의 Ready Flag가 활성화 되어 있다면 통과하고, 아니라면 저장합니다.  
 
 데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
-|...RS Ready List...|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|Flow Index|Program Counter|
-|-|-|-|-|-|-|-|
-|[```IS_INST_OPERANDS```-1:0]|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
+|...RS Ready List...|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|EX Path|Flow Index|Program Counter|
+|-|-|-|-|-|-|-|-|
+|[```IS_INST_OPERANDS```-1:0]|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_EX_PATH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
 
 이 정보는 동시에 STRUCT_DECODE_NEW_INST 만큼 수신할 수 있습니다.  
 
@@ -135,11 +135,11 @@ IST는 대기가 필요한 내부 레지스터 번호를 IST 엔트리 번호와
 준비된 명령을 RS로 내보냅니다.   
 
 데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
-|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|Flow Index|Program Counter|
-|-|-|-|-|-|-|
-|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
+|...RS(n~1) Addresses List...|RD Address|Imm Value|Micro-Op|EX Path|Flow Index|Program Counter|
+|-|-|-|-|-|-|-|
+|[```(_BITWIDTH_STRUCT_PHYREGS*IS_INST_OPERANDS)```-1:0]|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|[```IS_INST_IMM```-1:0]|[```EX_INST_MICROOP_BITWIDTH```-1:0]|[```_BITWIDTH_STRUCT_EX_PATH```-1:0]|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
 
-이 정보는 동시에 STRUCT_DECODE_NEW_INST*STRUCT_EX_PATH 만큼 전달할 수 있습니다.  
+이 정보는 동시에 STRUCT_DECODE_NEW_INST+STRUCT_PRM_ENTRY_UPDATE 만큼 전달할 수 있습니다.  
 
 **Handshake 기반 전송**을 사용합니다.  
 배포용 소스 코드에서 명칭은 ```i/o_rs_readyinst_*``` 입니다.
