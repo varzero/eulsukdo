@@ -60,7 +60,7 @@ Register File의 데이터로 **Instruction State Entry 번호**(너비: ```_BIT
 ## 수신/송신하는 정보
 ### 새로운 레지스터를 할당하고 반환
 #### 할당 가능한 내부 레지스터 번호를 NEL로 전달
-할당 가능한 내부 레지스터 번호를 출력합니다.
+할당 가능한 내부 레지스터 번호를 출력합니다. Output FIFO의 출력입니다.
 
 데이터는 내부 레지스터 번호이며,  
 이 정보는 동시에 STRUCT_DECODE_NEW_INST 만큼 전달할 수 있습니다.  
@@ -104,5 +104,3 @@ Register File의 데이터로 **Instruction State Entry 번호**(너비: ```_BIT
 
 **Handshake 기반 전송**을 사용합니다.  
 배포용 소스 코드에서 명칭은 ```i/o_ist_ready_phyreg_*``` 입니다.
-
-## 데이터 흐름과 예시
