@@ -58,8 +58,19 @@ module new_entry_logic #(
     // Instruction Memory Interface (i/o_im_inst_*)
     input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_im_inst_valid,
     input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_CMB_FLOW_INDEXnPC)-1:0] i_im_inst_pc,
-    input  wire [(STRUCT_DECODE_NEW_INST * IS_INST_BITWIDTH)-1:0] i_im_inst,
     output reg  [STRUCT_DECODE_NEW_INST-1:0]                    o_im_inst_get,
+
+    // Decoded Signals Interface from external ISA Decoder (i_dec_*)
+    input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_IS_INST_REGS)-1:0] i_dec_rd,
+    input  wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS * _BITWIDTH_LOW_IS_INST_REGS)-1:0] i_dec_rs,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_exception,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_newreg_alloc,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_jump,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_jump_reg,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_branch,
+    input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_STRUCT_EX_PATH)-1:0] i_dec_expath,
+    input  wire [(STRUCT_DECODE_NEW_INST * EX_INST_MICROOP_BITWIDTH)-1:0] i_dec_microop,
+    input  wire [(STRUCT_DECODE_NEW_INST * IS_INST_IMM)-1:0]    i_dec_imm,
 
     // IST Interface (i/o_nel_newinst_* / i_ist_field_*)
     input  wire                                                 i_ist_insert_available,
@@ -89,7 +100,7 @@ module new_entry_logic #(
 );
 
     // -------------------------------------------------------------------------
-    // Wires to connect Custom ISA Decoders
+    // Wires to connect decoded inputs to NEL internal logic
     // -------------------------------------------------------------------------
     wire [_BITWIDTH_LOW_IS_INST_REGS-1:0]                       rd          [0:STRUCT_DECODE_NEW_INST-1];
     wire [_BITWIDTH_LOW_IS_INST_REGS-1:0]                       rs          [0:STRUCT_DECODE_NEW_INST-1][0:IS_INST_OPERANDS-1];
@@ -103,45 +114,32 @@ module new_entry_logic #(
     wire [EX_INST_MICROOP_BITWIDTH-1:0]                         microop     [0:STRUCT_DECODE_NEW_INST-1];
     wire [IS_INST_IMM-1:0]                                      imm         [0:STRUCT_DECODE_NEW_INST-1];
 
-
-    // =========================================================================
-    // 💡 [CUSTOM ISA DECODER PLACEHOLDER]
-    // =========================================================================
-    // Please instantiate your custom instruction decoder here.
-    // For each decode slot (0 to STRUCT_DECODE_NEW_INST-1), output the fields
-    // listed in the wires above using `i_im_inst` as input.
-    //
-    // Example (RV32I):
-    // generate
-    //     genvar d_idx;
-    //     for (d_idx = 0; d_idx < STRUCT_DECODE_NEW_INST; d_idx = d_idx + 1) begin : gen_decoders
-    //         rv32i_decoder U_DEC (
-    //             .inst_i(i_im_inst[d_idx * IS_INST_BITWIDTH +: IS_INST_BITWIDTH]),
-    //             .exception_o(exception[d_idx]),
-    //             .newreg_alloc_o(newreg_alloc[d_idx]),
-    //             ...
-    //         );
-    //     end
-    // endgenerate
-    // =========================================================================
-    
-    // Default assignment placeholder (To prevent compilation errors before user puts custom decoders)
+    // Default assignment placeholder for ready tracking
     generate
-        genvar dummy_idx;
-        for (dummy_idx = 0; dummy_idx < STRUCT_DECODE_NEW_INST; dummy_idx = dummy_idx + 1) begin : gen_dummy_decoder
-            assign rd[dummy_idx]           = 0;
-            assign exception[dummy_idx]    = 0;
-            assign newreg_alloc[dummy_idx] = 0;
-            assign jump[dummy_idx]         = 0;
-            assign jump_reg[dummy_idx]     = 0;
-            assign branch[dummy_idx]       = 0;
-            assign ready[dummy_idx]        = 0;
-            assign expath[dummy_idx]       = 0;
-            assign microop[dummy_idx]      = 0;
-            assign imm[dummy_idx]          = 0;
+        genvar r_idx;
+        for (r_idx = 0; r_idx < STRUCT_DECODE_NEW_INST; r_idx = r_idx + 1) begin : gen_ready_init
+            assign ready[r_idx] = 0;
+        end
+    endgenerate
+
+    // -------------------------------------------------------------------------
+    // Unpacking Decoded Input Signals
+    // -------------------------------------------------------------------------
+    genvar u_idx;
+    generate
+        for (u_idx = 0; u_idx < STRUCT_DECODE_NEW_INST; u_idx = u_idx + 1) begin : gen_dec_unpack
+            assign rd[u_idx]           = i_dec_rd[u_idx * _BITWIDTH_LOW_IS_INST_REGS +: _BITWIDTH_LOW_IS_INST_REGS];
+            assign exception[u_idx]    = i_dec_exception[u_idx];
+            assign newreg_alloc[u_idx] = i_dec_newreg_alloc[u_idx];
+            assign jump[u_idx]         = i_dec_jump[u_idx];
+            assign jump_reg[u_idx]     = i_dec_jump_reg[u_idx];
+            assign branch[u_idx]       = i_dec_branch[u_idx];
+            assign expath[u_idx]       = i_dec_expath[u_idx * _BITWIDTH_LOW_STRUCT_EX_PATH +: _BITWIDTH_LOW_STRUCT_EX_PATH];
+            assign microop[u_idx]      = i_dec_microop[u_idx * EX_INST_MICROOP_BITWIDTH +: EX_INST_MICROOP_BITWIDTH];
+            assign imm[u_idx]          = i_dec_imm[u_idx * IS_INST_IMM +: IS_INST_IMM];
             
-            for (genvar op_idx = 0; op_idx < IS_INST_OPERANDS; op_idx = op_idx + 1) begin : gen_dummy_rs
-                assign rs[dummy_idx][op_idx] = 0;
+            for (genvar op_idx = 0; op_idx < IS_INST_OPERANDS; op_idx = op_idx + 1) begin : gen_unpack_rs
+                assign rs[u_idx][op_idx] = i_dec_rs[((u_idx * IS_INST_OPERANDS) + op_idx) * _BITWIDTH_LOW_IS_INST_REGS +: _BITWIDTH_LOW_IS_INST_REGS];
             end
         end
     endgenerate

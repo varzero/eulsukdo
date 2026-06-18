@@ -33,6 +33,7 @@ module eulsukdo_gen #(
     localparam _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES = $clog2(STRUCT_INST_STATE_ENTRIES),
     localparam _BITWIDTH_LOW_IS_INST_REGS        = $clog2(IS_INST_REGS),
     localparam _STRUCT_EX_OUT_RESULT_ALL         = STRUCT_EX_OUT_RESULT.sum(),
+    localparam _STRUCT_RS_OUT_ENTRY_ALL          = STRUCT_RS_OUT_ENTRY.sum(),
 
     // Composite Bitwidths (LSB to MSB ordering combined with 'n')
     localparam _BITWIDTH_CMB_FLOW_INDEXnPC       = _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS + IS_INST_PC_BITWIDTH
@@ -44,15 +45,28 @@ module eulsukdo_gen #(
     input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_im_inst_valid,
     input  wire [(STRUCT_DECODE_NEW_INST*IS_INST_BITWIDTH)-1:0] i_im_inst,
     output wire [STRUCT_DECODE_NEW_INST-1:0]                    o_im_inst_get,
+    output wire [(STRUCT_DECODE_NEW_INST*IS_INST_BITWIDTH)-1:0] o_dec_inst,
 
     // Instruction Memory PC Output (i/o_im_pc_*)
     output wire                                                 o_im_pc_valid, // equivalent to o_im_re / o_im_re
     output wire [_BITWIDTH_CMB_FLOW_INDEXnPC-1:0]               o_im_pc,
 
+    // Decoded Signals Interface from external ISA Decoder (i_dec_*)
+    input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_IS_INST_REGS)-1:0] i_dec_rd,
+    input  wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS * _BITWIDTH_LOW_IS_INST_REGS)-1:0] i_dec_rs,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_exception,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_newreg_alloc,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_jump,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_jump_reg,
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_dec_branch,
+    input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_STRUCT_EX_PATH)-1:0] i_dec_expath,
+    input  wire [(STRUCT_DECODE_NEW_INST * EX_INST_MICROOP_BITWIDTH)-1:0] i_dec_microop,
+    input  wire [(STRUCT_DECODE_NEW_INST * IS_INST_IMM)-1:0]    i_dec_imm,
+
     // Ready Station Execution Issue Interface (o_ex_entry_*)
-    output wire [STRUCT_EX_PATH-1:0]                            o_ex_entry_valid,
-    output wire [((_BITWIDTH_CMB_FLOW_INDEXnPC + _BITWIDTH_LOW_STRUCT_EX_PATH + EX_INST_MICROOP_BITWIDTH + IS_INST_IMM + _BITWIDTH_LOW_STRUCT_PHYREGS + (_BITWIDTH_LOW_STRUCT_PHYREGS * IS_INST_OPERANDS)) * STRUCT_EX_PATH)-1:0] o_ex_entry,
-    input  wire [STRUCT_EX_PATH-1:0]                            i_ex_entry_get,
+    output wire [_STRUCT_RS_OUT_ENTRY_ALL-1:0]                  o_ex_entry_valid,
+    output wire [(_STRUCT_RS_OUT_ENTRY_ALL * (_BITWIDTH_CMB_FLOW_INDEXnPC + EX_INST_MICROOP_BITWIDTH + IS_INST_IMM + _BITWIDTH_LOW_STRUCT_PHYREGS + (_BITWIDTH_LOW_STRUCT_PHYREGS * IS_INST_OPERANDS)))-1:0] o_ex_entry,
+    input  wire [_STRUCT_RS_OUT_ENTRY_ALL-1:0]                  i_ex_entry_get,
 
     // Execution Unit Write Back Interface (i_ex_done_*)
     input  wire [_STRUCT_EX_OUT_RESULT_ALL-1:0]                  i_ex_done,
@@ -156,6 +170,9 @@ module eulsukdo_gen #(
         end
     endgenerate
 
+    // Bypass instruction raw data to external decoder
+    assign o_dec_inst = i_im_inst;
+
     // FCL jump packet translation
     wire [NEL_JUMP_BRANCH_PACKET_WIDTH-1:0] fcl_jump_branch_data;
     assign fcl_jump_branch_data = {
@@ -194,8 +211,17 @@ module eulsukdo_gen #(
         .reset_n                     (reset_n),
         .i_im_inst_valid             (i_im_inst_valid),
         .i_im_inst_pc                (nel_inst_pc),
-        .i_im_inst                     (i_im_inst),
         .o_im_inst_get                 (o_im_inst_get),
+        .i_dec_rd                    (i_dec_rd),
+        .i_dec_rs                    (i_dec_rs),
+        .i_dec_exception             (i_dec_exception),
+        .i_dec_newreg_alloc          (i_dec_newreg_alloc),
+        .i_dec_jump                  (i_dec_jump),
+        .i_dec_jump_reg              (i_dec_jump_reg),
+        .i_dec_branch                (i_dec_branch),
+        .i_dec_expath                (i_dec_expath),
+        .i_dec_microop               (i_dec_microop),
+        .i_dec_imm                   (i_dec_imm),
         .i_ist_insert_available      (ist_insert_available),
         .o_ist_field_insert            (ist_field_insert),
         .i_ist_field_valid             (ist_field_valid),
