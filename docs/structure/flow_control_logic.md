@@ -37,21 +37,68 @@ PC는 하나만 전달되며, Instruction Memory는 전달된 PC를 시작으로
 
 ### 점프/분기 명령 여부 수신
 #### PC제어 명령의 정보를 NEL에서 수신
-
+Program Counter를 변경하는 명령정보를 받고, 해당 명령의 종류에 따라 특정한 동작이 되도록  
+점프/분기/변경될 PC를 입력받습니다.  
+(Calculate Next Program Counter를 제어)
 
 **Valid 기반 전송**을 사용하는데, 다른 규격과 달리 주소와 플래그가 수신됩니다.  
 - jump[0]: Immediate 값을 이용한 점프 명령 여부
 - jump_reg[0]: 레지스터 값을 이용한 점프 명령 여부
 - branch[0]: 분기 명령 여부
 - new_pc[```IS_INST_BITWIDTH```-1:0]: 점프/분기로 변경되거나 변경될 수 있는 PC. *단, jump_reg 발생에서는 사용하지 않음*
-
+딱 한세트만 전달되며,  
 배포용 소스 코드에서 명칭은 ```i/o_nel_jump_branch_*``` 입니다.
 
 ### 완료된 명령들의 PC를 수신
-#### 실행이 완료된 명령들의 Flow Index와 Program Counter를 EX에서 수신
+#### 실행이 완료된 명령들의 Flow Index와 Program Counter를 WBC에서 수신
+명령 윈도우의 관리를 위해 실행이 완료된 명령의 Flow Index와 Program Counter를 입력받습니다.  
 
-### 덮어 씌워지는 내부 레지스터 번호를 반환 큐에 저장
-#### ISA 레지스터가 겹쳐져 기존에 할당된 내부 레지스터를 제거하기 위한 
+실행이 완료된 명령 정보의 데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|Program Counter|Flow Index|
+|-|-|
+|[```_BITWIDTH_STRUCT_FLOW_WINDOWS```-1:0]|[```IS_INST_PC_BITWIDTH```-1:0]|
+
+이 정보는 동시에 _STRUCT_EX_OUT_RESULT_ALL 만큼 수신할 수 있습니다.  
+단, **첫번째 요소는 항상 분기 명령에 대한 요소**입니다.
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_wbc_pc_*``` 입니다.
+
+#### 처리가 완료된 Branch 결과를 WBC에서 수신
+Branch EX에서 출력된 결과를 FCL로 내보냅니다.  
+
+데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|New Program Counter|Branch Active|
+|-|-|
+|[```IS_INST_PC_BITWIDTH```-1:0]|[0]|
+
+이 정보는 **오직 하나입니다.**  
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_wbc_branch_*``` 입니다.  
+
+### 덮어 씌워지는 내부 레지스터 번호를 수신
+#### 특정 명령 이후에 사용되지 않는 내부 레지스터 번호를 NEL에서 수신
+추후 명령 윈도우가 모두 처리되었을때 사용되지 않는 내부 레지스터 반환을 위해  
+덮어 씌워지는 내부 레지스터 번호를 입력받습니다.
+
+데이터 구조는 MSB부터 LSB 순서로 아래와 같고,
+|Retired Physical Register Number|
+|-|
+|[```_BITWIDTH_STRUCT_PHYREGS```-1:0]|
+
+이 정보는 동시에 STRUCT_DECODE_NEW_INST 만큼 수신할 수 있습니다.  
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_nel_unallo_reg_*``` 입니다.
 
 ### 사용 완료된 내부 레지스터 번호를 반환
-#### 
+#### 반환할 내부 레지스터 번호를 PRM에 전달
+#### 반환되는 내부 레지스터 번호를 FCL에서 수신
+더이상 사용되지 않는 내부 레지스터 번호를 내보냅니다.
+
+데이터는 내부 레지스터 번호이며,  
+이 정보는 동시에 STRUCT_UNALLOCATE_PHYREG 만큼 전달할 수 있습니다.  
+
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_prm_unallocate_*``` 입니다.

@@ -75,13 +75,10 @@ Register File의 데이터로 **Instruction State Entry 번호**(너비: ```_BIT
 더이상 사용되지 않는 내부 레지스터 번호를 입력받습니다.
 
 데이터는 내부 레지스터 번호이며,  
-이 정보는 동시에 STRUCT_DECODE_NEW_INST 만큼 수신할 수 있습니다.  
+이 정보는 동시에 STRUCT_UNALLOCATE_PHYREG 만큼 수신할 수 있습니다.  
 
 **Valid 기반 전송**을 사용합니다.  
 배포용 소스 코드에서 명칭은 ```i/o_fcl_unallocate_*``` 입니다.
-
-데이터는 내부 레지스터 번호이며,  
-이 정보는 동시에 STRUCT_UNALLOCATE_PHYREG 만큼 전달할 수 있습니다.  
 
 ### 내부 레지스터 번호에 연결된 명령 대기열에 레지스터를 추가
 #### 대기열에 추가할 IST 번호를 IST에서 수신
@@ -94,13 +91,20 @@ Register File의 데이터로 **Instruction State Entry 번호**(너비: ```_BIT
 배포용 소스 코드에서 명칭은 ```i/o_ist_unallocate_*``` 입니다.
 
 ### 완료된 내부 레지스터 번호에 연결된 대기열의 명령들을 전달
-#### 처리가 완료된 내부 레지스터 번호를 쯏에서 수신
+#### 처리가 완료된 내부 레지스터 번호를 WBC에서 수신
 준비된 내부 레지스터 번호를 WBC에서 입력받습니다.  
 
 데이터는 내부 레지스터 번호이며,  
 이 정보는 동시에 _STRUCT_EX_OUT_RESULT_ALL 만큼 수신할 수 있습니다. 
 
+**Valid 기반 전송**을 사용합니다.  
+배포용 소스 코드에서 명칭은 ```i/o_wbc_phyreg_*``` 입니다.
+
 #### 준비된 내부 레지스터의 대기열에 저장된 IST 엔트리 번호를 IST로 전달
+Internal Register <-> IST Entry Map Buffer에서 가져온 내부 레지스터 대기열의 IST 엔트리 번호들을 내보냅니다.
+
+데이터는 IST 엔트리 번호들이며,  
+이 정보는 동시에 STRUCT_PRM_ENTRY_UPDATE 만큼 전송할 수 있습니다. 
 
 **Handshake 기반 전송**을 사용합니다.  
 배포용 소스 코드에서 명칭은 ```i/o_ist_ready_phyreg_*``` 입니다.
