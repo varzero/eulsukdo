@@ -6,6 +6,7 @@ export interface DecoderParamConfig {
   instOperands: number;
   instImm: number;
   microopBitWidth: number;
+  isaName: string;
 }
 
 export type FieldRole = 'Condition' | 'rd' | 'rs1' | 'rs2' | 'imm' | 'None';
@@ -49,6 +50,7 @@ export function generateDecoderRTL(
     instOperands,
     instImm,
     microopBitWidth,
+    isaName,
   } = decConfig;
 
   const logRegWidth = Math.max(1, Math.ceil(Math.log2(instRegs)));
@@ -154,7 +156,7 @@ export function generateDecoderRTL(
 //    - Supported Core Paths: ${exPaths} (${coresList.map(c => c.name).join(', ')})
 // =============================================================================
 
-module rv32i_decoder #(
+module ${isaName || 'eulsukdo'}_decoder #(
     parameter int IS_INST_BITWIDTH         = ${instBitWidth},
     parameter int IS_INST_REGS             = ${instRegs},
     parameter int IS_INST_OPERANDS         = ${instOperands},

@@ -14,6 +14,7 @@ export interface SchedulerConfig {
   prmBuffer: number;
   unallocatePhyreg: number;
   flowWindows: number;
+  isaName?: string;
 }
 
 export function generateRTL(config: SchedulerConfig): string {
@@ -26,6 +27,7 @@ export function generateRTL(config: SchedulerConfig): string {
     prmBuffer,
     unallocatePhyreg,
     flowWindows,
+    isaName,
   } = config;
 
   const totalCores = coresList.reduce((sum, c) => sum + c.count, 0);
@@ -132,7 +134,7 @@ module eulsukdo_example_top #(
     genvar d_idx;
     generate
         for (d_idx = 0; d_idx < STRUCT_DECODE_NEW_INST; d_idx = d_idx + 1) begin : gen_decoders
-            rv32i_decoder #(
+            ${isaName || 'eulsukdo'}_decoder #(
                 .IS_INST_BITWIDTH         (IS_INST_BITWIDTH),
                 .IS_INST_REGS             (IS_INST_REGS),
                 .IS_INST_OPERANDS         (IS_INST_OPERANDS),

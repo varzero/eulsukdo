@@ -195,7 +195,7 @@ export const DecoderCustomizer: React.FC<DecoderCustomizerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'rv32i_decoder.sv';
+    link.download = `${decConfig.isaName || 'eulsukdo'}_decoder.sv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -212,6 +212,28 @@ export const DecoderCustomizer: React.FC<DecoderCustomizerProps> = ({
         </div>
         
         <div className="sidebar-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* ISA Name Input */}
+          <div className="form-group">
+            <label className="form-label">
+              <span>ISA Name (Prefix)</span>
+            </label>
+            <input
+              type="text"
+              style={{
+                backgroundColor: '#1e1e1e',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-main)',
+                padding: '8px 12px',
+                fontSize: '13px',
+                outline: 'none',
+                borderRadius: '2px'
+              }}
+              value={decConfig.isaName}
+              onChange={(e) => onChangeDecConfig({ ...decConfig, isaName: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+              placeholder="e.g. rv32i, mips, custom"
+            />
+          </div>
+
           {/* Inst bit width */}
           <div className="form-group">
             <label className="form-label">

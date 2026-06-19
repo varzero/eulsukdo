@@ -34,6 +34,7 @@ function App() {
     instOperands: 2,
     instImm: 32,
     microopBitWidth: 5,
+    isaName: 'rv32i',
   });
 
   const [formatsList, setFormatsList] = useState<InstructionFormat[]>([
@@ -149,6 +150,7 @@ function App() {
     for (const p of decParams) {
       if (!(p in data.decoder) || typeof data.decoder[p] !== 'number') return false;
     }
+    if (typeof data.decoder.isaName !== 'string') return false;
 
     // 3. Formats Validation
     if (!Array.isArray(data.formats)) return false;
@@ -254,7 +256,7 @@ function App() {
     e.target.value = ''; // Reset input to allow duplicate selection
   };
 
-  const generatedCode = generateRTL(config);
+  const generatedCode = generateRTL({ ...config, isaName: decoderConfig.isaName });
 
   return (
     <>
@@ -346,7 +348,7 @@ function App() {
           <Sidebar config={config} onChange={setConfig} />
 
           {/* Center: Dynamic Hardware Pipeline SVG Visualizer */}
-          <Visualizer config={config} />
+          <Visualizer config={{ ...config, isaName: decoderConfig.isaName }} />
 
           {/* Right Side: Code Preview and file download triggers */}
           <CodePreview code={generatedCode} />

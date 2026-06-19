@@ -106,7 +106,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ config }) => {
           <g
             onMouseEnter={() =>
               showTooltip(
-                'Decode Stage (RV32I Decoders)',
+                `Decode Stage (${config.isaName ? config.isaName.toUpperCase() : 'Instruction'} Decoders)`,
                 `인출된 명령어를 즉시 병렬 분석하여, 목적지 레지스터(rd), 소스 레지스터(rs1, rs2), 부호확장 즉시값(Immediate), 연산 분류(Micro-OP)를 추출합니다.`
               )
             }
