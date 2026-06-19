@@ -192,7 +192,7 @@ module tb_eulsukdo_example_top ();
         ready_vmem_i = 1'b0;
 
         $display("=========================================");
-        $display("🚀 Starting EULSUKDO Parameterized Top Testbench");
+        $display(" Starting EULSUKDO Parameterized Top Testbench");
         $display("   - Decode Width: %0d | Issue Width: 5", STRUCT_DECODE_NEW_INST);
         $display("=========================================");
 
@@ -212,7 +212,7 @@ module tb_eulsukdo_example_top ();
                 $display("[%0d ns] End instruction (ebreak or out-of-bounds) detected. Waiting for pipeline drain...", $time);
                 repeat (DRAIN_CYCLES) @(negedge clk);
                 $display("=========================================");
-                $display("🎉 Simulation completed successfully!");
+                $display(" Simulation completed successfully!");
                 $display("=========================================");
                 $finish;
             end
