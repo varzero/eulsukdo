@@ -17,91 +17,11 @@ const COLOR_PALETTE = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
   const updateParam = (key: keyof Omit<SchedulerConfig, 'coresList'>, val: number) => {
     onChange({
       ...config,
       [key]: val,
     });
-  };
-
-  // Validation function for SchedulerConfig schema
-  const validateConfig = (data: any): data is SchedulerConfig => {
-    if (!data || typeof data !== 'object') return false;
-
-    const requiredParams = [
-      'decodeWidth',
-      'phyRegs',
-      'robEntries',
-      'coresList',
-      'prmUpdate',
-      'prmBuffer',
-      'unallocatePhyreg',
-      'flowWindows'
-    ];
-
-    for (const param of requiredParams) {
-      if (!(param in data)) return false;
-      if (param !== 'coresList' && typeof data[param] !== 'number') return false;
-    }
-
-    if (!Array.isArray(data.coresList)) return false;
-
-    for (const core of data.coresList) {
-      if (!core || typeof core !== 'object') return false;
-      if (
-        typeof core.id !== 'string' ||
-        typeof core.name !== 'string' ||
-        typeof core.count !== 'number' ||
-        typeof core.stroke !== 'string'
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  // Export current config as JSON file
-  const handleExportJSON = () => {
-    const dataStr = JSON.stringify(config, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'eulsukdo_config.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Trigger file selection for importing
-  const handleTriggerImport = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Handle uploaded JSON file configuration mapping
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (validateConfig(parsed)) {
-          onChange(parsed);
-        } else {
-          alert('Invalid configuration format. Please upload a valid EULSUKDO configuration file.');
-        }
-      } catch (err) {
-        alert('Failed to parse JSON file. Ensure it is a valid JSON document.');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = ''; // Reset file input
   };
 
   // Add a new core type dynamically
@@ -162,33 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
 
   return (
     <div className="panel sidebar">
-      <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="panel-header">
         <h2 className="panel-title">Configuration</h2>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button 
-            className="btn" 
-            style={{ padding: '2px 8px', fontSize: '10px', borderColor: '#444', color: '#ccc' }} 
-            onClick={handleExportJSON}
-            title="Export parameters to JSON file"
-          >
-            Export
-          </button>
-          <button 
-            className="btn" 
-            style={{ padding: '2px 8px', fontSize: '10px', borderColor: '#444', color: '#ccc' }} 
-            onClick={handleTriggerImport}
-            title="Import parameters from JSON file"
-          >
-            Import
-          </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            accept=".json" 
-            onChange={handleImportJSON} 
-          />
-        </div>
       </div>
       <div className="sidebar-content">
         
