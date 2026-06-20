@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
             onChange={(e) => updateParam('decodeWidth', isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))}
           />
           <p className="slider-description">
-            한 사이클에 인출/디코드하여 스케줄러 큐에 전달할 명령어 슬롯 수입니다.
+            디코더의 수 입니다.
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
             onChange={(e) => updateParam('phyRegs', isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))}
           />
           <p className="slider-description">
-            물리 레지스터(PRF) 개수입니다. 리셋 시 1사이클 비트맵 할당기로 즉각 리셋 및 동작 세팅됩니다.
+            내부 레지스터(Physical Registers) 개수입니다.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
             onChange={(e) => updateParam('robEntries', isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))}
           />
           <p className="slider-description">
-            비순차 완료 정렬을 위한 내부 ROB 버퍼 엔트리 개수입니다.
+            IST(Instruction State Table) 엔트리의 총 갯수 입니다.
           </p>
         </div>
 
@@ -192,7 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
 
             {/* Core Name */}
             <div className="form-group">
-              <label style={{ fontSize: '10px', color: '#888' }}>Core Type Name</label>
+              <label style={{ fontSize: '10px', color: '#888' }}>Execution Core Name</label>
               <input
                 type="text"
                 style={{
@@ -237,7 +237,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ config, onChange }) => {
           style={{ width: '100%', padding: '8px', fontSize: '11px', marginTop: '4px' }} 
           onClick={handleAddCore}
         >
-          + Add Core Type
+          + Add New EX
         </button>
 
       </div>
