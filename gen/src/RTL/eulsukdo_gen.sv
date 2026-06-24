@@ -419,6 +419,8 @@ module eulsukdo_gen #(
         .o_im_pc                     (o_im_pc),
         .i_nel_jump_branch_valid     (nel_jump_inst | nel_jreg_branch_inst),
         .i_nel_jump_branch_data     (fcl_jump_branch_data),
+        .i_nel_newpc_valid           (nel_newpc_valid),
+        .i_nel_newpc                 (nel_newpc),
         .i_nel_unallo_reg_valid     (nel_lastreg_valid),
         .i_nel_unallo_reg_data         (nel_lastreg),
         .o_prm_unallocate_valid     (prm_unallocate_valid),

@@ -56,6 +56,10 @@ module flow_control_logic #(
     input  wire                                                 i_nel_jump_branch_valid,
     input  wire [NEL_JUMP_BRANCH_PACKET_WIDTH-1:0]              i_nel_jump_branch_data,
 
+    // NEL newpc interface
+    input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_nel_newpc_valid,
+    input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_CMB_FLOW_INDEXnPC)-1:0] i_nel_newpc,
+
     // NEL Unallocate interface (i/o_nel_unallo_reg_*)
     input  wire [STRUCT_DECODE_NEW_INST-1:0]                    i_nel_unallo_reg_valid,
     input  wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_STRUCT_PHYREGS)-1:0] i_nel_unallo_reg_data,
@@ -274,7 +278,7 @@ module flow_control_logic #(
             for (integer nel_newpc_idx = 0; nel_newpc_idx < STRUCT_DECODE_NEW_INST; nel_newpc_idx = nel_newpc_idx + 1) begin
                 split_fcpath = i_nel_newpc[( ( _BITWIDTH_CMB_FLOW_INDEXnPC * nel_newpc_idx ) + IS_INST_PC_BITWIDTH ) +: _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS];
                 if (split_fcpath == rcpath_split_idx) begin
-                    nel_newpc_valid_FCPATH[rcpath_split_idx][nel_newpc_idx] = 1'b1;
+                    nel_newpc_valid_FCPATH[rcpath_split_idx][nel_newpc_idx] = i_nel_newpc_valid[nel_newpc_idx];
                 end
             end
 
