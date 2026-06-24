@@ -20,6 +20,7 @@ module write_back_concatenation #(
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = '{1, 1, 1},
     parameter int STRUCT_EX_CORES                = 3,
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = '{1, 1, 1},
+    parameter int STRUCT_EX_OUT_RESULT_SUM       = 3,
     parameter int STRUCT_PRM_ENTRY_UPDATE        = 3,
     parameter int STRUCT_PRM_ENTRY_BUFFER        = 4,
     parameter int STRUCT_UNALLOCATE_PHYREG       = 4,
@@ -27,7 +28,7 @@ module write_back_concatenation #(
     parameter int STRUCT_FLOW_PC_MAX_RANGE       = 8,
 
     // Auto-generated Localparams in Parameter section for port declaration usage
-    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT.sum(),
+    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT_SUM,
     localparam int _BITWIDTH_LOW_STRUCT_PHYREGS         = $clog2(STRUCT_PHYREGS),
     localparam int _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS   = $clog2(STRUCT_FLOW_WINDOWS),
 

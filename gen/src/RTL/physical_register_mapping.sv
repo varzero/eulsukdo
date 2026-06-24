@@ -20,6 +20,7 @@ module physical_register_mapping #(
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = '{1, 1, 1},
     parameter int STRUCT_EX_CORES                = 3,
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = '{1, 1, 1},
+    parameter int STRUCT_EX_OUT_RESULT_SUM       = 3,
     parameter int STRUCT_PRM_ENTRY_UPDATE        = 3,
     parameter int STRUCT_PRM_ENTRY_BUFFER        = 4,
     parameter int STRUCT_UNALLOCATE_PHYREG       = 4,
@@ -33,7 +34,7 @@ module physical_register_mapping #(
     localparam int _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES = $clog2(STRUCT_INST_STATE_ENTRIES),
     localparam int _BITWIDTH_LOW_STRUCT_PRM_ENTRY_BUFFER = $clog2(STRUCT_PRM_ENTRY_BUFFER + 1),
 
-    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT.sum(),
+    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT_SUM,
 
     // Allocator & Unallocator flat widths
     localparam int PRM_ALLOCATE_BITWIDTH                = _BITWIDTH_LOW_STRUCT_PHYREGS * STRUCT_DECODE_NEW_INST,

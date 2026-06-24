@@ -18,6 +18,7 @@ module ready_station #(
     parameter int STRUCT_PHYREGS                 = 64,
     parameter int STRUCT_EX_PATH                 = 3,
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = '{1, 1, 1},
+    parameter int STRUCT_RS_OUT_ENTRY_SUM        = 3,
     parameter int STRUCT_EX_CORES                = 3,
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = '{1, 1, 1},
     parameter int STRUCT_PRM_ENTRY_UPDATE        = 3,
@@ -30,7 +31,7 @@ module ready_station #(
     localparam int _BITWIDTH_LOW_STRUCT_PHYREGS         = $clog2(STRUCT_PHYREGS),
     localparam int _BITWIDTH_LOW_STRUCT_EX_PATH         = $clog2(STRUCT_EX_PATH),
     localparam int _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS   = $clog2(STRUCT_FLOW_WINDOWS),
-    localparam int _STRUCT_RS_OUT_ENTRY_ALL            = STRUCT_RS_OUT_ENTRY.sum(),
+    localparam int _STRUCT_RS_OUT_ENTRY_ALL            = STRUCT_RS_OUT_ENTRY_SUM,
 
     // RS Push Width
     localparam int RS_PUSH_WIDTH                        = STRUCT_DECODE_NEW_INST + STRUCT_PRM_ENTRY_UPDATE,

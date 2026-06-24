@@ -20,6 +20,7 @@ module new_entry_logic #(
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = '{1, 1, 1},
     parameter int STRUCT_EX_CORES                = 3,
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = '{1, 1, 1},
+    parameter int STRUCT_EX_OUT_RESULT_SUM       = 3,
     parameter int STRUCT_PRM_ENTRY_UPDATE        = 3,
     parameter int STRUCT_PRM_ENTRY_BUFFER        = 4,
     parameter int STRUCT_UNALLOCATE_PHYREG       = 4,
@@ -33,7 +34,7 @@ module new_entry_logic #(
     localparam int _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES = $clog2(STRUCT_INST_STATE_ENTRIES),
     localparam int _BITWIDTH_LOW_IS_INST_REGS           = $clog2(IS_INST_REGS),
 
-    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT.sum(),
+    localparam int _STRUCT_EX_OUT_RESULT_ALL            = STRUCT_EX_OUT_RESULT_SUM,
 
     // Composite bitwidths
     localparam int _BITWIDTH_CMB_FLOW_INDEXnPC          = _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS + IS_INST_PC_BITWIDTH,
