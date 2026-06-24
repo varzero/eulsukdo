@@ -90,7 +90,7 @@ module ready_station #(
     endgenerate
 
     // EX Path validation and routing logic
-    wire [RS_PUSH_WIDTH-1:0] ex_fifo_target_same_ex [0:STRUCT_EX_PATH-1];
+    reg  [RS_PUSH_WIDTH-1:0] ex_fifo_target_same_ex [0:STRUCT_EX_PATH-1];
 
     always @(*) begin
         for (integer target_ex = 0; target_ex < STRUCT_EX_PATH; target_ex = target_ex + 1) begin

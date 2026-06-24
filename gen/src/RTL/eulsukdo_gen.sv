@@ -70,7 +70,7 @@ module eulsukdo_gen #(
 
     // Execution Unit Write Back Interface (i_ex_done_*)
     input  wire [_STRUCT_EX_OUT_RESULT_ALL-1:0]                  i_ex_done,
-    input  wire [(_STRUCT_EX_OUT_RESULT_ALL*IS_INST_PC_BITWIDTH)-1:0] i_ex_done_pc,
+    input  wire [(_STRUCT_EX_OUT_RESULT_ALL*_BITWIDTH_CMB_FLOW_INDEXnPC)-1:0] i_ex_done_pc,
     input  wire [(_STRUCT_EX_OUT_RESULT_ALL*_BITWIDTH_LOW_STRUCT_PHYREGS)-1:0] i_ex_done_phyreg,
     input  wire                                                 i_ex_done_branch,
     input  wire [IS_INST_PC_BITWIDTH-1:0]                       i_ex_done_branch_pc
@@ -131,13 +131,15 @@ module eulsukdo_gen #(
     wire [(STRUCT_DECODE_NEW_INST * _BITWIDTH_LOW_STRUCT_PHYREGS)-1:0] nel_lastreg;
 
     wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS)-1:0]            prm_istindex_valid;
-    wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS * _BITWIDTH_LOW_STRUCT_PHYREGS)-1:0] prm_istindex_phyreg;
-    wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS * _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES)-1:0] prm_istindex_istidx;
+    wire [(STRUCT_DECODE_NEW_INST * IS_INST_OPERANDS * (_BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES + _BITWIDTH_LOW_STRUCT_PHYREGS))-1:0] prm_istindex_data;
 
     wire [STRUCT_PRM_ENTRY_UPDATE-1:0]                                ready_update_valid;
     wire [STRUCT_PRM_ENTRY_UPDATE-1:0]                                ready_update_get;
-    wire [(STRUCT_PRM_ENTRY_UPDATE * _BITWIDTH_LOW_STRUCT_PHYREGS)-1:0] ready_update_phyreg;
-    wire [(STRUCT_PRM_ENTRY_UPDATE * _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES)-1:0] ready_update_istidx;
+    wire [(STRUCT_PRM_ENTRY_UPDATE * (_BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES + _BITWIDTH_LOW_STRUCT_PHYREGS))-1:0] ready_update_data;
+
+    wire [(IS_INST_PC_BITWIDTH + 1)-1:0]                              wbc2fcl_branch_data;
+    wire [155:0]                                                      wbc_ex_result_data;
+
 
     wire                                                              push_rs_available;
     wire [RS_PUSH_WIDTH-1:0]                                          push_rs_valid;
@@ -180,6 +182,29 @@ module eulsukdo_gen #(
         1'b0,
         nel_jreg_branch_inst,
         nel_jump_inst
+    };
+
+    // WBC 패킹 데이터 조립을 위한 분해 및 조립
+    // i_ex_done_pc에서 각 실행 코어별 Flow Index와 실제 PC 분리
+    wire [_BITWIDTH_LOW_STRUCT_FLOW_WINDOWS-1:0] flow_idx_branch = i_ex_done_pc[IS_INST_PC_BITWIDTH +: _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS];
+    wire [IS_INST_PC_BITWIDTH-1:0]               real_pc_branch  = i_ex_done_pc[IS_INST_PC_BITWIDTH-1:0];
+
+    wire [_BITWIDTH_LOW_STRUCT_FLOW_WINDOWS-1:0] flow_idx_alu    = i_ex_done_pc[_BITWIDTH_CMB_FLOW_INDEXnPC + IS_INST_PC_BITWIDTH +: _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS];
+    wire [IS_INST_PC_BITWIDTH-1:0]               real_pc_alu     = i_ex_done_pc[_BITWIDTH_CMB_FLOW_INDEXnPC +: IS_INST_PC_BITWIDTH];
+
+    wire [_BITWIDTH_LOW_STRUCT_FLOW_WINDOWS-1:0] flow_idx_mem    = i_ex_done_pc[(_BITWIDTH_CMB_FLOW_INDEXnPC * 2) + IS_INST_PC_BITWIDTH +: _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS];
+    wire [IS_INST_PC_BITWIDTH-1:0]               real_pc_mem     = i_ex_done_pc[(_BITWIDTH_CMB_FLOW_INDEXnPC * 2) +: IS_INST_PC_BITWIDTH];
+
+    // i_ex_done_phyreg 에서 각 코어별 rd 물리 레지스터 주소 분리
+    wire [_BITWIDTH_LOW_STRUCT_PHYREGS-1:0] rd_num_branch = i_ex_done_phyreg[0 +: _BITWIDTH_LOW_STRUCT_PHYREGS];
+    wire [_BITWIDTH_LOW_STRUCT_PHYREGS-1:0] rd_num_alu    = i_ex_done_phyreg[(_BITWIDTH_LOW_STRUCT_PHYREGS * 1) +: _BITWIDTH_LOW_STRUCT_PHYREGS];
+    wire [_BITWIDTH_LOW_STRUCT_PHYREGS-1:0] rd_num_mem    = i_ex_done_phyreg[(_BITWIDTH_LOW_STRUCT_PHYREGS * 2) +: _BITWIDTH_LOW_STRUCT_PHYREGS];
+
+    // WBC로 보낼 패킹 데이터 조립 (MSB [MEM][ALU][Branch] LSB)
+    assign wbc_ex_result_data = {
+        rd_num_mem, flow_idx_mem, real_pc_mem,
+        rd_num_alu, flow_idx_alu, real_pc_alu,
+        i_ex_done_branch_pc, i_ex_done_branch, rd_num_branch, flow_idx_branch, real_pc_branch
     };
 
     // -------------------------------------------------------------------------
@@ -265,20 +290,17 @@ module eulsukdo_gen #(
     ) U_IST (
         .clk                         (clk),
         .reset_n                     (reset_n),
-        .o_ist_insert_available        (ist_insert_available),
-        .i_ist_field_insert            (ist_field_insert),
-        .o_ist_field_valid             (ist_field_valid),
-        .i_ist_field                   (ist_field),
-        .o_prm_istindex_valid          (prm_istindex_valid),
-        .o_prm_istindex_phyreg         (prm_istindex_phyreg),
-        .o_prm_istindex_istidx         (prm_istindex_istidx),
-        .i_ready_update_valid          (ready_update_valid),
-        .o_ready_update_get            (ready_update_get),
-        .i_ready_update_phyreg         (ready_update_phyreg),
-        .i_ready_update_istidx         (ready_update_istidx),
-        .i_push_rs_available           (push_rs_available),
-        .o_push_rs_valid               (push_rs_valid),
-        .o_push_rs_data                (push_rs_data)
+        .o_nel_newinst_get             (ist_insert_available),
+        .i_nel_newinst_valid           (ist_field_insert),
+        .i_nel_newinst_data            (ist_field),
+        .o_prm_wait_phyreg_valid       (prm_istindex_valid),
+        .o_prm_wait_phyreg_data        (prm_istindex_data),
+        .i_prm_ready_phyreg_valid      (ready_update_valid),
+        .o_prm_ready_phyreg_get        (ready_update_get),
+        .i_prm_ready_phyreg_data       (ready_update_data),
+        .i_rs_readyinst_get            (push_rs_available),
+        .o_rs_readyinst_valid          (push_rs_valid),
+        .o_rs_readyinst_data           (push_rs_data)
     );
 
     physical_register_mapping #(
@@ -304,20 +326,18 @@ module eulsukdo_gen #(
     ) U_PRM (
         .clk                         (clk),
         .reset_n                     (reset_n),
-        .i_allocate_position           (allocate_position),
-        .o_prm_allocate_valid          (prm_allocate_valid),
-        .o_prm_allocate_phyreg         (prm_allocate_phyreg),
-        .i_prm_unallocate_valid        (prm_unallocate_valid),
-        .i_prm_unallocate_phyreg       (prm_unallocate_phyreg),
-        .i_prm_istindex_valid          (prm_istindex_valid),
-        .i_prm_istindex_phyreg         (prm_istindex_phyreg),
-        .i_prm_istindex_istidx         (prm_istindex_istidx),
-        .o_ready_update_valid          (ready_update_valid),
-        .i_ready_update_get            (ready_update_get),
-        .o_ready_update_phyreg         (ready_update_phyreg),
-        .o_ready_update_istidx         (ready_update_istidx),
-        .i_wb_done                     (wb_done),
-        .i_wb_done_phyreg              (wb_done_phyreg),
+        .i_nel_allocate_get            (allocate_position),
+        .o_nel_allocate_valid          (prm_allocate_valid),
+        .o_nel_allocate_phyreg         (prm_allocate_phyreg),
+        .i_fcl_unallocate_valid        (prm_unallocate_valid),
+        .i_fcl_unallocate_phyreg       (prm_unallocate_phyreg),
+        .i_ist_unallocate_valid        (prm_istindex_valid),
+        .i_ist_unallocate_data         (prm_istindex_data),
+        .o_ist_ready_phyreg_valid      (ready_update_valid),
+        .i_ist_ready_phyreg_get        (ready_update_get),
+        .o_ist_ready_phyreg_data       (ready_update_data),
+        .i_wbc_phyreg_valid            (wb_done),
+        .i_wbc_phyreg_data             (wb_done_phyreg),
         .o_prm_active                  (prm_active)
     );
 
@@ -344,12 +364,12 @@ module eulsukdo_gen #(
     ) U_RS (
         .clk                         (clk),
         .reset_n                     (reset_n),
-        .o_ist_ready_entry_get         (push_rs_available),
-        .i_ist_ready_entry_valid       (push_rs_valid),
-        .i_ist_ready_entry             (push_rs_data),
-        .i_ex_entry_get                (i_ex_entry_get),
-        .o_ex_entry_valid              (o_ex_entry_valid),
-        .o_ex_entry                    (o_ex_entry)
+        .o_ist_readyinst_get           (push_rs_available),
+        .i_ist_readyinst_valid         (push_rs_valid),
+        .i_ist_readyinst_data          (push_rs_data),
+        .i_ex_exeinst_get              (i_ex_entry_get),
+        .o_ex_exeinst_valid            (o_ex_entry_valid),
+        .o_ex_exeinst_data             (o_ex_entry)
     );
 
     write_back_concatenation #(
@@ -375,19 +395,16 @@ module eulsukdo_gen #(
     ) U_WBC (
         .clk                         (clk),
         .reset_n                     (reset_n),
-        .i_ex_done                     (i_ex_done),
-        .i_ex_done_pc                  (i_ex_done_pc),
-        .i_ex_done_branch              (i_ex_done_branch),
-        .i_ex_done_branch_pc           (i_ex_done_branch_pc),
-        .i_ex_done_phyreg              (i_ex_done_phyreg),
-        .o_wbc2prm_done                (wb_done),
-        .o_wbc2prm_done_phyreg         (wb_done_phyreg),
-        .o_wbc2nel_done                (wbc2nel_done),
-        .o_wbc2nel_done_phyreg         (wbc2nel_done_phyreg),
-        .o_wbc2fcl_done                (wbc2fcl_done),
-        .o_wbc2fcl_pc                  (wbc2fcl_pc),
-        .o_wbc2fcl_branch              (wbc2fcl_branch),
-        .o_wbc2fcl_branch_pc           (wbc2fcl_branch_pc)
+        .i_ex_result_valid             (i_ex_done),
+        .i_ex_result_data              (wbc_ex_result_data),
+        .o_prm_phyreg_valid            (wb_done),
+        .o_prm_phyreg_data             (wb_done_phyreg),
+        .o_nel_phyreg_valid            (wbc2nel_done),
+        .o_nel_phyreg_data             (wbc2nel_done_phyreg),
+        .o_fcl_pc_valid                (wbc2fcl_done),
+        .o_fcl_pc_data                 (wbc2fcl_pc),
+        .o_fcl_branch_valid            (wbc2fcl_branch),
+        .o_fcl_branch_data             (wbc2fcl_branch_data)
     );
 
     flow_control_logic #(

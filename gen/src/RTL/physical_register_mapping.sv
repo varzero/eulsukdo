@@ -263,9 +263,9 @@ module physical_register_mapping #(
     endgenerate
 
     // Unpack complete notification details and prepare push packets
-    wire [_BITWIDTH_LOW_STRUCT_PHYREGS-1:0]              done_phyreg [0:_STRUCT_EX_OUT_RESULT_ALL-1];
-    wire [_BITWIDTH_LOW_STRUCT_PRM_ENTRY_BUFFER-1:0]     done_buf_cnt [0:_STRUCT_EX_OUT_RESULT_ALL-1];
-    wire [_BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES-1:0]   done_ist_ids [0:_STRUCT_EX_OUT_RESULT_ALL-1][0:STRUCT_PRM_ENTRY_BUFFER-1];
+    reg  [_BITWIDTH_LOW_STRUCT_PHYREGS-1:0]              done_phyreg [0:_STRUCT_EX_OUT_RESULT_ALL-1];
+    reg  [_BITWIDTH_LOW_STRUCT_PRM_ENTRY_BUFFER-1:0]     done_buf_cnt [0:_STRUCT_EX_OUT_RESULT_ALL-1];
+    reg  [_BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES-1:0]   done_ist_ids [0:_STRUCT_EX_OUT_RESULT_ALL-1][0:STRUCT_PRM_ENTRY_BUFFER-1];
     
     reg  [STRUCT_PRM_ENTRY_BUFFER-1:0]                    done_push_mask [0:_STRUCT_EX_OUT_RESULT_ALL-1];
     reg  [(STRUCT_PRM_ENTRY_BUFFER * PRM_READY_OUT_WIDTH)-1:0] done_fifo_data [0:_STRUCT_EX_OUT_RESULT_ALL-1];
