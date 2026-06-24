@@ -20,6 +20,8 @@ module eulsukdo_gen #(
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = '{1, 1, 1},
     parameter int STRUCT_EX_CORES                = 3,
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = '{1, 1, 1},
+    parameter int STRUCT_EX_OUT_RESULT_SUM       = 3,
+    parameter int STRUCT_RS_OUT_ENTRY_SUM        = 3,
     parameter int STRUCT_PRM_ENTRY_UPDATE        = 3,
     parameter int STRUCT_PRM_ENTRY_BUFFER        = 4,
     parameter int STRUCT_UNALLOCATE_PHYREG       = 4,
@@ -32,8 +34,8 @@ module eulsukdo_gen #(
     localparam _BITWIDTH_LOW_STRUCT_EX_PATH      = $clog2(STRUCT_EX_PATH),
     localparam _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES = $clog2(STRUCT_INST_STATE_ENTRIES),
     localparam _BITWIDTH_LOW_IS_INST_REGS        = $clog2(IS_INST_REGS),
-    localparam _STRUCT_EX_OUT_RESULT_ALL         = STRUCT_EX_OUT_RESULT.sum(),
-    localparam _STRUCT_RS_OUT_ENTRY_ALL          = STRUCT_RS_OUT_ENTRY.sum(),
+    localparam _STRUCT_EX_OUT_RESULT_ALL         = STRUCT_EX_OUT_RESULT_SUM,
+    localparam _STRUCT_RS_OUT_ENTRY_ALL          = STRUCT_RS_OUT_ENTRY_SUM,
 
     // Composite Bitwidths (LSB to MSB ordering combined with 'n')
     localparam _BITWIDTH_CMB_FLOW_INDEXnPC       = _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS + IS_INST_PC_BITWIDTH

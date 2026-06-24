@@ -70,6 +70,8 @@ module eulsukdo_example_top #(
     parameter int STRUCT_RS_OUT_ENTRY [STRUCT_EX_PATH] = ${rsOutEntry},
     parameter int STRUCT_EX_CORES                = ${totalCores},
     parameter int STRUCT_EX_OUT_RESULT [STRUCT_EX_CORES] = ${exOutResult},
+    parameter int STRUCT_EX_OUT_RESULT_SUM       = ${totalCores},
+    parameter int STRUCT_RS_OUT_ENTRY_SUM        = ${totalCores},
     parameter int STRUCT_PRM_ENTRY_UPDATE        = ${prmUpdate},
     parameter int STRUCT_PRM_ENTRY_BUFFER        = ${prmBuffer},
     parameter int STRUCT_UNALLOCATE_PHYREG       = ${unallocatePhyreg},
@@ -83,8 +85,8 @@ module eulsukdo_example_top #(
     localparam int _BITWIDTH_LOW_STRUCT_INST_STATE_ENTRIES = $clog2(STRUCT_INST_STATE_ENTRIES),
     localparam int _BITWIDTH_LOW_IS_INST_REGS        = $clog2(IS_INST_REGS),
     
-    localparam int _STRUCT_EX_OUT_RESULT_ALL         = STRUCT_EX_OUT_RESULT.sum(),
-    localparam int _STRUCT_RS_OUT_ENTRY_ALL          = STRUCT_RS_OUT_ENTRY.sum(),
+    localparam int _STRUCT_EX_OUT_RESULT_ALL         = STRUCT_EX_OUT_RESULT_SUM,
+    localparam int _STRUCT_RS_OUT_ENTRY_ALL          = STRUCT_RS_OUT_ENTRY_SUM,
     localparam int _BITWIDTH_CMB_FLOW_INDEXnPC       = _BITWIDTH_LOW_STRUCT_FLOW_WINDOWS + IS_INST_PC_BITWIDTH
 ) (
     input  wire                                                 clk,
@@ -185,6 +187,8 @@ module eulsukdo_example_top #(
         .STRUCT_RS_OUT_ENTRY         (STRUCT_RS_OUT_ENTRY),
         .STRUCT_EX_CORES             (STRUCT_EX_CORES),
         .STRUCT_EX_OUT_RESULT        (STRUCT_EX_OUT_RESULT),
+        .STRUCT_EX_OUT_RESULT_SUM    (STRUCT_EX_OUT_RESULT_SUM),
+        .STRUCT_RS_OUT_ENTRY_SUM     (STRUCT_RS_OUT_ENTRY_SUM),
         .STRUCT_PRM_ENTRY_UPDATE     (STRUCT_PRM_ENTRY_UPDATE),
         .STRUCT_PRM_ENTRY_BUFFER     (STRUCT_PRM_ENTRY_BUFFER),
         .STRUCT_UNALLOCATE_PHYREG    (STRUCT_UNALLOCATE_PHYREG),
